@@ -48,34 +48,30 @@ def kunci_kelompok(nama_file):
 
 def muat_data(folder_area, porsi=(0.70, 0.15, 0.15), seed=42):
     folder_area = Path(folder_area)
-    item = []
+    # Kumpulkan per kelas secara terpisah supaya split tetap seimbang
+    per_kelas = {0: [], 1: []}
     for kelas, label in (("pakai", 1), ("tidak", 0)):
         for f in sorted((folder_area / kelas).iterdir()):
             if f.suffix.lower() in EKSTENSI:
-                item.append((str(f), label, kunci_kelompok(f.name)))
-    if not item:
+                per_kelas[label].append((str(f), label, kunci_kelompok(f.name)))
+    if not any(per_kelas.values()):
         raise SystemExit(f"Tidak ada gambar di {folder_area}")
 
-    # Bagi per kelompok, dengan memisahkan kelompok per kelas supaya
-    # kelas 'tidak' tetap ada di val dan test.
-    per_kelompok = defaultdict(list)
-    for x in item:
-        per_kelompok[(x[2], x[1])].append(x)
     rnd = random.Random(seed)
     bagian = {"train": [], "val": [], "test": []}
-    for label in (1, 0):
-        kel = [k for k in per_kelompok if k[1] == label]
-        rnd.shuffle(kel)
-        n = len(kel)
-        n_tr, n_va = round(n * porsi[0]), round(n * porsi[1])
-        if n >= 3:
-            n_tr = min(max(n_tr, 1), n - 2)
-            n_va = max(n_va, 1)
-        for i, k in enumerate(kel):
-            nama = "train" if i < n_tr else ("val" if i < n_tr + n_va else "test")
-            bagian[nama].extend(per_kelompok[k])
 
-    print(f"Jumlah kelompok foto (orang/sesi): {len({x[2] for x in item})}")
+    # Split per kelas → distribusi seimbang di setiap split
+    for label, daftar in per_kelas.items():
+        daftar = list(daftar)
+        rnd.shuffle(daftar)
+        n = len(daftar)
+        n_tr = round(n * porsi[0])
+        n_va = round(n * porsi[1])
+        bagian["train"].extend(daftar[:n_tr])
+        bagian["val"].extend(daftar[n_tr:n_tr + n_va])
+        bagian["test"].extend(daftar[n_tr + n_va:])
+
+    print(f"Jumlah kelompok foto (orang/sesi): {len({x[2] for x in bagian['train'] + bagian['val'] + bagian['test']})}")
     for nama, isi in bagian.items():
         p = sum(1 for x in isi if x[1] == 1)
         print(f"  {nama:<6} total {len(isi):>5}  pakai {p:>5}  tidak {len(isi) - p:>5}")
@@ -102,11 +98,11 @@ def lapisan_augmentasi(flip=True):
     if flip:
         lapisan.append(keras.layers.RandomFlip("horizontal"))
     lapisan += [
-        keras.layers.RandomRotation(0.03),          # sekitar +-10 derajat
-        keras.layers.RandomZoom(0.10),
-        keras.layers.RandomTranslation(0.05, 0.05),
-        keras.layers.RandomBrightness(0.25, value_range=(0, 255)),
-        keras.layers.RandomContrast(0.25),
+        keras.layers.RandomRotation(0.10),          # lebih besar: +-36 derajat
+        keras.layers.RandomZoom(0.20),
+        keras.layers.RandomTranslation(0.10, 0.10),
+        keras.layers.RandomBrightness(0.30, value_range=(0, 255)),
+        keras.layers.RandomContrast(0.30),
     ]
     return keras.Sequential(lapisan, name="augmentasi")
 

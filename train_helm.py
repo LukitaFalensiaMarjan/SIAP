@@ -17,11 +17,11 @@ CFG = {
     "folder_dataset": "dataset_area",
     "path_model": "models/model_helm.keras",
     "ukuran": (96, 96),                 # tinggi, lebar input CNN
-    "batch": 32,
+    "batch": 16,                        # batch lebih kecil -> lebih banyak update, lebih stabil
     "epochs": 60,
-    "learning_rate": 1e-3,
-    "patience": 8,                      # early stopping
-    "min_recall_tidak": 0.95,           # target: 95% orang tanpa helm harus tertangkap
+    "learning_rate": 5e-4,              # LR lebih kecil -> konvergensi lebih stabil
+    "patience": 10,                     # early stopping
+    "min_recall_tidak": 0.90,           # sedikit dilonggarkan agar threshold tidak terlalu ekstrem
     "seed": 42,
 }
 
@@ -45,8 +45,9 @@ def build_model(input_shape):
     x = keras.layers.MaxPooling2D()(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = keras.layers.Dense(64, activation="relu")(x)
-    x = keras.layers.Dropout(0.4)(x)
+    x = keras.layers.Dense(64, activation="relu",
+                           kernel_regularizer=keras.regularizers.l2(1e-3))(x)
+    x = keras.layers.Dropout(0.5)(x)  # dropout lebih besar untuk regularisasi
     x_out = keras.layers.Dense(1, activation="sigmoid")(x)
     return keras.Model(x_in, x_out, name="cnn_helm")
 

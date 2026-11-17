@@ -1,0 +1,13 @@
+{
+  "area": "helm",
+  "ukuran": [
+    96,
+    96
+  ],
+  "threshold": 0.21,
+  "path_model": "models/model_helm.keras",
+  "label": {
+    "0": "tidak",
+    "1": "pakai"
+  }
+}

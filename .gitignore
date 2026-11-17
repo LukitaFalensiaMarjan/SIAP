@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+
+# Model file besar (opsional: uncomment jika tidak mau push)
+# models/*.keras
+
+# Dataset (gambar terlalu besar untuk GitHub)
+dataset_area/
+data_mentah/
