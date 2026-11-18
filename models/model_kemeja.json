@@ -1,0 +1,13 @@
+{
+  "area": "baju",
+  "ukuran": [
+    128,
+    128
+  ],
+  "threshold": 0.05,
+  "path_model": "models/model_kemeja.keras",
+  "label": {
+    "0": "tidak",
+    "1": "pakai"
+  }
+}

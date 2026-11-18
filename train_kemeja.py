@@ -1,36 +1,38 @@
 """
-Training CNN deteksi BAJU PRAKTIK / KEMEJA (dibuat dari nol, tanpa model pretrained).
+Training CNN deteksi BAJU PRAKTIK / KEMEJA (dibuat dari nol / from scratch, citra RGB).
 
 Jalankan dari folder proyek:
     python train_kemeja.py
 
 Hasil:
-    models/model_kemeja.keras + models/model_kemeja.json (threshold, ukuran input)
-    laporan/baju/ (grafik training, confusion matrix, hasil evaluasi, Grad-CAM)
+    models/model_kemeja.keras + models/model_kemeja.tflite + models/model_kemeja.json
+    laporan/baju/ (grafik training, confusion matrix, metrik pengujian, Grad-CAM)
 """
 from tensorflow import keras
 
-from cnn_apd import jalankan, lapisan_augmentasi
+from cnn_apd import jalankan
 
 CFG = {
-    "area": "baju",                     # nama folder di dataset_area
+    "area": "baju",
+    "arsitektur": "CNN from scratch (4 blok Conv2D)",
+    "pemilik": "Basit",
     "folder_dataset": "dataset_area",
     "path_model": "models/model_kemeja.keras",
-    "ukuran": (128, 128),               # tinggi, lebar input CNN
+    "ukuran": (128, 128),
     "batch": 32,
     "epochs": 60,
     "learning_rate": 1e-3,
-    "patience": 8,                      # early stopping
-    "min_recall_tidak": 0.95,           # target: 95% orang tanpa baju praktik harus tertangkap
+    "patience": 8,
+    "min_recall_tidak": 0.95,
+    "flip": True,
     "seed": 42,
 }
 
 
 def build_model(input_shape):
-    """Arsitektur CNN baju praktik. Silakan ubah jumlah blok/filter untuk eksperimen."""
+    """Arsitektur CNN baju praktik (input citra RGB 128x128x3)."""
     x_in = keras.Input(shape=input_shape)
-    x = lapisan_augmentasi(flip=True)(x_in)
-    x = keras.layers.Rescaling(1.0 / 255)(x)
+    x = keras.layers.Rescaling(1.0 / 255)(x_in)
 
     for filter_ in (32, 64, 128):
         x = keras.layers.Conv2D(filter_, 3, padding="same", use_bias=False)(x)

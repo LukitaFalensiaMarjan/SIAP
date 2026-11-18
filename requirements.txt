@@ -1,5 +1,11 @@
 tensorflow>=2.15
 opencv-python
+dlib
 numpy
+pillow
+pandas
+openpyxl
+tabulate
 scikit-learn
 matplotlib
+flask

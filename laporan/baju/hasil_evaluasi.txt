@@ -1,0 +1,16 @@
+Area: baju
+Threshold (dipilih dari validasi): 0.05
+
+Data TEST
+              precision    recall  f1-score   support
+
+       tidak      0.000     0.000     0.000        16
+       pakai      0.940     1.000     0.969       250
+
+    accuracy                          0.940       266
+   macro avg      0.470     0.500     0.484       266
+weighted avg      0.883     0.940     0.911       266
+
+Confusion matrix (baris=asli, kolom=prediksi) [tidak, pakai]:
+[[  0  16]
+ [  0 250]]
