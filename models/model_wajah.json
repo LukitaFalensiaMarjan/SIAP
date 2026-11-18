@@ -1,0 +1,16 @@
+{
+  "area": "wajah",
+  "tipe": "multikelas",
+  "ukuran": [
+    128,
+    128
+  ],
+  "threshold": 0.75,
+  "kelas": [
+    "Basit",
+    "Chakim",
+    "Luki"
+  ],
+  "path_model": "models/model_wajah.keras",
+  "path_tflite": "models\\model_wajah.tflite"
+}

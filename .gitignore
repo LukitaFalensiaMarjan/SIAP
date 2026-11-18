@@ -8,5 +8,5 @@ __pycache__/
 # models/*.keras
 
 # Dataset (gambar terlalu besar untuk GitHub)
-dataset_area/
-data_mentah/
+# dataset_area/
+# data_mentah/

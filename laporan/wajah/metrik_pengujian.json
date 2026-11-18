@@ -1,0 +1,41 @@
+{
+  "komponen": "wajah",
+  "tipe": "multikelas",
+  "arsitektur": "Transfer Learning MobileNetV2 + Custom Head",
+  "pemilik": "Basit & Chakim",
+  "kelas": [
+    "Basit",
+    "Chakim",
+    "Luki"
+  ],
+  "ukuran_input": [
+    128,
+    128,
+    3
+  ],
+  "jumlah_train": 168,
+  "jumlah_val": 37,
+  "jumlah_test": 34,
+  "threshold": 0.75,
+  "confusion_matrix": [
+    [
+      11,
+      0,
+      0
+    ],
+    [
+      2,
+      12,
+      0
+    ],
+    [
+      0,
+      0,
+      9
+    ]
+  ],
+  "accuracy": 0.9412,
+  "macro_precision": 0.9487,
+  "macro_recall": 0.9524,
+  "macro_f1": 0.9466
+}

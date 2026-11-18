@@ -1,0 +1,25 @@
+Komponen   : wajah
+Arsitektur : Transfer Learning MobileNetV2 + Custom Head
+Kelas      : ['Basit', 'Chakim', 'Luki']
+Threshold  : 0.75
+Split      : train=168, val=37, test=34
+
+=== MATRIK PENGUJIAN (DATA TEST) ===
+              precision    recall  f1-score   support
+
+       Basit     0.8462    1.0000    0.9167        11
+      Chakim     1.0000    0.8571    0.9231        14
+        Luki     1.0000    1.0000    1.0000         9
+
+    accuracy                         0.9412        34
+   macro avg     0.9487    0.9524    0.9466        34
+weighted avg     0.9502    0.9412    0.9414        34
+
+Confusion Matrix (baris=Asli, kolom=Prediksi) ['Basit', 'Chakim', 'Luki']:
+[[11  0  0]
+ [ 2 12  0]
+ [ 0  0  9]]
+  Accuracy        : 0.9412
+  Macro Precision : 0.9487
+  Macro Recall    : 0.9524
+  Macro F1-Score  : 0.9466
