@@ -1,0 +1,15 @@
+{
+  "area": "jeans",
+  "tipe": "biner",
+  "ukuran": [
+    128,
+    128
+  ],
+  "threshold": 0.5,
+  "path_model": "models/model_jeans.keras",
+  "path_tflite": "models\\model_jeans.tflite",
+  "label": {
+    "0": "tidak",
+    "1": "pakai"
+  }
+}

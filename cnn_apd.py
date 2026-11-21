@@ -113,16 +113,16 @@ def muat_data_multikelas(folder_dataset, porsi=(0.70, 0.15, 0.15), seed=42):
 
 
 def lapisan_augmentasi(flip=True):
-    """Augmentasi citra RGB untuk mencegah overfitting."""
+    """Augmentasi citra RGB untuk mencegah overfitting & tahan beda ruangan/cahaya."""
     lapisan = []
     if flip:
         lapisan.append(keras.layers.RandomFlip("horizontal"))
     lapisan += [
         keras.layers.RandomRotation(0.08),
-        keras.layers.RandomZoom(0.15),
-        keras.layers.RandomTranslation(0.08, 0.08),
-        keras.layers.RandomBrightness(0.25, value_range=(0, 255)),
-        keras.layers.RandomContrast(0.25),
+        keras.layers.RandomZoom(0.20),
+        keras.layers.RandomTranslation(0.10, 0.10),
+        keras.layers.RandomBrightness(0.30, value_range=(0, 255)),
+        keras.layers.RandomContrast(0.30),
     ]
     return keras.Sequential(lapisan, name="augmentasi")
 
@@ -177,19 +177,36 @@ def latih(model, bagian, cfg, folder_laporan):
     folder_laporan.mkdir(parents=True, exist_ok=True)
     Path(cfg["path_model"]).parent.mkdir(parents=True, exist_ok=True)
 
-    ds_train = buat_dataset(bagian["train"], cfg["ukuran"], cfg["batch"], acak=True,
+    data_train = list(bagian["train"])
+    if cfg.get("oversample_train", False):
+        k0 = [x for x in data_train if x[1] == 0]
+        k1 = [x for x in data_train if x[1] == 1]
+        rnd = random.Random(cfg.get("seed", 42))
+        if 0 < len(k0) < len(k1):
+            tambahan = rnd.choices(k0, k=len(k1) - len(k0))
+            data_train = k1 + k0 + tambahan
+            rnd.shuffle(data_train)
+            print(f"Oversampling train (kelas minoritas): {len(k0)} -> {len(k1)} (total train={len(data_train)})")
+        elif 0 < len(k1) < len(k0):
+            tambahan = rnd.choices(k1, k=len(k0) - len(k1))
+            data_train = k0 + k1 + tambahan
+            rnd.shuffle(data_train)
+            print(f"Oversampling train (kelas minoritas): {len(k1)} -> {len(k0)} (total train={len(data_train)})")
+
+    ds_train = buat_dataset(data_train, cfg["ukuran"], cfg["batch"], acak=True,
                             augment=True, flip=cfg.get("flip", True))
     ds_val = buat_dataset(bagian["val"], cfg["ukuran"], cfg["batch"], acak=False, augment=False)
 
-    y = np.array([x[1] for x in bagian["train"]])
+    y = np.array([x[1] for x in data_train])
     n, n1 = len(y), int(y.sum())
     n0 = n - n1
     bobot = {0: n / (2 * max(n0, 1)), 1: n / (2 * max(n1, 1))}
     print(f"Class weight: tidak={bobot[0]:.2f}  pakai={bobot[1]:.2f}")
 
+    loss_fn = keras.losses.BinaryCrossentropy(label_smoothing=cfg.get("label_smoothing", 0.0))
     model.compile(
         optimizer=keras.optimizers.Adam(cfg["learning_rate"]),
-        loss="binary_crossentropy",
+        loss=loss_fn,
         metrics=["accuracy", keras.metrics.Precision(name="precision"), keras.metrics.Recall(name="recall")],
     )
     model.summary()
@@ -202,6 +219,31 @@ def latih(model, bagian, cfg, folder_laporan):
     ]
     riwayat = model.fit(ds_train, validation_data=ds_val, epochs=cfg["epochs"],
                         class_weight=bobot, callbacks=callbacks)
+
+    # Tahap 2 (opsional): fine-tuning tipis lapisan atas backbone Transfer Learning
+    if cfg.get("finetune_epochs", 0) > 0:
+        for layer in model.layers:
+            if isinstance(layer, keras.Model):
+                layer.trainable = True
+                for sub in layer.layers[:-cfg.get("finetune_layers", 15)]:
+                    sub.trainable = False
+        model.compile(
+            optimizer=keras.optimizers.Adam(cfg.get("finetune_lr", 5e-5)),
+            loss=loss_fn,
+            metrics=["accuracy", keras.metrics.Precision(name="precision"), keras.metrics.Recall(name="recall")],
+        )
+        riwayat_ft = model.fit(
+            ds_train, validation_data=ds_val,
+            epochs=cfg["finetune_epochs"], class_weight=bobot,
+            callbacks=[
+                keras.callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True),
+                keras.callbacks.ModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
+            ],
+        )
+        for k in riwayat.history:
+            if k in riwayat_ft.history:
+                riwayat.history[k] += riwayat_ft.history[k]
+
     grafik_training(riwayat.history, folder_laporan / "grafik_training.png")
     return model
 
@@ -233,17 +275,19 @@ def prediksi(model, isi, cfg):
 def pilih_threshold(prob, y, min_recall_tidak=0.95):
     """
     Pilih threshold dari data validasi:
-    prioritas menangkap orang yang TIDAK memakai APD (recall kelas 'tidak' >= target).
+    prioritas menangkap orang yang TIDAK memakai APD (recall kelas 'tidak' >= target),
+    lalu di antara skor terbaik yang seri pilih yang paling dekat dengan 0.50 (aman untuk kamera live).
     """
-    terbaik, skor_terbaik = 0.5, -1
-    for t in np.arange(0.05, 0.96, 0.01):
+    kandidat = []
+    for t in np.arange(0.10, 0.91, 0.01):
         pred = (prob >= t).astype(int)
         rec_tidak = ((pred == 0) & (y == 0)).sum() / max((y == 0).sum(), 1)
         rec_pakai = ((pred == 1) & (y == 1)).sum() / max((y == 1).sum(), 1)
         skor = rec_pakai if rec_tidak >= min_recall_tidak else rec_tidak - 1
-        if skor > skor_terbaik:
-            terbaik, skor_terbaik = float(t), skor
-    return round(terbaik, 2)
+        kandidat.append((round(float(t), 2), float(skor)))
+    maks = max(k[1] for k in kandidat)
+    terbaik_list = [t for t, s in kandidat if abs(s - maks) < 1e-9]
+    return min(terbaik_list, key=lambda t: abs(t - 0.50))
 
 
 def evaluasi(model, bagian, cfg, folder_laporan, path_tflite=None):

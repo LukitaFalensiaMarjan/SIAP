@@ -1,0 +1,28 @@
+{
+  "komponen": "helm",
+  "tipe": "biner",
+  "arsitektur": "Transfer Learning MobileNetV2 + Custom Head",
+  "pemilik": "Luki",
+  "ukuran_input": [
+    96,
+    96,
+    3
+  ],
+  "jumlah_train": 1276,
+  "jumlah_val": 273,
+  "jumlah_test": 274,
+  "threshold": 0.44,
+  "tn": 143,
+  "fp": 4,
+  "fn": 5,
+  "tp": 122,
+  "accuracy": 0.9672,
+  "precision_pakai": 0.9683,
+  "recall_pakai": 0.9606,
+  "f1_pakai": 0.9644,
+  "precision_tidak": 0.9662,
+  "recall_tidak": 0.9728,
+  "f1_tidak": 0.9695,
+  "macro_f1": 0.967,
+  "kebocoran_apd_pct": 2.72
+}

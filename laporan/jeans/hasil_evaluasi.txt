@@ -1,0 +1,24 @@
+Area       : jeans
+Arsitektur : Transfer Learning MobileNetV2 + Balanced Train
+Threshold  : 0.5 (dipilih dari data validasi)
+Split      : train=1351, val=290, test=288
+
+=== MATRIK PENGUJIAN (DATA TEST) ===
+              precision    recall  f1-score   support
+
+       tidak     1.0000    0.9672    0.9833        61
+       pakai     0.9913    1.0000    0.9956       227
+
+    accuracy                         0.9931       288
+   macro avg     0.9956    0.9836    0.9895       288
+weighted avg     0.9931    0.9931    0.9930       288
+
+Confusion Matrix (baris=Asli, kolom=Prediksi) [tidak, pakai]:
+[[ 59   2]
+ [  0 227]]
+  TN (Asli Tidak -> Pred Tidak) : 59
+  FP (Asli Tidak -> Pred Pakai) : 2  [Kebocoran APD: 3.28%]
+  FN (Asli Pakai -> Pred Tidak) : 0
+  TP (Asli Pakai -> Pred Pakai) : 227
+  Accuracy                      : 0.9931
+  Macro F1-Score                : 0.9895

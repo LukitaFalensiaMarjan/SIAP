@@ -59,9 +59,15 @@ def main():
     out_md = laporan_dir / "matrik_pengujian_gabungan.md"
     out_xlsx = laporan_dir / "matrik_pengujian_gabungan.xlsx"
 
+    cols = list(df.columns)
+    header = "| " + " | ".join(cols) + " |"
+    sep = "| " + " | ".join("---" for _ in cols) + " |"
+    rows = ["| " + " | ".join(str(r[c]) for c in cols) + " |" for _, r in df.iterrows()]
+    tabel_md = "\n".join([header, sep, *rows])
+
     md_lines = [
         "# Matrik Pengujian Gabungan — 5 Model CNN (Simandiri CNN)\n",
-        df.to_markdown(index=False),
+        tabel_md,
         "\n\n*Catatan: Kebocoran APD (%) = persentase kasus tidak memakai APD yang lolos sebagai 'pakai' (target <= 5%).*",
     ]
     out_md.write_text("\n".join(md_lines), encoding="utf-8")

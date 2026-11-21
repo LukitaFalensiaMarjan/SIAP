@@ -1,5 +1,5 @@
 """
-Training CNN deteksi BAJU PRAKTIK / KEMEJA (dibuat dari nol / from scratch, citra RGB).
+Training CNN deteksi BAJU PRAKTIK / KEMEJA (Transfer Learning MobileNetV2 + Custom Head, citra RGB).
 
 Jalankan dari folder proyek:
     python train_kemeja.py
@@ -14,15 +14,19 @@ from cnn_apd import jalankan
 
 CFG = {
     "area": "baju",
-    "arsitektur": "CNN from scratch (4 blok Conv2D)",
+    "arsitektur": "Transfer Learning MobileNetV2 + Custom Head",
     "pemilik": "Basit",
     "folder_dataset": "dataset_area",
     "path_model": "models/model_kemeja.keras",
     "ukuran": (128, 128),
     "batch": 32,
-    "epochs": 60,
-    "learning_rate": 1e-3,
-    "patience": 8,
+    "epochs": 20,
+    "learning_rate": 8e-4,
+    "patience": 6,
+    "finetune_epochs": 8,
+    "finetune_layers": 10,
+    "finetune_lr": 3e-5,
+    "label_smoothing": 0.05,
     "min_recall_tidak": 0.95,
     "flip": True,
     "seed": 42,
@@ -30,27 +34,29 @@ CFG = {
 
 
 def build_model(input_shape):
-    """Arsitektur CNN baju praktik (input citra RGB 128x128x3)."""
+    """Transfer Learning MobileNetV2 untuk deteksi baju praktik (citra RGB 128x128x3)."""
     x_in = keras.Input(shape=input_shape)
-    x = keras.layers.Rescaling(1.0 / 255)(x_in)
+    x = keras.layers.Rescaling(1.0 / 127.5, offset=-1.0)(x_in)
 
-    for filter_ in (32, 64, 128):
-        x = keras.layers.Conv2D(filter_, 3, padding="same", use_bias=False)(x)
-        x = keras.layers.BatchNormalization()(x)
-        x = keras.layers.ReLU()(x)
-        x = keras.layers.MaxPooling2D()(x)
+    backbone = keras.applications.MobileNetV2(
+        input_shape=input_shape,
+        include_top=False,
+        weights="imagenet",
+    )
+    backbone.trainable = False
 
-    # Blok terakhir diberi nama 'conv_terakhir' untuk Grad-CAM
-    x = keras.layers.Conv2D(128, 3, padding="same", use_bias=False)(x)
-    x = keras.layers.BatchNormalization()(x)
+    x = backbone(x, training=False)
+    x = keras.layers.Conv2D(128, 1, padding="same", use_bias=False)(x)
+    x = keras.layers.BatchNormalization(momentum=0.9)(x)
     x = keras.layers.ReLU(name="conv_terakhir")(x)
-    x = keras.layers.MaxPooling2D()(x)
 
     x = keras.layers.GlobalAveragePooling2D()(x)
-    x = keras.layers.Dense(64, activation="relu")(x)
-    x = keras.layers.Dropout(0.4)(x)
+    x = keras.layers.Dropout(0.5)(x)
+    x = keras.layers.Dense(64, activation="relu",
+                           kernel_regularizer=keras.regularizers.l2(1e-3))(x)
+    x = keras.layers.Dropout(0.3)(x)
     x_out = keras.layers.Dense(1, activation="sigmoid")(x)
-    return keras.Model(x_in, x_out, name="cnn_kemeja")
+    return keras.Model(x_in, x_out, name="cnn_kemeja_mobilenetv2")
 
 
 if __name__ == "__main__":

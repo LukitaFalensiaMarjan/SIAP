@@ -1,0 +1,28 @@
+{
+  "komponen": "baju",
+  "tipe": "biner",
+  "arsitektur": "Transfer Learning MobileNetV2 + Custom Head",
+  "pemilik": "Basit",
+  "ukuran_input": [
+    128,
+    128,
+    3
+  ],
+  "jumlah_train": 1276,
+  "jumlah_val": 274,
+  "jumlah_test": 273,
+  "threshold": 0.5,
+  "tn": 101,
+  "fp": 3,
+  "fn": 0,
+  "tp": 169,
+  "accuracy": 0.989,
+  "precision_pakai": 0.9826,
+  "recall_pakai": 1.0,
+  "f1_pakai": 0.9912,
+  "precision_tidak": 1.0,
+  "recall_tidak": 0.9712,
+  "f1_tidak": 0.9854,
+  "macro_f1": 0.9883,
+  "kebocoran_apd_pct": 2.88
+}

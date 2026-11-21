@@ -21,6 +21,7 @@ Struktur hasil:
 """
 import argparse
 import csv
+import random
 import shutil
 from pathlib import Path
 
@@ -204,6 +205,107 @@ def proses_wajah(masuk, keluar_wajah, preview_n):
     print(f"Total wajah bersih: {total_ok} (dilewati: {total_skip})")
 
 
+def tambah_hard_negatives(masuk, keluar, hitung, n_bg=150, n_lintas=120, seed=42):
+    """
+    Tambahkan contoh negatif tambahan ke setiap area (kelas 'tidak') agar model
+    tidak salah menebak kotak kosong, tembok, benda/bezel gelap, atau bagian tubuh lain:
+      1. BG_ : potongan latar kosong, tembok, gorden, lantai, meja gelap dari sisi kiri/kanan data_mentah.
+      2. XA_ : potongan lintas-area (area tubuh lain + close-up wajah/duduk) sebagai negatif keras.
+    """
+    rnd = random.Random(seed)
+
+    # Kumpulkan sampel foto mentah yang beragam (termasuk folder wajah & seluruh ruangan)
+    semua_foto = []
+    for folder in sorted(p for p in masuk.iterdir() if p.is_dir()):
+        fs = sorted(f for f in folder.iterdir() if f.suffix.lower() in EKSTENSI)
+        if fs:
+            langkah = max(len(fs) // 20, 1)
+            semua_foto.extend(fs[::langkah])
+    rnd.shuffle(semua_foto)
+
+    # 1. Potongan background / lantai kosong / sisi kiri-kanan (bebas objek APD)
+    zona_bg = [
+        (0.00, 0.26, 0.05, 0.45),  # kiri atas (gorden / tembok)
+        (0.00, 0.26, 0.50, 0.95),  # kiri bawah (meja gelap / lantai / tempat sampah)
+        (0.74, 1.00, 0.05, 0.45),  # kanan atas (tembok putih / kalender / papan)
+        (0.74, 1.00, 0.50, 0.98),  # kanan bawah (lantai kosong / bayangan / sudut meja)
+        (0.00, 0.30, 0.72, 1.00),  # pojok kiri bawah (gelap / meja / tepi laptop)
+        (0.70, 1.00, 0.72, 1.00),  # pojok kanan bawah (lantai / keramik)
+    ]
+
+    for item in ITEM_DILATIH:
+        tujuan = keluar / item / "tidak"
+        w_out, h_out = UKURAN[item]
+        dibuat = 0
+        for idx in range(n_bg):
+            f = semua_foto[idx % len(semua_foto)]
+            img = cv2.imread(str(f))
+            if img is None:
+                continue
+            h, w = img.shape[:2]
+            x0p, x1p, y0p, y1p = zona_bg[idx % len(zona_bg)]
+            x0, x1 = int(w * x0p), int(w * x1p)
+            y0, y1 = int(h * y0p), int(h * y1p)
+            crop = cv2.resize(img[y0:y1, x0:x1], (w_out, h_out), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(str(tujuan / f"BG_{item}_{dibuat:03d}.jpg"), crop)
+            dibuat += 1
+        hitung[item][1] += dibuat
+
+    # 2. Potongan lintas-area + foto close-up duduk (folder Wajah) agar tidak salah area
+    # Sumber yang aman (tidak mengandung objek target):
+    sumber_lintas = {
+        "helm":   [keluar / "baju" / "pakai", keluar / "baju" / "tidak",
+                   keluar / "jeans" / "pakai", keluar / "sepatu" / "pakai"],
+        "baju":   [keluar / "helm" / "tidak", keluar / "jeans" / "pakai",
+                   keluar / "sepatu" / "pakai", keluar / "sepatu" / "tidak"],
+        "jeans":  [keluar / "helm" / "tidak", keluar / "baju" / "pakai",
+                   keluar / "baju" / "tidak", keluar / "sepatu" / "tidak"],
+        "sepatu": [keluar / "helm" / "tidak", keluar / "baju" / "pakai",
+                   keluar / "baju" / "tidak", keluar / "jeans" / "tidak"],
+    }
+
+    # Foto close-up duduk (Wajah Basit/Chakim/Luki) — bagian tengah & bawahnya adalah wajah + kaos/jaket
+    foto_duduk = []
+    for folder in sorted(p for p in masuk.iterdir() if p.is_dir() and p.name.lower().startswith("wajah ")):
+        fs = sorted(f for f in folder.iterdir() if f.suffix.lower() in EKSTENSI)
+        foto_duduk.extend(fs[::max(len(fs) // 15, 1)])
+
+    for item in ITEM_DILATIH:
+        tujuan = keluar / item / "tidak"
+        w_out, h_out = UKURAN[item]
+        kandidat = []
+        for sdir in sumber_lintas[item]:
+            if sdir.exists():
+                kandidat.extend(sorted(f for f in sdir.iterdir()
+                                       if f.suffix.lower() in EKSTENSI and not f.name.startswith(("BG_", "XA_"))))
+        rnd.shuffle(kandidat)
+        dibuat = 0
+        for f in kandidat[:n_lintas]:
+            img = cv2.imread(str(f))
+            if img is None:
+                continue
+            crop = cv2.resize(img, (w_out, h_out), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(str(tujuan / f"XA_{item}_{dibuat:03d}.jpg"), crop)
+            dibuat += 1
+
+        # Tambahkan juga ~35 crop dari foto duduk (wajah / bahu / kaos) agar posisi duduk selalu 'tidak'
+        rnd.shuffle(foto_duduk)
+        for f in foto_duduk[:35]:
+            img = cv2.imread(str(f))
+            if img is None:
+                continue
+            h, w = img.shape[:2]
+            # Potong area tengah acak (kepala/wajah/dada/kaos)
+            y0 = int(h * rnd.uniform(0.05, 0.55))
+            y1 = min(h, y0 + int(h * rnd.uniform(0.28, 0.42)))
+            x0 = int(w * rnd.uniform(0.25, 0.42))
+            x1 = min(w, x0 + int(w * rnd.uniform(0.25, 0.38)))
+            crop = cv2.resize(img[y0:y1, x0:x1], (w_out, h_out), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(str(tujuan / f"XA_duduk_{item}_{dibuat:03d}.jpg"), crop)
+            dibuat += 1
+        hitung[item][1] += dibuat
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", default="data_mentah", help="folder berisi folder-folder kombinasi & wajah")
@@ -211,6 +313,7 @@ def main():
     ap.add_argument("--output-wajah", default="dataset_wajah", help="folder output crop wajah")
     ap.add_argument("--preview", type=int, default=5, help="jumlah foto preview per folder")
     ap.add_argument("--clean", action="store_true", help="hapus output lama sebelum membuat ulang")
+    ap.add_argument("--skip-wajah", action="store_true", help="lewati proses dataset_wajah jika sudah ada")
     args = ap.parse_args()
 
     masuk = Path(args.input)
@@ -220,7 +323,7 @@ def main():
     if args.clean:
         if keluar.exists():
             shutil.rmtree(keluar)
-        if keluar_wajah.exists():
+        if (not args.skip_wajah) and keluar_wajah.exists():
             shutil.rmtree(keluar_wajah)
 
     for item in ITEM_DILATIH:
@@ -301,6 +404,10 @@ def main():
         tulis.writerows(baris)
 
     print(f"\nTotal foto APD diproses: {len(baris)} (duplikat dilewati: {duplikat_skip})")
+    print("Menambahkan contoh negatif tambahan (latar kosong/benda gelap + lintas-area + posisi duduk)...")
+    tambah_hard_negatives(masuk, keluar, hitung)
+
+    print(f"\n=== RINGKASAN FINAL DATASET AREA (TERMASUK HARD NEGATIVES) ===")
     print(f"{'item':<8}{'pakai':>8}{'tidak':>8}")
     for item in ITEM_DILATIH:
         p, t = hitung[item]
@@ -309,7 +416,8 @@ def main():
     if dilewati:
         print("\nFolder dilewati (belum ada di LABEL):", ", ".join(dilewati))
 
-    proses_wajah(masuk, keluar_wajah, args.preview)
+    if not args.skip_wajah:
+        proses_wajah(masuk, keluar_wajah, args.preview)
 
 
 if __name__ == "__main__":

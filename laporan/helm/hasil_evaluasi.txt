@@ -1,16 +1,24 @@
-Area: helm
-Threshold (dipilih dari validasi): 0.21
+Area       : helm
+Arsitektur : Transfer Learning MobileNetV2 + Custom Head
+Threshold  : 0.44 (dipilih dari data validasi)
+Split      : train=1276, val=273, test=274
 
-Data TEST
+=== MATRIK PENGUJIAN (DATA TEST) ===
               precision    recall  f1-score   support
 
-       tidak      0.989     0.881     0.932       101
-       pakai      0.913     0.992     0.951       127
+       tidak     0.9662    0.9728    0.9695       147
+       pakai     0.9683    0.9606    0.9644       127
 
-    accuracy                          0.943       228
-   macro avg      0.951     0.937     0.941       228
-weighted avg      0.947     0.943     0.943       228
+    accuracy                         0.9672       274
+   macro avg     0.9672    0.9667    0.9670       274
+weighted avg     0.9672    0.9672    0.9671       274
 
-Confusion matrix (baris=asli, kolom=prediksi) [tidak, pakai]:
-[[ 89  12]
- [  1 126]]
+Confusion Matrix (baris=Asli, kolom=Prediksi) [tidak, pakai]:
+[[143   4]
+ [  5 122]]
+  TN (Asli Tidak -> Pred Tidak) : 143
+  FP (Asli Tidak -> Pred Pakai) : 4  [Kebocoran APD: 2.72%]
+  FN (Asli Pakai -> Pred Tidak) : 5
+  TP (Asli Pakai -> Pred Pakai) : 122
+  Accuracy                      : 0.9672
+  Macro F1-Score                : 0.9670

@@ -1,11 +1,13 @@
 {
   "area": "sepatu",
+  "tipe": "biner",
   "ukuran": [
     128,
     128
   ],
-  "threshold": 0.05,
+  "threshold": 0.5,
   "path_model": "models/model_sepatu.keras",
+  "path_tflite": "models\\model_sepatu.tflite",
   "label": {
     "0": "tidak",
     "1": "pakai"

@@ -1,11 +1,13 @@
 {
   "area": "helm",
+  "tipe": "biner",
   "ukuran": [
     96,
     96
   ],
-  "threshold": 0.21,
+  "threshold": 0.44,
   "path_model": "models/model_helm.keras",
+  "path_tflite": "models\\model_helm.tflite",
   "label": {
     "0": "tidak",
     "1": "pakai"

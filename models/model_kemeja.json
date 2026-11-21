@@ -1,11 +1,13 @@
 {
   "area": "baju",
+  "tipe": "biner",
   "ukuran": [
     128,
     128
   ],
-  "threshold": 0.05,
+  "threshold": 0.5,
   "path_model": "models/model_kemeja.keras",
+  "path_tflite": "models\\model_kemeja.tflite",
   "label": {
     "0": "tidak",
     "1": "pakai"
