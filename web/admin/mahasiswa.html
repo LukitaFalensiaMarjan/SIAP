@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Mahasiswa — POLMAN SMART ATTENDANCE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body class="admin-portal">
+
+  <aside class="adm-sidebar">
+    <div class="adm-sidebar-brand">
+      <img src="../assets/img/logo-polman.png" alt="POLMAN">
+      <div>
+        <div class="adm-brand-name">POLMAN</div>
+        <div class="adm-brand-sub">SMART ATTENDANCE</div>
+      </div>
+    </div>
+
+    <div class="adm-sidebar-category">Administrasi</div>
+
+    <nav class="adm-nav-list">
+      <a href="dashboard.html" class="adm-nav-item ">
+        <span>Dashboard</span>
+      </a>
+      <a href="mahasiswa.html" class="adm-nav-item active">
+        <span>Data Mahasiswa</span>
+      </a>
+      <a href="matkul.html" class="adm-nav-item ">
+        <span>Akademik &amp; Aturan</span>
+      </a>
+      <a href="absensi.html" class="adm-nav-item ">
+        <span>Monitoring Absensi</span>
+        <span class="adm-nav-counter">8</span>
+      </a>
+      <a href="kompensasi.html" class="adm-nav-item ">
+        <span>Tindak Lanjut</span>
+      </a>
+      <a href="laporan.html" class="adm-nav-item ">
+        <span>Evaluasi &amp; Laporan</span>
+      </a>
+      <a href="perangkat.html" class="adm-nav-item ">
+        <span>Sistem &amp; Perangkat</span>
+      </a>
+    </nav>
+
+    <a href="../login.html" class="adm-sidebar-logout" title="Keluar dari Akun">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+      <span>Keluar Akun</span>
+    </a>
+  </aside>
+
+  <div class="adm-main-wrapper">
+    <header class="adm-topbar">
+      <button class="adm-notif-btn" onclick="showToast('Notifikasi sistem: Seluruh perangkat kiosk online.')" title="Pusat Notifikasi">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span class="adm-notif-dot"></span>
+      </button>
+
+      <div class="adm-profile-pill">
+        <div class="adm-avatar-circle">RK</div>
+        <div class="adm-user-meta">
+          <span class="adm-user-name">Rina Kartika</span>
+          <span class="adm-user-sub">Administrator</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="adm-container">
+      
+      <!-- Page Header -->
+      <div class="adm-page-header">
+        <div>
+          <div class="adm-eyebrow">Data Pengguna</div>
+          <h1 class="adm-page-title">Data Mahasiswa</h1>
+          <p class="adm-page-desc">Kelola identitas, kelas, status akun, dan pendaftaran wajah mahasiswa.</p>
+        </div>
+        <button class="adm-btn-primary" onclick="openAdmModal('modalTambahMahasiswa')">
+          Tambah mahasiswa
+        </button>
+      </div>
+
+      <!-- Card Table -->
+      <div class="adm-card-white">
+        <!-- Filter Bar -->
+        <div class="adm-filter-bar">
+          <input type="text" id="searchMhs" class="adm-search-input" placeholder="Cari di data mahasiswa..." oninput="filterAdmTable('tableMhs', 'searchMhs', 'filterKelasMhs', 'filterStatusMhs')">
+          
+          <select id="filterKelasMhs" class="adm-select-dropdown" onchange="filterAdmTable('tableMhs', 'searchMhs', 'filterKelasMhs', 'filterStatusMhs')">
+            <option value="semua">Semua kelas</option>
+            <option value="2MEA">2MEA</option>
+            <option value="2AEB">2AEB</option>
+            <option value="3FEA">3FEA</option>
+          </select>
+
+          <select id="filterStatusMhs" class="adm-select-dropdown" onchange="filterAdmTable('tableMhs', 'searchMhs', 'filterKelasMhs', 'filterStatusMhs')">
+            <option value="semua">Semua status</option>
+            <option value="aktif">Aktif</option>
+            <option value="nonaktif">Nonaktif</option>
+          </select>
+        </div>
+
+        <!-- Table (Image 11) -->
+        <div style="overflow-x: auto;">
+          <table class="adm-table-clean" id="tableMhs">
+            <thead>
+              <tr>
+                <th>NIM</th>
+                <th>Nama</th>
+                <th>Kelas</th>
+                <th>Jurusan</th>
+                <th>Status Wajah</th>
+                <th>Status Akun</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-kelas="2MEA" data-status="aktif">
+                <td style="color: #64748B;">224201001</td>
+                <td style="font-weight: 700;">Aulia Pratama</td>
+                <td>2MEA</td>
+                <td>Manufaktur</td>
+                <td><span class="adm-badge adm-badge-green">Terdaftar</span></td>
+                <td><span class="adm-badge adm-badge-green">Aktif</span></td>
+                <td>
+                  <button class="adm-btn-action-edit" onclick="showToast('Edit data Aulia Pratama')">Edit</button>
+                  <button class="adm-btn-action-delete" onclick="showToast('Hapus data mahasiswa')">Hapus</button>
+                </td>
+              </tr>
+              <tr data-kelas="2MEA" data-status="aktif">
+                <td style="color: #64748B;">224201014</td>
+                <td style="font-weight: 700;">Nadia Fitriani</td>
+                <td>2MEA</td>
+                <td>Manufaktur</td>
+                <td><span class="adm-badge adm-badge-green">Terdaftar</span></td>
+                <td><span class="adm-badge adm-badge-green">Aktif</span></td>
+                <td>
+                  <button class="adm-btn-action-edit" onclick="showToast('Edit data Nadia Fitriani')">Edit</button>
+                  <button class="adm-btn-action-delete" onclick="showToast('Hapus data mahasiswa')">Hapus</button>
+                </td>
+              </tr>
+              <tr data-kelas="2AEB" data-status="aktif">
+                <td style="color: #64748B;">224302008</td>
+                <td style="font-weight: 700;">Rafi Maulana</td>
+                <td>2AEB</td>
+                <td>Automation</td>
+                <td><span class="adm-badge adm-badge-amber">Perlu daftar ulang</span></td>
+                <td><span class="adm-badge adm-badge-green">Aktif</span></td>
+                <td>
+                  <button class="adm-btn-action-edit" onclick="showToast('Edit data Rafi Maulana')">Edit</button>
+                  <button class="adm-btn-action-delete" onclick="showToast('Hapus data mahasiswa')">Hapus</button>
+                </td>
+              </tr>
+              <tr data-kelas="3FEA" data-status="aktif">
+                <td style="color: #64748B;">223104021</td>
+                <td style="font-weight: 700;">Dinda Larasati</td>
+                <td>3FEA</td>
+                <td>Foundry</td>
+                <td><span class="adm-badge adm-badge-green">Terdaftar</span></td>
+                <td><span class="adm-badge adm-badge-green">Aktif</span></td>
+                <td>
+                  <button class="adm-btn-action-edit" onclick="showToast('Edit data Dinda Larasati')">Edit</button>
+                  <button class="adm-btn-action-delete" onclick="showToast('Hapus data mahasiswa')">Hapus</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal Tambah Mahasiswa -->
+  <div class="adm-modal-backdrop" id="modalTambahMahasiswa" onclick="if(event.target===this)closeAdmModal('modalTambahMahasiswa')">
+    <div class="adm-modal-content">
+      <div class="adm-modal-head">
+        <div>
+          <div class="adm-eyebrow">Tambah Data</div>
+          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;">Data Mahasiswa Baru</h3>
+        </div>
+        <button class="adm-modal-close" onclick="closeAdmModal('modalTambahMahasiswa')">Tutup</button>
+      </div>
+      <form onsubmit="event.preventDefault(); closeAdmModal('modalTambahMahasiswa'); showToast('Mahasiswa baru berhasil ditambahkan!');">
+        <div class="adm-modal-body">
+          <div class="adm-form-grid-2">
+            <div class="adm-form-group">
+              <label class="adm-form-label">Nomor Induk Mahasiswa (NIM)</label>
+              <input type="text" placeholder="Contoh: 224201099" class="adm-form-input" required>
+            </div>
+            <div class="adm-form-group">
+              <label class="adm-form-label">Nama Lengkap</label>
+              <input type="text" placeholder="Contoh: Budi Prasetyo" class="adm-form-input" required>
+            </div>
+          </div>
+          <div class="adm-form-grid-2">
+            <div class="adm-form-group">
+              <label class="adm-form-label">Kelas</label>
+              <input type="text" placeholder="Contoh: 2MEA" class="adm-form-input" required>
+            </div>
+            <div class="adm-form-group">
+              <label class="adm-form-label">Jurusan</label>
+              <input type="text" placeholder="Contoh: Manufaktur" class="adm-form-input" required>
+            </div>
+          </div>
+        </div>
+        <div class="adm-modal-foot">
+          <button type="button" class="adm-btn-foot-cancel" onclick="closeAdmModal('modalTambahMahasiswa')">Batal</button>
+          <button type="submit" class="adm-btn-foot-submit">Simpan Mahasiswa</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../assets/js/admin.js"></script>
+</body>
+</html>

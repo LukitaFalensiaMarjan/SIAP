@@ -1,0 +1,670 @@
+
+* {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* ==========================================================================
+   POLMAN SMART ATTENDANCE — HIGH CRAFT / ANTI-SLOP DESIGN SYSTEM
+   Typography: Plus Jakarta Sans (Universal System Font)
+   Color Palette: Deep Ink Navy, Crisp Slate, Precise Technical Accents
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Surfaces */
+  --white:          #FFFFFF;
+  --bg-page:        #F8FAFC;
+  --bg-surface:     #FFFFFF;
+  --bg-subtle:      #F1F5F9;
+  --bg-sidebar:     #0B1523;
+  --bg-sidebar-nav: #132238;
+
+  /* Borders & Dividers */
+  --border-light:   #E2E8F0;
+  --border-medium:  #CBD5E1;
+  --border-focus:   #0F3870;
+
+  /* Typography Colors */
+  --text-primary:   #0F172A;
+  --text-secondary: #475569;
+  --text-muted:     #64748B;
+  --text-inverse:   #FFFFFF;
+
+  /* Brand Accents */
+  --brand-navy:     #0D2342;
+  --brand-blue:     #1E40AF;
+  --brand-cyan:     #0284C7;
+  --brand-cyan-bg:  #F0F9FF;
+
+  /* Semantic Data Colors */
+  --state-success:     #059669;
+  --state-success-bg:  #ECFDF5;
+  --state-success-bd:  #A7F3D0;
+  --state-warning:     #D97706;
+  --state-warning-bg:  #FFFBEB;
+  --state-warning-bd:  #FDE68A;
+  --state-danger:      #DC2626;
+  --state-danger-bg:   #FEF2F2;
+  --state-danger-bd:   #FECACA;
+
+  /* Geometry & Elevation */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-float: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+.mono {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.3px;
+}
+
+/* ── Technical Grid Topbar ─────────────────────────────────────────────── */
+.topbar {
+  height: 56px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-symbol {
+  width: 30px;
+  height: 30px;
+  background: var(--brand-navy);
+  color: #FFFFFF;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: -0.5px;
+  box-shadow: 0 2px 4px rgba(13, 35, 66, 0.2);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-navy);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.brand-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--state-success-bg);
+  border: 1px solid var(--state-success-bd);
+  color: var(--state-success);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--state-success);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+}
+
+/* ── Split Layout (Landing / Auth) ─────────────────────────────────────── */
+.auth-viewport {
+  min-height: calc(100vh - 56px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg-surface);
+}
+
+.auth-form-column {
+  padding: 64px 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 580px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.auth-stage-column {
+  background: #F1F5F9;
+  border-left: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 40px;
+}
+
+/* Blueprint dot-matrix texture */
+.auth-stage-column::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, #CBD5E1 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── Minimalist Engineering Badges ─────────────────────────────────────── */
+.kicker-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--brand-blue);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+
+.headline-main {
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.18;
+  letter-spacing: -0.8px;
+  margin-bottom: 14px;
+}
+
+.body-lead {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+/* ── Form Controls (Crisp & High Contrast) ─────────────────────────────── */
+.field-group {
+  margin-bottom: 18px;
+}
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field-input:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.08);
+}
+
+.field-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+.btn-solid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  background: var(--brand-navy);
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+  width: 100%;
+}
+
+.btn-solid:hover {
+  background: #143560;
+}
+
+.btn-solid:active {
+  transform: translateY(1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-light);
+}
+
+.notice-box {
+  margin-top: 24px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.notice-icon {
+  color: var(--brand-blue);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Precision Optical Scanner Visual Stage ────────────────────────────── */
+.scanner-rig {
+  position: relative;
+  width: 440px;
+  height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rig-halo {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  border: 1px solid #CBD5E1;
+}
+
+.rig-crosshairs {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.rig-reticle {
+  position: absolute;
+  width: 290px;
+  height: 380px;
+  pointer-events: none;
+}
+
+.reticle-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: #0284C7;
+  border-style: solid;
+}
+
+.rc-tl { top: 0; left: 0; border-width: 2.5px 0 0 2.5px; }
+.rc-tr { top: 0; right: 0; border-width: 2.5px 2.5px 0 0; }
+.rc-bl { bottom: 0; left: 0; border-width: 0 0 2.5px 2.5px; }
+.rc-br { bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; }
+
+/* The Technical Scanning Laser Sweep */
+@keyframes opticalSweep {
+  0%   { top: 40px; opacity: 0.15; }
+  50%  { opacity: 0.9; }
+  100% { top: 340px; opacity: 0.15; }
+}
+
+.rig-laser {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, #0284C7, #38BDF8, #0284C7, transparent);
+  box-shadow: 0 0 8px 1px rgba(2, 132, 199, 0.6);
+  animation: opticalSweep 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Precise Technical HUD Tags */
+@keyframes hoverMicro {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
+@keyframes hoverMicroOpp {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(5px); }
+}
+
+.hud-chip {
+  position: absolute;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+}
+
+.hc-top {
+  top: 10px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.hc-identity {
+  top: 60px;
+  left: -20px;
+  animation: hoverMicro 4.5s ease-in-out infinite;
+}
+
+.hc-uniform {
+  bottom: 70px;
+  right: -15px;
+  animation: hoverMicroOpp 5s ease-in-out infinite;
+}
+
+.hc-indicator {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hi-success { background: var(--state-success-bg); color: var(--state-success); }
+.hi-cyan    { background: var(--brand-cyan-bg);   color: var(--brand-cyan); }
+
+.hc-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.hc-val {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── App Shell (Sidebar & Main Dashboard) ───────────────────────────────── */
+.app-shell {
+  display: flex;
+  min-height: calc(100vh - 56px);
+}
+
+.app-sidebar {
+  width: 230px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid #1E293B;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+}
+
+.sidebar-category {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #64748B;
+  padding: 20px 16px 8px;
+}
+
+.sidebar-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  color: #94A3B8;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.12s ease;
+  border-left: 2px solid transparent;
+}
+
+.sidebar-nav-link:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-nav-link.active {
+  color: #FFFFFF;
+  background: var(--bg-sidebar-nav);
+  border-left-color: #38BDF8;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding: 14px 16px;
+  border-top: 1px solid #1E293B;
+}
+
+.app-content {
+  flex: 1;
+  padding: 32px 36px;
+  min-width: 0;
+}
+
+/* ── Data Cards & Metric Panels ────────────────────────────────────────── */
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.metric-key {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
+.metric-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* ── Precise Data Tables ────────────────────────────────────────────────── */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.data-table th {
+  background: #F8FAFC;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.data-table tr:hover td {
+  background: #FAFAFA;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Status Pills (Subtle, High Legibility) ─────────────────────────────── */
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.bt-green { background: var(--state-success-bg); color: var(--state-success); border: 1px solid var(--state-success-bd); }
+.bt-amber { background: var(--state-warning-bg); color: var(--state-warning); border: 1px solid var(--state-warning-bd); }
+.bt-red   { background: var(--state-danger-bg);  color: var(--state-danger);  border: 1px solid var(--state-danger-bd); }
+.bt-cyan  { background: var(--brand-cyan-bg);    color: var(--brand-cyan);    border: 1px solid #BAE6FD; }
+.bt-gray  { background: var(--bg-subtle);        color: var(--text-muted);    border: 1px solid var(--border-light); }
+
+/* ── Viewport Responsiveness ────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .auth-viewport { grid-template-columns: 1fr; }
+  .auth-stage-column { display: none; }
+  .auth-form-column { padding: 40px 24px; }
+  .app-sidebar { display: none; }
+  .app-content { padding: 20px 16px; }
+}

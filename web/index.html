@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POLMAN Smart Attendance — Presensi Praktikum Cerdas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       POLMAN SMART ATTENDANCE — LANDING PAGE THEME (MATCHING EXACT WIREFRAME)
+       ========================================================================== */
+    :root {
+      --navy-900: #071526;
+      --navy-800: #0B1E38;
+      --navy-700: #0D2444;
+      --navy-600: #12335E;
+      --blue-600: #1D4ED8;
+      --blue-500: #2563EB;
+      --blue-50:  #EFF6FF;
+      --cyan-500: #0284C7;
+      --cyan-50:  #F0F9FF;
+
+      --slate-900: #0F172A;
+      --slate-800: #1E293B;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748B;
+      --slate-400: #94A3B8;
+      --slate-200: #E2E8F0;
+      --slate-100: #F1F5F9;
+      --slate-50:  #F8FAFC;
+      --white:     #FFFFFF;
+
+      --green-600: #059669;
+      --green-50:  #ECFDF5;
+      --green-200: #A7F3D0;
+
+      --amber-600: #D97706;
+      --amber-50:  #FFFBEB;
+      --amber-200: #FDE68A;
+
+      --purple-600:#7C3AED;
+      --purple-50: #F5F3FF;
+      --purple-200:#DDD6FE;
+
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 14px;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--white);
+      color: var(--slate-900);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      letter-spacing: -0.3px;
+    }
+
+    /* ── 1. NAVBAR ──────────────────────────────────────────────────────────── */
+    .navbar {
+      height: 72px;
+      background: var(--white);
+      border-bottom: 1px solid var(--slate-100);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-cube {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-polman-img {
+      width: 32px;
+      height: 36px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--navy-800);
+      letter-spacing: 0.5px;
+      display: block;
+      line-height: 1.1;
+    }
+
+    .brand-tagline {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--slate-400);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .nav-menu {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-link {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--slate-600);
+      transition: color 0.15s ease;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: var(--navy-800);
+    }
+
+    .btn-nav-login {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 20px;
+      background: var(--navy-800);
+      color: var(--white);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+      box-shadow: 0 2px 8px rgba(11, 30, 56, 0.15);
+    }
+
+    .btn-nav-login:hover {
+      background: var(--navy-600);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(11, 30, 56, 0.25);
+    }
+
+    .btn-nav-login:active {
+      transform: scale(0.97);
+    }
+
+    /* ── 2. HERO SECTION ────────────────────────────────────────────────────── */
+    @keyframes heroFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .hero-section {
+      padding: 56px 0 64px;
+      background: var(--white);
+      animation: heroFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--cyan-50);
+      border: 1px solid #BAE6FD;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--cyan-500);
+      margin-bottom: 24px;
+    }
+
+    .hero-title {
+      font-size: 46px;
+      font-weight: 800;
+      color: var(--navy-900);
+      line-height: 1.15;
+      letter-spacing: -1.2px;
+      margin-bottom: 20px;
+    }
+
+    .hero-title .highlight-blue {
+      color: var(--blue-600);
+    }
+
+    .hero-description {
+      font-size: 15px;
+      color: var(--slate-600);
+      line-height: 1.65;
+      max-width: 520px;
+      margin-bottom: 32px;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      height: 46px;
+      padding: 0 24px;
+      background: var(--navy-800);
+      color: var(--white);
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 700;
+      border: none;
+      transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+      box-shadow: 0 4px 12px rgba(11, 30, 56, 0.18);
+    }
+
+    .btn-hero-primary:hover {
+      background: var(--navy-600);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(11, 30, 56, 0.28);
+    }
+
+    .btn-hero-primary:active {
+      transform: scale(0.98);
+    }
+
+    .btn-hero-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 46px;
+      padding: 0 20px;
+      background: var(--white);
+      color: var(--slate-700);
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn-hero-secondary:hover {
+      background: var(--slate-50);
+      border-color: var(--slate-400);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .btn-hero-secondary:active {
+      transform: scale(0.98);
+    }
+
+    .hero-kiosk-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding-top: 18px;
+      border-top: 1px solid var(--slate-100);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .notice-badge-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--cyan-50);
+      color: var(--cyan-500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .notice-primary-text {
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+
+    .notice-sub-text {
+      color: var(--slate-500);
+    }
+
+    /* ── Hero Studio Card (Right) ── */
+    .hero-visual-card {
+      background: #F1F5F9;
+      border: 1px solid var(--slate-200);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 480px;
+      padding: 24px 20px 20px;
+      box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
+    }
+
+    /* Subtle dot-grid backdrop */
+    .hero-visual-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, #CBD5E1 1px, transparent 1px);
+      background-size: 18px 18px;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .card-top-meta {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: var(--slate-500);
+      z-index: 5;
+    }
+
+    
+    @keyframes mascotHeroFloat {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .maskot-k3-img {
+      height: 380px;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 16px 28px rgba(15, 23, 42, 0.16));
+      animation: mascotHeroFloat 4.5s ease-in-out infinite;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+
+    .maskot-k3-img:hover {
+      animation-play-state: paused;
+      transform: translateY(-4px) scale(1.02);
+    }
+
+    .tag-spalserra {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--slate-400);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .studio-model-wrap {
+      position: relative;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 8px 0;
+    }
+
+    .card-bottom-pill {
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+      z-index: 5;
+      font-size: 11px;
+      width: 90%;
+      justify-content: space-between;
+    }
+
+    .tag-apd-perfect {
+      background: var(--navy-800);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+
+    .apd-status-text {
+      color: var(--slate-600);
+      font-weight: 600;
+      text-align: right;
+    }
+
+    /* ── 3. PRINSIP SISTEM STRIP ────────────────────────────────────────────── */
+    .prinsip-strip {
+      border-top: 1px solid var(--slate-200);
+      border-bottom: 1px solid var(--slate-200);
+      background: #FAFAFC;
+      padding: 24px 0;
+    }
+
+    .prinsip-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr 1fr 1fr;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .prinsip-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--slate-400);
+    }
+
+    .prinsip-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .prinsip-item:hover {
+      transform: translateY(-2px);
+    }
+
+    .prinsip-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .prinsip-num {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cyan-500);
+    }
+
+    .prinsip-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+
+    .prinsip-desc {
+      font-size: 12px;
+      color: var(--slate-500);
+      line-height: 1.45;
+    }
+
+    /* ── 4. FITUR UTAMA SECTION ────────────────────────────────────────────── */
+    .features-section {
+      padding: 88px 0;
+      background: var(--white);
+    }
+
+    .section-header-center {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 56px;
+    }
+
+    .section-badge-blue {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--blue-600);
+      margin-bottom: 12px;
+    }
+
+    .section-title-large {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--navy-900);
+      line-height: 1.22;
+      letter-spacing: -0.8px;
+      margin-bottom: 14px;
+    }
+
+    .section-subtitle-muted {
+      font-size: 14.5px;
+      color: var(--slate-500);
+      line-height: 1.6;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .feature-box {
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 28px;
+      background: var(--white);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .feature-box:hover {
+      transform: translateY(-5px);
+      border-color: #CBD5E1;
+      box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.1);
+    }
+
+    .feature-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .feature-index {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-400);
+    }
+
+    .feature-icon-wrapper {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .fi-blue   { background: var(--blue-50);   color: var(--blue-600);   border: 1px solid #DBEAFE; }
+    .fi-amber  { background: var(--amber-50);  color: var(--amber-600);  border: 1px solid var(--amber-200); }
+    .fi-green  { background: var(--green-50);  color: var(--green-600);  border: 1px solid var(--green-200); }
+    .fi-purple { background: var(--purple-50); color: var(--purple-600); border: 1px solid var(--purple-200); }
+
+    .feature-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--navy-900);
+      margin-bottom: 8px;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--slate-600);
+      line-height: 1.55;
+    }
+
+    /* ── 5. CARA KERJA SECTION (DARK NAVY) ─────────────────────────────────── */
+    .workflow-section {
+      background: var(--navy-800);
+      color: var(--white);
+      padding: 88px 0 96px;
+      position: relative;
+    }
+
+    .workflow-header {
+      margin-bottom: 56px;
+      max-width: 600px;
+    }
+
+    .workflow-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #38BDF8;
+      margin-bottom: 12px;
+    }
+
+    .workflow-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.22;
+      letter-spacing: -0.8px;
+      margin-bottom: 12px;
+    }
+
+    .workflow-sub {
+      font-size: 14.5px;
+      color: #94A3B8;
+      line-height: 1.6;
+    }
+
+    .workflow-steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .step-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 220px;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.25s ease;
+    }
+
+    .step-card:hover {
+      transform: translateY(-4px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .step-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .step-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #38BDF8;
+    }
+
+    .step-number {
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .step-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: #94A3B8;
+      line-height: 1.55;
+    }
+
+    /* ── 6. TENTANG SISTEM SECTION ─────────────────────────────────────────── */
+    .about-section {
+      padding: 96px 0 88px;
+      background: var(--white);
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+      align-items: center;
+    }
+
+    .about-title {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--navy-900);
+      line-height: 1.22;
+      letter-spacing: -0.8px;
+      margin-bottom: 18px;
+    }
+
+    .about-paragraph {
+      font-size: 14.5px;
+      color: var(--slate-600);
+      line-height: 1.65;
+      margin-bottom: 28px;
+    }
+
+    .about-checklist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--slate-800);
+    }
+
+    .check-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--green-50);
+      border: 1px solid var(--green-200);
+      color: var(--green-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    /* About Mock Session Card */
+    .session-mock-card {
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);
+    }
+
+    .mock-header {
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--slate-100);
+    }
+
+    .mock-kicker {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .mock-course {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate-600);
+    }
+
+    .mock-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    .mock-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mock-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--navy-800);
+    }
+
+    .mock-label-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mock-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-900);
+    }
+
+    .badge-subtle-green {
+      background: var(--green-50);
+      color: var(--green-600);
+      border: 1px solid var(--green-200);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .mock-sub {
+      font-size: 11.5px;
+      color: var(--slate-500);
+      margin-top: 2px;
+    }
+
+    .btn-mock-action {
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--slate-700);
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+
+    .mock-lock-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--slate-100);
+      font-size: 11.5px;
+      color: var(--slate-400);
+    }
+
+    /* ── 7. CTA BANNER ──────────────────────────────────────────────────────── */
+    .cta-section {
+      padding: 20px 0 80px;
+      background: var(--white);
+    }
+
+    .cta-banner {
+      background: linear-gradient(135deg, #132F52 0%, #09172B 100%);
+      border-radius: 16px;
+      padding: 40px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 12px 30px rgba(9, 23, 43, 0.2);
+    }
+
+    .cta-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .cta-icon-box {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #38BDF8;
+    }
+
+    .cta-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+
+    .cta-desc {
+      font-size: 13px;
+      color: #94A3B8;
+    }
+
+    .btn-cta-white {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      padding: 0 24px;
+      background: var(--white);
+      color: var(--navy-800);
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      transition: background 0.15s ease, transform 0.1s ease;
+      white-space: nowrap;
+    }
+
+    .btn-cta-white:hover {
+      background: var(--slate-100);
+      transform: translateY(-1px);
+    }
+
+    /* ── 8. FOOTER ──────────────────────────────────────────────────────────── */
+    .site-footer {
+      background: var(--navy-900);
+      color: var(--white);
+      padding: 48px 0 32px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .footer-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 32px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-brand-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+    }
+
+    .footer-brand-sub {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--slate-400);
+      letter-spacing: 1px;
+    }
+
+    .footer-center-text {
+      font-size: 12.5px;
+      color: var(--slate-400);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-link {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate-400);
+      transition: color 0.15s ease;
+    }
+
+    .footer-link:hover {
+      color: var(--white);
+    }
+
+    .footer-bottom {
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--slate-500);
+    }
+
+    /* ── 9. MODAL ROLE CHOOSER ──────────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 21, 38, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--navy-900);
+    }
+
+    .modal-close-btn {
+      background: var(--slate-100);
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--slate-500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .role-option-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    .role-option-card:hover {
+      border-color: var(--blue-600);
+      background: var(--blue-50);
+      transform: translateY(-1px);
+    }
+
+    .role-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: var(--slate-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    /* ── RESPONSIVE RULES ───────────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+      .prinsip-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+      .workflow-steps-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .about-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+      .cta-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+      }
+      .nav-menu {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .workflow-steps-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-title {
+        font-size: 34px;
+      }
+    }
+  
+    /* ── UNIFIED MODAL / LOGIN SCREEN (EXACT WIREFRAME MATCH - NO ROLE TOGGLE) ── */
+    .unified-login-card {
+      background: var(--white);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+      width: 100%;
+      max-width: 860px;
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      padding: 24px;
+      gap: 32px;
+      position: relative;
+      overflow: hidden;
+      animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-close-round {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #F1F5F9;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748B;
+      font-size: 14px;
+      transition: background 0.15s ease, color 0.15s ease;
+      z-index: 20;
+    }
+
+    .modal-close-round:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+    }
+
+    /* Left Mascot Stage */
+    .unified-stage-col {
+      background: linear-gradient(180deg, #EBF1F7 0%, #F1F5F9 100%);
+      border-radius: 18px;
+      padding: 20px 20px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      min-height: 440px;
+    }
+
+    .stage-top-brand {
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+    }
+
+    .st-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #0B1E38;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+
+    .st-sub {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #64748B;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .stage-mascot-wrap {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .stage-mascot-img {
+      max-height: 360px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 14px 20px rgba(15, 23, 42, 0.14));
+      transform: translateY(12px);
+    }
+
+    .stage-floating-card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      z-index: 6;
+      margin-top: auto;
+    }
+
+    .portal-tag {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #0284C7;
+      margin-bottom: 4px;
+    }
+
+    .portal-heading {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0F172A;
+      line-height: 1.25;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .portal-sub {
+      font-size: 11px;
+      color: #64748B;
+      line-height: 1.4;
+    }
+
+    /* Right Form Column */
+    .unified-form-col {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 12px 12px 12px 0;
+    }
+
+    .form-header-center {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .brand-logo-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .form-main-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0F172A;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+
+    .form-sub-desc {
+      font-size: 12.5px;
+      color: #64748B;
+    }
+
+    /* Input with icons */
+    .pill-input-wrap {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .pill-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .pill-input-field {
+      width: 100%;
+      height: 46px;
+      border-radius: 999px;
+      border: 1px solid #CBD5E1;
+      padding: 0 16px;
+      font-size: 13.5px;
+      color: #0F172A;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: var(--white);
+      font-family: inherit;
+    }
+
+    .pill-input-field.has-eye {
+      padding-right: 44px;
+    }
+
+    .pill-input-field:focus {
+      border-color: #1D4ED8;
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.08);
+    }
+
+    .pill-right-icon {
+      position: absolute;
+      right: 14px;
+      top: 34px;
+      color: #94A3B8;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+    }
+
+    .pill-right-icon:hover {
+      color: #334155;
+    }
+
+    .form-options-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+      color: #64748B;
+      margin-bottom: 22px;
+      margin-top: 4px;
+    }
+
+    .remember-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .forgot-link {
+      color: #1D4ED8;
+      font-weight: 600;
+    }
+
+    .btn-login-pill {
+      width: 100%;
+      height: 46px;
+      border-radius: 999px;
+      background: #143E6B;
+      color: #FFFFFF !important;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+      box-shadow: 0 4px 14px rgba(20, 62, 107, 0.22);
+    }
+
+    .btn-login-pill:hover {
+      background: #0B2B4E;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(20, 62, 107, 0.32);
+    }
+
+    .btn-login-pill:active {
+      transform: scale(0.98);
+    }
+
+    .form-lock-security {
+      text-align: center;
+      font-size: 11px;
+      color: #94A3B8;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    @media (max-width: 768px) {
+      .unified-login-card {
+        grid-template-columns: 1fr;
+        padding: 20px;
+      }
+      .unified-stage-col {
+        min-height: 280px;
+      }
+      .stage-mascot-img {
+        max-height: 240px;
+      }
+      .unified-form-col {
+        padding: 0;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- 1. NAVBAR -->
+  <header class="navbar">
+    <div class="container nav-wrapper">
+      <a href="#beranda" class="nav-brand">
+        <img src="assets/img/logo-polman.png" alt="Logo POLMAN" class="logo-polman-img">
+        <div>
+          <span class="brand-title">POLMAN</span>
+          <span class="brand-tagline">Smart Attendance</span>
+        </div>
+      </a>
+
+      <ul class="nav-menu">
+        <li><a href="#beranda" class="nav-link active">Beranda</a></li>
+        <li><a href="#fitur" class="nav-link">Fitur</a></li>
+        <li><a href="#cara-kerja" class="nav-link">Cara Kerja</a></li>
+        <li><a href="#tentang" class="nav-link">Tentang</a></li>
+      </ul>
+
+      <div>
+        <button class="btn-nav-login" onclick="openLoginModal()">
+          Masuk &nbsp;
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. HERO SECTION -->
+  <section id="beranda" class="hero-section">
+    <div class="container hero-grid">
+      <!-- Left Content -->
+      <div>
+        <div class="hero-tag">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          POLITEKNIK MANUFAKTUR BANDUNG
+        </div>
+
+        <h1 class="hero-title">
+          Kehadiran praktikum<br>
+          yang <span class="highlight-blue">tercatat dengan jelas.</span>
+        </h1>
+
+        <p class="hero-description">
+          POLMAN Smart Attendance mencatat kehadiran, memverifikasi identitas, dan membantu pemeriksaan APD tanpa menggantikan keputusan manusia.
+        </p>
+
+        <div class="hero-cta-group">
+          <button class="btn-hero-primary" onclick="openLoginModal()">
+            Masuk ke sistem &nbsp;
+          </button>
+          <a href="#cara-kerja" class="btn-hero-secondary">
+            Pelajari cara kerja &nbsp;
+          </a>
+        </div>
+
+        <div class="hero-kiosk-notice">
+          <div>
+            <div class="notice-primary-text">Absensi hanya dilakukan di perangkat kiosk.</div>
+            <div class="notice-sub-text">Portal pribadi digunakan untuk melihat jadwal dan riwayat.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Visual Studio Card -->
+      <div class="hero-visual-card">
+        <div class="card-top-meta">
+          <span class="mono">01</span>
+          <span>KESELAMATAN PRAKTIKUM</span>
+        </div>
+
+        <!-- Vector Worker Model with White Hard Hat and Practical Attire -->
+        <div class="studio-model-wrap">
+          <img src="assets/img/maskot-k3.png" alt="Maskot K3 POLMAN (Spalserra)" class="maskot-k3-img">
+        </div>
+
+        <div class="card-bottom-pill">
+          <span class="tag-apd-perfect">SPALSERRA</span>
+          <span class="apd-status-text">Pemeriksaan pakaian praktikum 100% valid</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. PRINSIP SISTEM STRIP -->
+  <section class="prinsip-strip">
+    <div class="container prinsip-grid">
+      <div class="prinsip-kicker">PRINSIP SISTEM</div>
+
+      <div class="prinsip-item">
+        <div class="prinsip-header">
+          <span class="prinsip-num">01</span>
+          <span class="prinsip-title">Verifikasi wajah</span>
+        </div>
+        <p class="prinsip-desc">Mencegah joki presensi antarmahasiswa.</p>
+      </div>
+
+      <div class="prinsip-item">
+        <div class="prinsip-header">
+          <span class="prinsip-num">02</span>
+          <span class="prinsip-title">Kehadiran tetap terpisah</span>
+        </div>
+        <p class="prinsip-desc">Evaluasi kelengkapan APD tidak membatalkan kehadiran.</p>
+      </div>
+
+      <div class="prinsip-item">
+        <div class="prinsip-header">
+          <span class="prinsip-num">03</span>
+          <span class="prinsip-title">Admin memvalidasi hasil</span>
+        </div>
+        <p class="prinsip-desc">Aplikasi bukan pemutus akhir pelanggaran.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. FITUR UTAMA SECTION -->
+  <section id="fitur" class="features-section">
+    <div class="container">
+      <div class="section-header-center">
+        <span class="section-badge-blue">FITUR UTAMA</span>
+        <h2 class="section-title-large">
+          Satu alur kerja untuk kebutuhan<br>
+          mahasiswa dan admin
+        </h2>
+        <p class="section-subtitle-muted">
+          Setiap fungsi dibangun untuk menyelesaikan kebutuhan operasional, bukan sekadar menambahkan otomatisasi.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Card 1 -->
+        <div class="feature-box">
+          <div class="feature-top">
+            <span class="feature-index">01</span>
+            <div class="feature-icon-wrapper fi-blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M16 16s-1.5-2-4-2-4 2-4 2"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="feature-title">Verifikasi Identitas</h3>
+            <p class="feature-desc">Pencocokan wajah di setiap sesi untuk memastikan kehadiran yang akurat.</p>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="feature-box">
+          <div class="feature-top">
+            <span class="feature-index">02</span>
+            <div class="feature-icon-wrapper fi-amber">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 18h20"/>
+                <path d="M4 18V10a8 8 0 0 1 16 0v8"/>
+                <circle cx="12" cy="8" r="2"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="feature-title">Pemeriksaan APD</h3>
+            <p class="feature-desc">Memeriksa kelengkapan APD sesuai aturan kelas dan mata kuliah praktikum.</p>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="feature-box">
+          <div class="feature-top">
+            <span class="feature-index">03</span>
+            <div class="feature-icon-wrapper fi-green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="feature-title">Validasi Terpercaya</h3>
+            <p class="feature-desc">Setiap deteksi dan kecurigaan didokumentasikan sebagai catatan pertanggungjawaban.</p>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="feature-box">
+          <div class="feature-top">
+            <span class="feature-index">04</span>
+            <div class="feature-icon-wrapper fi-purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 20V10"/>
+                <path d="M12 20V4"/>
+                <path d="M6 20v-6"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h3 class="feature-title">Rekap Terintegrasi</h3>
+            <p class="feature-desc">Data jam keterlambatan, alfa, dan kompensasi terangkum dalam satu sistem.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. CARA KERJA SECTION (DARK NAVY) -->
+  <section id="cara-kerja" class="workflow-section">
+    <div class="container">
+      <div class="workflow-header">
+        <div class="workflow-kicker">CARA KERJA</div>
+        <h2 class="workflow-title">
+          Alur yang sama pada setiap sesi<br>
+          praktikum
+        </h2>
+        <p class="workflow-sub">
+          Mahasiswa selalu mengetahui tahap yang sedang berjalan dan hasil yang dicatat.
+        </p>
+      </div>
+
+      <div class="workflow-steps-grid">
+        <!-- Step 1 -->
+        <div class="step-card">
+          <div class="step-top">
+            <div class="step-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2"/>
+                <circle cx="12" cy="10" r="3"/>
+                <path d="M7 16h10"/>
+              </svg>
+            </div>
+            <span class="step-number">01</span>
+          </div>
+          <div>
+            <h3 class="step-title">Masuk di kiosk</h3>
+            <p class="step-desc">Gunakan NIM dan kata sandi pada komputer absensi di area praktikum.</p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card">
+          <div class="step-top">
+            <div class="step-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <span class="step-number">02</span>
+          </div>
+          <div>
+            <h3 class="step-title">Verifikasi Wajah</h3>
+            <p class="step-desc">Posisikan wajah pada kamera untuk memvalidasi identitas mahasiswa.</p>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card">
+          <div class="step-top">
+            <div class="step-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 18h20"/>
+                <path d="M4 18V10a8 8 0 0 1 16 0v8"/>
+                <path d="M10 18v-4"/>
+                <path d="M14 18v-4"/>
+              </svg>
+            </div>
+            <span class="step-number">03</span>
+          </div>
+          <div>
+            <h3 class="step-title">Pemeriksaan APD</h3>
+            <p class="step-desc">Kamera mengecek parameter pakaian yang diwajibkan untuk sesi praktikum.</p>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step-card">
+          <div class="step-top">
+            <div class="step-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="m9 11 3 3L22 4"/>
+              </svg>
+            </div>
+            <span class="step-number">04</span>
+          </div>
+          <div>
+            <h3 class="step-title">Absensi tercatat</h3>
+            <p class="step-desc">Hasil presensi tersimpan dan dapat dipantau pada portal mahasiswa.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. TENTANG SISTEM SECTION -->
+  <section id="tentang" class="about-section">
+    <div class="container about-grid">
+      <!-- Left Content -->
+      <div>
+        <span class="section-badge-blue">TENTANG SISTEM</span>
+        <h2 class="about-title">
+          Dibangun untuk praktikum yang<br>
+          lebih tertib dan transparan.
+        </h2>
+        <p class="about-paragraph">
+          POLMAN Smart Attendance membantu kampus mencatat kehadiran tanpa menggabungkannya dengan hasil kepatuhan APD. Setiap indikasi AI tetap diperiksa admin agar keputusan tetap adil dan dapat dipertanggungjawabkan.
+        </p>
+
+        <ul class="about-checklist">
+          <li class="checklist-item">
+            <div class="check-circle">✓</div>
+            <span>Kehadiran dan kepatuhan APD dicatat terpisah</span>
+          </li>
+          <li class="checklist-item">
+            <div class="check-circle">✓</div>
+            <span>Aturan pemeriksaan mengikuti kelas dan mata kuliah</span>
+          </li>
+          <li class="checklist-item">
+            <div class="check-circle">✓</div>
+            <span>Data biometrik diperlakukan sebagai data sensitif</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Right Mock Card -->
+      <div class="session-mock-card">
+        <div class="mock-header">
+          <div class="mock-kicker">STATUS SESI PRAKTIKUM</div>
+          <div class="mock-course">Contoh: Proses Manufaktur - Sesi 2B/01</div>
+        </div>
+
+        <!-- Row 1: APD -->
+        <div class="mock-row">
+          <div class="mock-left">
+            <div>
+              <div class="mock-label-group">
+                <span class="mock-title">Pemeriksaan APD</span>
+                <span class="badge-subtle-green">Sesuai regulasi</span>
+              </div>
+              <div class="mock-sub">Helm safety, kemeja praktek, sepatu safety</div>
+            </div>
+          </div>
+          <button class="btn-mock-action" onclick="alert('Rincian APD: Helm OK, Kemeja OK, Jeans OK, Sepatu OK.')">Lihat detail</button>
+        </div>
+
+        <!-- Row 2: Keputusan Akhir -->
+        <div class="mock-row">
+          <div class="mock-left">
+            <div>
+              <div class="mock-label-group">
+                <span class="mock-title">Keputusan Akhir</span>
+              </div>
+              <div class="mock-sub">Hadir • Verifikasi otomatis oleh sistem</div>
+            </div>
+          </div>
+          <button class="btn-mock-action" onclick="alert('Status validasi telah dikonfirmasi.')">Validasi manual</button>
+        </div>
+
+        <div class="mock-lock-footer">
+               <span>Pusat verifikasi dapat dikonfirmasi oleh admin.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. CALL TO ACTION BANNER -->
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-banner">
+        <div class="cta-left">
+          <div class="cta-icon-box">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="cta-title">Siap memulai aktivitas praktikum?</h3>
+            <p class="cta-desc">Masuk untuk mengakses portal sesuai peran Anda.</p>
+          </div>
+        </div>
+
+        <div>
+          <button class="btn-cta-white" onclick="openLoginModal()">
+            Masuk sekarang &nbsp;→
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. SITE FOOTER -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <img src="assets/img/logo-polman.png" alt="Logo POLMAN" class="logo-polman-img" style="filter: brightness(1.15);">
+          <div>
+            <span class="footer-brand-title">POLMAN</span>
+            <div class="footer-brand-sub">Smart Attendance</div>
+          </div>
+        </div>
+
+        <div class="footer-center-text">
+          Sistem absensi praktikum cerdas Politeknik Manufaktur Bandung.
+        </div>
+
+        <ul class="footer-links">
+          <li><a href="#fitur" class="footer-link">Fitur</a></li>
+          <li><a href="#cara-kerja" class="footer-link">Cara Kerja</a></li>
+          <li><a href="#tentang" class="footer-link">Tentang</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 POLMAN Smart Attendance</div>
+        <div>Teknologi pencatatan presensi praktikum</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 9. UNIFIED LOGIN MODAL (EXACT WIREFRAME MATCH) -->
+  <div class="modal-backdrop" id="loginModal" onclick="closeLoginModalOnBackdrop(event)">
+    
+    <div class="unified-login-card" id="unifiedLoginCard" onclick="event.stopPropagation()">
+      <!-- Round close button -->
+      <button class="modal-close-round" onclick="closeLoginModal()" title="Tutup">✕</button>
+
+      <!-- Left Column: Spalserra Mascot & Practical Portal Box -->
+      <div class="unified-stage-col">
+        <div class="stage-top-brand">
+          <span class="st-title">POLMAN</span>
+          <span class="st-sub">SMART ATTENDANCE</span>
+        </div>
+
+        <div class="stage-mascot-wrap">
+          <img src="assets/img/maskot-k3.png" alt="Maskot K3 POLMAN (Spalserra)" class="stage-mascot-img">
+        </div>
+
+        <div class="stage-floating-card">
+          <div class="portal-tag">PORTAL PRAKTIKUM</div>
+          <div class="portal-heading">Catat kehadiran.<br>Jaga keselamatan.</div>
+          <div class="portal-sub">Satu akses untuk informasi praktikum Anda.</div>
+        </div>
+      </div>
+
+      <!-- Right Column: Direct Input Form (NIM/NIP & Password) -->
+      <div class="unified-form-col">
+        <div class="form-header-center">
+          <div class="brand-logo-pill">
+            <img src="assets/img/logo-polman.png" alt="POLMAN" style="width: 26px; height: 30px; object-fit: contain;">
+            <div style="text-align: left;">
+              <div style="font-size: 12px; font-weight: 800; color: #0B1E38; line-height: 1;">POLMAN</div>
+              <div style="font-size: 8px; font-weight: 700; color: #64748B; letter-spacing: 0.8px;">SMART ATTENDANCE</div>
+            </div>
+          </div>
+          <h2 class="form-main-title">Masuk ke akun Anda</h2>
+          <p class="form-sub-desc">Selamat datang kembali. Masukkan detail akun untuk melanjutkan.</p>
+        </div>
+
+        <form id="unifiedLoginForm" onsubmit="handleUnifiedSubmit(event)">
+          <!-- Identifier: NIM atau NIP -->
+          <div class="pill-input-wrap">
+            <label class="pill-label" for="inputIdentifier">NIM / NIP</label>
+            <input type="text" id="inputIdentifier" class="pill-input-field" placeholder="Masukkan 9 digit NIM atau NIP" required autofocus autocomplete="username">
+          </div>
+
+          <!-- Kata Sandi -->
+          <div class="pill-input-wrap">
+            <label class="pill-label" for="inputPassword">Kata sandi</label>
+            <input type="password" id="inputPassword" class="pill-input-field has-eye" placeholder="Masukkan kata sandi" required autocomplete="current-password">
+            <span class="pill-right-icon" onclick="toggleUnifiedPassword()" title="Tampilkan / Sembunyikan sandi">
+              <svg id="eyeIconSvg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </span>
+          </div>
+
+          <!-- Options Row -->
+          <div class="form-options-row">
+            <label class="remember-check">
+              <input type="checkbox" id="checkRemember" checked style="accent-color: #143E6B;">
+              <span>Ingat saya</span>
+            </label>
+            <a href="#" class="forgot-link" onclick="alert('Silakan hubungi administrator laboratorium atau pengelola akademik POLMAN untuk bantuan akun.'); return false;">
+              Lupa kata sandi? Hubungi admin
+            </a>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-login-pill" style="color: #FFFFFF !important;">
+            Masuk &nbsp;→
+          </button>
+        </form>
+
+        <div class="form-lock-security">
+          <span>Akses dilindungi dan aktivitas akun dicatat untuk keamanan.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openLoginModal() {
+      document.getElementById('loginModal').classList.add('show');
+      const input = document.getElementById('inputIdentifier');
+      if (input) input.focus();
+    }
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.remove('show');
+    }
+    function closeLoginModalOnBackdrop(e) {
+      if (e.target.id === 'loginModal') {
+        closeLoginModal();
+      }
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLoginModal();
+    });
+
+    
+    function toggleUnifiedPassword() {
+      const p = document.getElementById('inputPassword');
+      const svg = document.getElementById('eyeIconSvg');
+      if (p.type === 'password') {
+        p.type = 'text';
+        if (svg) {
+          svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+        }
+      } else {
+        p.type = 'password';
+        if (svg) {
+          svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+        }
+      }
+    }
+
+    function handleUnifiedSubmit(e) {
+      e.preventDefault();
+      const idVal = document.getElementById('inputIdentifier').value.trim();
+      const passVal = document.getElementById('inputPassword').value.trim();
+
+      // Detection:
+      // If user inputs 'admin' or an NIP (typically 18 digits or starts with 19) or password is admin123
+      // -> route to admin dashboard. Otherwise -> route to mahasiswa dashboard.
+      const isAdmin = idVal.toLowerCase() === 'admin' || 
+                      idVal.length >= 15 || 
+                      idVal.startsWith('19') || 
+                      passVal === 'admin123';
+
+      if (isAdmin) {
+        window.location.href = 'admin/dashboard.html';
+      } else {
+        window.location.href = 'mahasiswa/dashboard.html';
+      }
+    }
+
+  </script>
+</body>
+</html>
