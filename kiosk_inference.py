@@ -33,6 +33,12 @@ APD_SCAN_GRID = {
     "jeans": (0.30, ((0.42, 0.80), (0.54, 0.92))),
     "sepatu": (0.28, ((0.64, 0.90), (0.76, 1.00))),
 }
+APD_DISPLAY = {
+    "helm": {"label": "Helm Safety", "color": "#FACC15"},
+    "baju": {"label": "Baju Praktik", "color": "#22C55E"},
+    "jeans": {"label": "Celana Jeans", "color": "#38BDF8"},
+    "sepatu": {"label": "Sepatu Safety", "color": "#E879F9"},
+}
 MODEL_LOCK = threading.RLock()
 
 
@@ -148,7 +154,7 @@ def _face_detector() -> Any:
     return dlib.get_frontal_face_detector()
 
 
-def _face_crop(frame: np.ndarray, crop_mode: str) -> np.ndarray | None:
+def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | None, list[int] | None]:
     height, width = frame.shape[:2]
     if crop_mode == "guide":
         side = int(min(height, width) * 0.45)
@@ -156,7 +162,9 @@ def _face_crop(frame: np.ndarray, crop_mode: str) -> np.ndarray | None:
         y0 = max(0, int(height * 0.18))
         x1 = min(width, x0 + side)
         y1 = min(height, y0 + side)
-        return frame[y0:y1, x0:x1] if x1 > x0 and y1 > y0 else None
+        if x1 > x0 and y1 > y0:
+            return frame[y0:y1, x0:x1], [x0, y0, x1, y1]
+        return None, None
     if crop_mode != "hog":
         raise ValueError(f"Mode crop wajah tidak dikenal: {crop_mode}")
 
@@ -168,8 +176,12 @@ def _face_crop(frame: np.ndarray, crop_mode: str) -> np.ndarray | None:
     )
     rgb = cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB)
     faces = _face_detector()(rgb, 0)
+    if not faces and scale < 1.0:
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        faces = _face_detector()(rgb, 0)
+        scale = 1.0
     if not faces:
-        return None
+        return None, None
 
     face = max(faces, key=lambda rect: rect.width() * rect.height())
     x0 = int(face.left() / scale)
@@ -183,22 +195,29 @@ def _face_crop(frame: np.ndarray, crop_mode: str) -> np.ndarray | None:
     y0 = max(0, int(y0 - face_height * 0.12))
     y1 = min(height, int(y1 - face_height * 0.02))
     if x1 <= x0 + 20 or y1 <= y0 + 20:
-        return None
-    return frame[y0:y1, x0:x1]
+        return None, None
+    return frame[y0:y1, x0:x1], [x0, y0, x1, y1]
 
 
-def _face_probabilities(frame: np.ndarray, crop_mode: str) -> np.ndarray | None:
-    crop = _face_crop(cv2.flip(frame, 1), crop_mode)
+def _face_probabilities_and_box(
+    frame: np.ndarray, crop_mode: str
+) -> tuple[np.ndarray | None, list[int] | None, list[int]]:
+    flipped = cv2.flip(frame, 1)
+    height, width = flipped.shape[:2]
+    crop, box = _face_crop_and_box(flipped, crop_mode)
     if crop is None:
-        return None
-    return _predict("wajah", crop)
+        return None, None, [width, height]
+    return _predict("wajah", crop), box, [width, height]
 
 
 def _face_result(
     probabilities: np.ndarray | None,
     model: LoadedModel,
     student_name: str,
+    box: list[int] | None = None,
+    dimensions: list[int] | None = None,
 ) -> dict[str, Any]:
+    dims = dimensions or [640, 480]
     if probabilities is None:
         return {
             "detected": False,
@@ -208,6 +227,8 @@ def _face_result(
             "threshold": model.threshold,
             "classes": list(model.classes),
             "probabilities": None,
+            "box": None,
+            "dimensions": dims,
         }
     if len(probabilities) != len(model.classes) or not model.classes:
         raise ValueError("Label model wajah tidak sesuai dengan output model")
@@ -215,14 +236,20 @@ def _face_result(
     label = model.classes[index]
     name_tokens = set(re.findall(r"[a-z0-9]+", student_name.casefold()))
     confidence = float(probabilities[index])
+    matches_name = any(
+        label.casefold() in token or token in label.casefold()
+        for token in name_tokens
+    )
     return {
         "detected": True,
-        "matched": label.casefold() in name_tokens and confidence >= model.threshold,
+        "matched": matches_name and confidence >= model.threshold,
         "label": label,
         "confidence": confidence,
         "threshold": model.threshold,
         "classes": list(model.classes),
         "probabilities": [float(value) for value in probabilities],
+        "box": box,
+        "dimensions": dims,
     }
 
 
@@ -230,7 +257,8 @@ def infer_face(
     frame: np.ndarray, student_name: str, crop_mode: str = "hog"
 ) -> dict[str, Any]:
     model = _load_model("wajah")
-    return _face_result(_face_probabilities(frame, crop_mode), model, student_name)
+    probs, box, dims = _face_probabilities_and_box(frame, crop_mode)
+    return _face_result(probs, model, student_name, box=box, dimensions=dims)
 
 
 def infer_face_sequence(
@@ -244,18 +272,24 @@ def infer_face_sequence(
     model = _load_model("wajah")
     probability_history = []
     current_probabilities = None
+    last_box = None
+    last_dims = [640, 480]
     for frame in frames:
-        probabilities = _face_probabilities(frame, crop_mode)
+        probabilities, box, dims = _face_probabilities_and_box(frame, crop_mode)
+        last_dims = dims
         if probabilities is None:
             probability_history.clear()
             current_probabilities = None
             continue
+        last_box = box
         if len(probabilities) != len(model.classes) or not model.classes:
             raise ValueError("Label model wajah tidak sesuai dengan output model")
         probability_history.append(probabilities)
         probability_history = probability_history[-FACE_SCAN_FRAME_COUNT:]
         current_probabilities = np.mean(probability_history, axis=0)
-    return _face_result(current_probabilities, model, student_name)
+    return _face_result(
+        current_probabilities, model, student_name, box=last_box, dimensions=last_dims
+    )
 
 
 def infer_apd(
@@ -271,24 +305,38 @@ def infer_apd(
     probabilities = {item: 0.0 for item in APD_ITEMS}
     scan_counts = {item: 0 for item in APD_ITEMS}
     detected = {item: False for item in APD_ITEMS}
+    last_boxes = {item: None for item in APD_ITEMS}
+    last_dims = [640, 480]
 
     for frame_index, source_frame in enumerate(frames):
         frame = cv2.flip(source_frame, 1)
         height, width = frame.shape[:2]
+        last_dims = [width, height]
         item = APD_ITEMS[frame_index % len(APD_ITEMS)]
         if item not in required_items:
             continue
         crop_width_ratio, y_ranges = APD_SCAN_GRID[item]
         crop_width = int(width * crop_width_ratio)
         best_probability = 0.0
+        best_box = None
 
         for top, bottom in y_ranges:
             y0, y1 = int(height * top), int(height * bottom)
             for center_x in APD_SCAN_CENTERS:
                 x0 = max(0, int(width * center_x - crop_width / 2))
                 x1 = min(width, x0 + crop_width)
-                probability = float(_predict(item, frame[y0:y1, x0:x1])[0])
-                best_probability = max(best_probability, probability)
+                crop = frame[y0:y1, x0:x1]
+                if crop.size == 0:
+                    continue
+                probability = float(_predict(item, crop)[0])
+                if probability > best_probability:
+                    best_probability = probability
+                    best_box = [x0, y0, x1, y1]
+
+        if best_box is not None and (
+            best_probability >= APD_THRESHOLD_OFF or last_boxes[item] is None
+        ):
+            last_boxes[item] = best_box
 
         previous_count = scan_counts[item]
         probabilities[item] = (
@@ -309,6 +357,94 @@ def infer_apd(
             "probability": probabilities[item],
             "threshold": APD_THRESHOLD_ON,
             "worn": detected[item],
+            "box": last_boxes[item] if detected[item] else None,
+            "label": APD_DISPLAY[item]["label"],
+            "color": APD_DISPLAY[item]["color"],
+            "dimensions": last_dims,
         }
         for item in APD_ITEMS
     }
+
+
+def infer_single_frame_apd(
+    frame: np.ndarray,
+    required_items: set[str] | None = None,
+    previous_ema: dict[str, float] | None = None,
+    previous_detected: dict[str, bool] | None = None,
+) -> dict[str, dict[str, Any]]:
+    if required_items is None:
+        required_items = set(APD_ITEMS)
+
+    prev_ema = previous_ema or {}
+    prev_det = previous_detected or {}
+
+    flipped = cv2.flip(frame, 1)
+    height, width = flipped.shape[:2]
+    dimensions = [width, height]
+
+    results = {}
+    for item in APD_ITEMS:
+        if item not in required_items:
+            results[item] = {
+                "probability": 0.0,
+                "threshold": APD_THRESHOLD_ON,
+                "worn": False,
+                "box": None,
+                "label": APD_DISPLAY[item]["label"],
+                "color": APD_DISPLAY[item]["color"],
+                "dimensions": dimensions,
+            }
+            continue
+
+        crop_width_ratio, y_ranges = APD_SCAN_GRID[item]
+        crop_width = int(width * crop_width_ratio)
+        best_p = 0.0
+        best_box = None
+
+        for top, bottom in y_ranges:
+            y0, y1 = int(height * top), int(height * bottom)
+            for center_x in APD_SCAN_CENTERS:
+                x0 = max(0, int(width * center_x - crop_width / 2))
+                x1 = min(width, x0 + crop_width)
+                crop = flipped[y0:y1, x0:x1]
+                if crop.size == 0:
+                    continue
+                p = float(_predict(item, crop)[0])
+                if p > best_p:
+                    best_p = p
+                    best_box = [x0, y0, x1, y1]
+
+        old_ema = float(prev_ema.get(item, 0.0))
+        new_ema = best_p if old_ema == 0.0 else (0.40 * best_p + 0.60 * old_ema)
+
+        was_detected = bool(prev_det.get(item, False))
+        if was_detected:
+            is_detected = new_ema >= APD_THRESHOLD_OFF
+        else:
+            is_detected = new_ema >= APD_THRESHOLD_ON
+
+        results[item] = {
+            "probability": new_ema,
+            "threshold": APD_THRESHOLD_ON,
+            "worn": is_detected,
+            "box": best_box if is_detected else None,
+            "label": APD_DISPLAY[item]["label"],
+            "color": APD_DISPLAY[item]["color"],
+            "dimensions": dimensions,
+        }
+
+    return results
+
+
+def warmup_models() -> None:
+    """Pre-load all TFLite models and the frontal face detector to avoid first-request delay."""
+    for item in MODEL_STEMS:
+        try:
+            _load_model(item)
+        except Exception as exc:
+            print(f"[WARMUP] Error pre-loading {item}: {exc}")
+    try:
+        _face_detector()
+    except Exception as exc:
+        print(f"[WARMUP] Error pre-loading face detector: {exc}")
+

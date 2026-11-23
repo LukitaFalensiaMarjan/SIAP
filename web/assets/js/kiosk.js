@@ -1,9 +1,11 @@
 const KIOSK_APD_SCAN_FRAME_COUNT = 8;
 const KIOSK_APD_SCAN_INTERVAL_MS = 150;
+const KIOSK_APD_VERIFY_DURATION_MS = 5000;
+const KIOSK_APD_LIVE_INTERVAL_MS = 160;
 const KIOSK_FACE_PROBABILITY_WINDOW = 4;
 const KIOSK_FACE_VERIFY_DURATION_MS = 1500;
 const KIOSK_FACE_SCAN_INTERVAL_MS = 100;
-const KIOSK_FACE_MAX_ATTEMPTS = 24;
+const KIOSK_FACE_MAX_ATTEMPTS = 300;
 
 const kioskState = {
   student: null,
@@ -29,10 +31,32 @@ const kioskApdItems = {
   sepatu: { element: 'tagSepatu', label: 'Sepatu safety' }
 };
 
+function speakKioskText(text) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const idVoice = voices.find(v => v.lang && (v.lang === 'id-ID' || v.lang.startsWith('id')));
+    if (idVoice) utterance.voice = idVoice;
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn('Speech synthesis error:', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', initKiosk);
 window.addEventListener('pagehide', stopKioskCamera);
 
 async function initKiosk() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
   const button = document.getElementById('btnKioskAction');
   button.addEventListener('click', handleKioskAction);
   document.getElementById('btnKioskApdRetry').addEventListener('click', retryAPDInspection);
@@ -46,16 +70,19 @@ async function initKiosk() {
 }
 
 async function handleKioskIdentitySubmit(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   if (kioskState.busy) return;
 
   const submitButton = document.getElementById('btnKioskIdentitySubmit');
   const message = document.getElementById('kioskIdentityMessage');
-  const identity = {
-    nama: document.getElementById('kioskInputName').value.trim(),
-    nim: document.getElementById('kioskInputNim').value.trim(),
-    kelas: document.getElementById('kioskInputClass').value.trim()
-  };
+  const nim = document.getElementById('kioskInputNim').value.trim();
+  const password = document.getElementById('kioskInputPassword').value.trim();
+
+  if (!nim || !password) {
+    message.textContent = 'NIM dan kata sandi wajib diisi.';
+    return;
+  }
+
   submitButton.disabled = true;
   message.textContent = 'Memeriksa identitas mahasiswa...';
 
@@ -63,20 +90,33 @@ async function handleKioskIdentitySubmit(event) {
     const response = await fetch('/api/kiosk/context', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(identity)
+      body: JSON.stringify({ nim, password })
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || 'Identitas mahasiswa gagal diverifikasi.');
+    if (!response.ok) throw new Error(result.error || 'NIM atau kata sandi tidak sesuai.');
 
     kioskState.student = result.student;
     kioskState.sessions = result.sessions;
-    ['kioskInputName', 'kioskInputNim', 'kioskInputClass'].forEach(id => {
-      document.getElementById(id).disabled = true;
-    });
+
+    document.getElementById('kioskInputNim').disabled = true;
+    document.getElementById('kioskInputPassword').disabled = true;
     document.getElementById('btnKioskIdentitySubmit').hidden = true;
     document.getElementById('btnKioskIdentityReset').hidden = false;
+
+    // Sembunyikan panel quick select saat sudah login
+    const quickSection = document.getElementById('kioskQuickSelectSection');
+    if (quickSection) quickSection.style.display = 'none';
+
+    // Tampilkan profil terverifikasi
+    const card = document.getElementById('kioskStudentProfileCard');
+    if (card) {
+      document.getElementById('kioskProfileName').textContent = result.student.nama;
+      document.getElementById('kioskProfileDetail').textContent = `NIM: ${result.student.nim} · Kelas: ${result.student.kelas}`;
+      card.style.display = 'block';
+    }
+
     document.getElementById('kioskStudentStatus').textContent = 'Identitas terdaftar';
-    message.textContent = `Identitas cocok. Sesi ditampilkan untuk kelas ${result.student.kelas}.`;
+    message.textContent = `Selamat datang, ${result.student.nama}. Sesi aktif ditampilkan.`;
     populateKioskSessions(result.sessions);
   } catch (error) {
     kioskState.student = null;
@@ -88,6 +128,18 @@ async function handleKioskIdentitySubmit(event) {
   }
 }
 
+function quickSelectStudent(nim) {
+  if (kioskState.busy) return;
+  const nimInput = document.getElementById('kioskInputNim');
+  const passwordInput = document.getElementById('kioskInputPassword');
+  if (nimInput && passwordInput) {
+    nimInput.value = nim;
+    passwordInput.value = 'mahasiswa123';
+    handleKioskIdentitySubmit(new Event('submit'));
+  }
+}
+window.quickSelectStudent = quickSelectStudent;
+
 function resetKioskIdentity() {
   if (kioskState.busy || kioskState.step !== 1) return;
   kioskState.student = null;
@@ -98,15 +150,22 @@ function resetKioskIdentity() {
   kioskState.apdImages = null;
   kioskState.apd = null;
   stopKioskCamera();
-  ['kioskInputName', 'kioskInputNim', 'kioskInputClass'].forEach(id => {
-    document.getElementById(id).disabled = false;
-  });
+  drawDetectionBoxes([]);
+
+  document.getElementById('kioskInputNim').disabled = false;
+  document.getElementById('kioskInputPassword').disabled = false;
   document.getElementById('kioskIdentityForm').reset();
   document.getElementById('btnKioskIdentitySubmit').hidden = false;
   document.getElementById('btnKioskIdentityReset').hidden = true;
+
+  const quickSection = document.getElementById('kioskQuickSelectSection');
+  if (quickSection) quickSection.style.display = 'block';
+
+  const card = document.getElementById('kioskStudentProfileCard');
+  if (card) card.style.display = 'none';
+
   document.getElementById('kioskStudentStatus').textContent = 'Kiosk siap';
-  document.getElementById('kioskIdentityMessage').textContent =
-    'Masukkan nama, NIM, dan kelas sesuai data mahasiswa.';
+  document.getElementById('kioskIdentityMessage').textContent = 'Masukkan NIM dan kata sandi Anda.';
   document.getElementById('btnKioskAction').textContent = 'Mulai Verifikasi Wajah';
   document.getElementById('btnKioskAction').disabled = true;
   document.getElementById('btnKioskApdRetry').hidden = true;
@@ -197,13 +256,21 @@ function populateKioskSessions(sessions) {
     select.add(new Option(label, String(item.id)));
   });
   select.disabled = !kioskState.student || sessions.length === 0;
-  kioskState.sessionId = null;
-  document.getElementById('btnKioskAction').disabled = true;
-  message.textContent = sessions.length
-    ? 'Pilih sesi aktif yang akan diikuti.'
-    : kioskState.student
+
+  if (sessions.length > 0) {
+    // Otomatis pilih sesi aktif yang ada agar tombol verifikasi langsung siap
+    select.value = String(sessions[0].id);
+    kioskState.sessionId = sessions[0].id;
+    document.getElementById('btnKioskAction').disabled = !kioskState.student || kioskState.busy;
+    message.textContent = `Sesi aktif otomatis terpilih: ${sessions[0].mata_kuliah} (${sessions[0].lab})`;
+  } else {
+    kioskState.sessionId = null;
+    document.getElementById('btnKioskAction').disabled = true;
+    message.textContent = kioskState.student
       ? 'Belum ada sesi aktif untuk kelas Anda.'
       : 'Sesi akan ditampilkan setelah identitas diverifikasi.';
+  }
+
   select.onchange = () => {
     kioskState.sessionId = select.value ? Number(select.value) : null;
     document.getElementById('btnKioskAction').disabled =
@@ -277,6 +344,64 @@ function stopKioskCamera() {
     video.srcObject = null;
     video.style.display = 'none';
   }
+  drawDetectionBoxes([]);
+}
+
+function drawDetectionBoxes(boxes) {
+  const canvas = document.getElementById('kioskOverlayCanvas');
+  const video = document.getElementById('kioskVideo');
+  if (!canvas || !video) return;
+
+  const rect = video.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
+  if (canvas.width !== Math.round(rect.width) || canvas.height !== Math.round(rect.height)) {
+    canvas.width = Math.round(rect.width);
+    canvas.height = Math.round(rect.height);
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!boxes || boxes.length === 0) return;
+
+  boxes.forEach(item => {
+    if (!item.box || item.box.length !== 4) return;
+    const [x0, y0, x1, y1] = item.box;
+    const [origW, origH] = item.dimensions || [640, 480];
+
+    // Skala dengan mempertimbangkan object-fit cover
+    const scale = Math.max(canvas.width / origW, canvas.height / origH);
+    const renderW = origW * scale;
+    const renderH = origH * scale;
+    const offsetX = (canvas.width - renderW) / 2;
+    const offsetY = (canvas.height - renderH) / 2;
+
+    const dx = Math.round(offsetX + x0 * scale);
+    const dy = Math.round(offsetY + y0 * scale);
+    const dw = Math.round((x1 - x0) * scale);
+    const dh = Math.round((y1 - y0) * scale);
+
+    const color = item.color || '#22C55E';
+
+    // Kotak deteksi objek (garis 3px)
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = color;
+    ctx.strokeRect(dx, dy, dw, dh);
+
+    // Label tag di atas kotak objek
+    const labelText = item.label || '';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace, sans-serif';
+    const textWidth = ctx.measureText(labelText).width;
+    const badgeW = Math.max(textWidth + 14, 70);
+    const badgeH = 22;
+    const badgeY = Math.max(0, dy - badgeH);
+
+    ctx.fillStyle = color;
+    ctx.fillRect(dx, badgeY, Math.min(dw, badgeW), badgeH);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.fillText(labelText, dx + 6, badgeY + 15);
+  });
 }
 
 function captureKioskFrame() {
@@ -292,13 +417,15 @@ function captureKioskFrame() {
   return canvas.toDataURL('image/jpeg', 0.78);
 }
 
-async function postKioskScan(phase, image, sessionId, cropMode) {
+async function postKioskScan(phase, image, sessionId, cropMode, prevEma, prevDetected) {
   const payload = { ...kioskState.student, phase, sesi_id: sessionId };
-  if (phase === 'apd') {
+  if (phase === 'apd' && Array.isArray(image)) {
     payload.images = image;
   } else {
     payload.image = image;
     payload.crop_mode = cropMode;
+    if (prevEma) payload.previous_ema = prevEma;
+    if (prevDetected) payload.previous_detected = prevDetected;
   }
   const response = await fetch('/api/kiosk/scan', {
     method: 'POST',
@@ -376,19 +503,24 @@ async function startFaceVerification() {
       const image = captureKioskFrame();
       const result = await postKioskScan('wajah', image, null, cropMode);
       const face = result.face;
+      const guideTitle = document.getElementById('guideTitle');
+
       if (!face.detected) {
         probabilityHistory.length = 0;
         kioskState.faceImages = [];
         stableLabel = null;
         stableSince = null;
+        drawDetectionBoxes([]);
+        if (guideTitle) guideTitle.style.display = 'block';
         setKioskStatus(
-          'Wajah tidak terdeteksi',
+          'Mencari wajah...',
           cropMode === 'hog'
-            ? 'Perbaiki pencahayaan/posisi atau pilih mode kotak panduan tengah.'
-            : 'Posisikan wajah tepat di dalam kotak panduan.',
-          true
+            ? 'Posisikan wajah menghadap kamera.'
+            : 'Posisikan wajah di dalam kotak panduan tengah.',
+          false
         );
       } else {
+        if (guideTitle) guideTitle.style.display = 'none';
         if (
           !Array.isArray(face.classes) ||
           !Array.isArray(face.probabilities) ||
@@ -417,16 +549,31 @@ async function startFaceVerification() {
         );
         const label = face.classes[bestIndex];
         const confidence = averageProbabilities[bestIndex];
-        const matchesStudent = studentTokens.has(label.toLowerCase());
+        const targetLabel = label.toLowerCase();
+        const matchesStudent = Array.from(studentTokens).some(
+          token => token.includes(targetLabel) || targetLabel.includes(token)
+        );
+
+        // Gambar kotak deteksi objek wajah secara dinamis mengikuti pergerakan mahasiswa
+        if (face.box) {
+          drawDetectionBoxes([{
+            box: face.box,
+            dimensions: face.dimensions,
+            label: `${label} ${Math.round(confidence * 100)}%`,
+            color: (confidence >= face.threshold && matchesStudent) ? '#10B981' : '#F59E0B'
+          }]);
+        }
+
         if (confidence >= face.threshold && matchesStudent) {
           if (stableLabel !== label) {
             stableLabel = label;
             stableSince = Date.now();
           }
           const elapsed = Date.now() - stableSince;
+          const remainingSec = Math.max(0, (KIOSK_FACE_VERIFY_DURATION_MS - elapsed) / 1000).toFixed(1);
           setKioskStatus(
-            `Wajah dikenali: ${label} (${Math.round(confidence * 100)}%)`,
-            `Memastikan identitas stabil ${(Math.min(elapsed, KIOSK_FACE_VERIFY_DURATION_MS) / 1000).toFixed(1)}/1,5 dtk...`,
+            `Wajah Terdeteksi: ${label} (${Math.round(confidence * 100)}%)`,
+            `Tahan posisi wajah ${remainingSec} dtk lagi...`,
             false
           );
           verified = elapsed >= KIOSK_FACE_VERIFY_DURATION_MS;
@@ -434,11 +581,11 @@ async function startFaceVerification() {
           stableLabel = null;
           stableSince = null;
           setKioskStatus(
-            'Identitas belum terverifikasi',
+            'Menyesuaikan wajah...',
             matchesStudent
-              ? `Rata-rata keyakinan ${Math.round(confidence * 100)}% belum mencapai ${Math.round(face.threshold * 100)}%.`
-              : `Wajah ${label} tidak cocok dengan akun ini.`,
-            true
+              ? `Tingkat kecocokan ${Math.round(confidence * 100)}% (butuh >= ${Math.round(face.threshold * 100)}%).`
+              : `Wajah ${label} tidak cocok dengan akun mahasiswa ini.`,
+            !matchesStudent
           );
         }
       }
@@ -446,14 +593,18 @@ async function startFaceVerification() {
         await new Promise(resolve => setTimeout(resolve, KIOSK_FACE_SCAN_INTERVAL_MS));
       }
     }
+
     laser.style.display = 'none';
     if (!verified) {
-      throw new Error('Wajah belum terverifikasi selama 1,5 detik. Atur posisi atau mode crop lalu coba lagi.');
+      drawDetectionBoxes([]);
+      throw new Error('Wajah belum terverifikasi stabil selama 1,5 detik. Posisikan wajah tegak lalu coba lagi.');
     }
+
     kioskState.faceVerified = true;
     document.getElementById('kioskSession').disabled = true;
-    document.getElementById('faceSilhouette').classList.add('matched');
-    setKioskStatus('Identitas terverifikasi', 'Silakan lanjut ke pemeriksaan APD.', false);
+    const sil = document.getElementById('faceSilhouette');
+    if (sil) sil.classList.add('matched');
+
     document.getElementById('stepMainTitle').textContent = 'APD Inspection';
     document.getElementById('stepSubTitle').textContent = 'Pemeriksaan kelengkapan keselamatan K3';
     document.getElementById('stepPillBadge').textContent = 'Step 2 of 2';
@@ -465,42 +616,88 @@ async function startFaceVerification() {
     document.getElementById('step1ViewElements').style.display = 'none';
     document.getElementById('step2ViewElements').style.display = 'flex';
     kioskState.step = 2;
-    setKioskBusy(false, 'Mulai Pemindaian APD');
+
+    // Suara sambutan & instruksi bersiap pemeriksaan APD
+    const studentName = kioskState.student.nama;
+    speakKioskText(`Hai ${studentName}, silakan bersiap untuk pemeriksaan APD.`);
+    setKioskStatus(
+      `Identitas Valid: ${studentName}`,
+      'Silakan bersiap untuk pemeriksaan APD...',
+      false
+    );
+
+    // Langsung menjalankan pemeriksaan APD secara otomatis
+    await startAPDInspection();
   } catch (error) {
     kioskState.faceImages = [];
     document.getElementById('scanLaser').style.display = 'none';
+    drawDetectionBoxes([]);
     setKioskStatus('Verifikasi wajah gagal', error.message, true);
     setKioskBusy(false, 'Coba Verifikasi Wajah Lagi');
   }
 }
 
-function renderKioskApd(results) {
+function renderKioskApd(results, faceResult) {
   kioskState.apd = results;
   let requiredMissing = false;
-  Object.entries(kioskApdItems).forEach(([key, item]) => {
-    const result = results[key];
-    const tag = document.getElementById(item.element);
-    if (!result.wajib) {
-      tag.textContent = `${item.label}: Tidak wajib`;
-      tag.classList.remove('not-detected', 'manual-review');
-      tag.style.display = 'block';
-      return;
-    }
-    const detected = result.worn;
-    if (key !== 'jeans' && !detected) requiredMissing = true;
-    tag.classList.toggle('not-detected', !detected && key !== 'jeans');
-    tag.classList.toggle('manual-review', result.validasi_manual);
-    const score = Math.round(result.probability * 100);
-    tag.textContent = result.validasi_manual
-      ? `${item.label}: Perlu validasi PLP (AI ${detected ? 'sesuai' : 'tidak sesuai'}, ${score}%)`
-      : `${item.label}: ${detected ? 'Terdeteksi' : 'Belum terdeteksi'} (${score}%)`;
-    tag.style.display = 'block';
-  });
+  const activeBoxes = [];
+
+  // Tetap tampilkan kotak deteksi wajah jika terdeteksi
+  if (faceResult && faceResult.detected && faceResult.box) {
+    const faceLabel = faceResult.label || 'Wajah';
+    const faceScore = Math.round((faceResult.confidence || 0) * 100);
+    activeBoxes.push({
+      box: faceResult.box,
+      dimensions: faceResult.dimensions,
+      label: `${faceLabel} ${faceScore}%`,
+      color: faceResult.matched ? '#10B981' : '#F59E0B'
+    });
+  }
+
+  if (results) {
+    Object.entries(kioskApdItems).forEach(([key, item]) => {
+      const result = results[key];
+      if (!result) return;
+      const tag = document.getElementById(item.element);
+      if (!result.wajib) {
+        if (tag) tag.style.display = 'none';
+        return;
+      }
+      const detected = result.worn;
+      if (key !== 'jeans' && !detected) requiredMissing = true;
+      const score = Math.round(result.probability * 100);
+
+      // Dynamic Object Detection bounding box seperti pada uji_kamera_apd.py
+      if (detected && result.box) {
+        activeBoxes.push({
+          box: result.box,
+          dimensions: result.dimensions,
+          label: `${result.label || item.label} ${score}%`,
+          color: result.color || '#22C55E'
+        });
+      }
+
+      if (tag) {
+        tag.textContent = result.validasi_manual
+          ? `${item.label}: Validasi PLP (${detected ? 'Sesuai' : 'Kurang'}, ${score}%)`
+          : `${item.label}: ${detected ? 'OK' : 'Kurang'} (${score}%)`;
+        tag.style.display = 'block';
+      }
+    });
+  }
+
+  drawDetectionBoxes(activeBoxes);
+
+  const completionMsg = requiredMissing
+    ? 'Pemeriksaan APD selesai. Ada APD yang belum lengkap.'
+    : 'Pemeriksaan APD selesai. Kelengkapan keselamatan Anda sesuai.';
+  speakKioskText(completionMsg);
+
   setKioskStatus(
-    requiredMissing ? 'Ada APD belum terdeteksi' : 'Pemindaian APD selesai',
+    requiredMissing ? 'Ada APD belum terdeteksi (5 dtk)' : 'Pemindaian APD & Wajah selesai (5 dtk stabil)',
     requiredMissing
       ? 'Hasil akan dicatat dan ditindaklanjuti sesuai aturan APD.'
-      : 'Periksa hasil pemindaian, lalu simpan kehadiran.',
+      : 'Pemeriksaan 5 detik selesai stabil. Silakan simpan kehadiran.',
     requiredMissing
   );
   const button = document.getElementById('btnKioskAction');
@@ -515,25 +712,13 @@ async function retryAPDInspection() {
   kioskState.step = 2;
   kioskState.apd = null;
   kioskState.apdImages = null;
+  drawDetectionBoxes([]);
   document.getElementById('btnKioskApdRetry').hidden = true;
   Object.values(kioskApdItems).forEach(item => {
     const tag = document.getElementById(item.element);
-    tag.textContent = '';
-    tag.classList.remove('not-detected', 'manual-review');
-    tag.style.display = 'none';
+    if (tag) tag.style.display = 'none';
   });
   await startAPDInspection();
-}
-
-async function captureKioskApdFrames() {
-  const frames = [];
-  for (let index = 0; index < KIOSK_APD_SCAN_FRAME_COUNT; index += 1) {
-    frames.push(captureKioskFrame());
-    if (index + 1 < KIOSK_APD_SCAN_FRAME_COUNT) {
-      await new Promise(resolve => setTimeout(resolve, KIOSK_APD_SCAN_INTERVAL_MS));
-    }
-  }
-  return frames;
 }
 
 async function startAPDInspection() {
@@ -542,25 +727,121 @@ async function startAPDInspection() {
   const laser = document.getElementById('scanLaser');
   laser.style.display = 'none';
   document.getElementById('btnKioskApdRetry').hidden = true;
+  drawDetectionBoxes([]);
+
   try {
     for (let seconds = 3; seconds > 0; seconds -= 1) {
       setKioskStatus(
         'Siapkan APD',
-        `Pemindaian dimulai dalam ${seconds} detik. Pastikan perlengkapan terlihat di kamera.`,
+        `Pemindaian dimulai dalam ${seconds} detik. Berdirilah tegak menghadap kamera.`,
         false
       );
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    document.getElementById('btnKioskAction').textContent = 'Menganalisis APD...';
+
+    document.getElementById('btnKioskAction').textContent = 'Memindai APD & Wajah...';
     laser.style.display = 'block';
     laser.style.animation = 'kioskLaserAnimation 2.2s infinite ease-in-out';
-    kioskState.apdImages = await captureKioskApdFrames();
-    const result = await postKioskScan(
-      'apd',
-      kioskState.apdImages,
-      kioskState.sessionId
-    );
-    renderKioskApd(result.apd);
+
+    const startTime = Date.now();
+    const framesCollected = [];
+    let prevEma = {};
+    let prevDetected = {};
+    let lastApdResult = null;
+    let lastFaceResult = null;
+
+    // Verifikasi APD & Wajah secara dinamis selama 5 detik penuh
+    while (Date.now() - startTime < KIOSK_APD_VERIFY_DURATION_MS) {
+      const frame = captureKioskFrame();
+      framesCollected.push(frame);
+      if (framesCollected.length > KIOSK_APD_SCAN_FRAME_COUNT) {
+        framesCollected.shift();
+      }
+
+      const scanResult = await postKioskScan(
+        'live_apd',
+        frame,
+        kioskState.sessionId,
+        kioskState.faceCropMode,
+        prevEma,
+        prevDetected
+      );
+
+      if (scanResult.apd) {
+        lastApdResult = scanResult.apd;
+        Object.entries(scanResult.apd).forEach(([item, val]) => {
+          prevEma[item] = val.probability;
+          prevDetected[item] = val.worn;
+        });
+      }
+
+      if (scanResult.face) {
+        lastFaceResult = scanResult.face;
+      }
+
+      // Kumpulkan bounding box dinamis (Wajah + APD bergerak dinamis mengikuti posisi mahasiswa)
+      const liveBoxes = [];
+
+      // 1. Wajah Mahasiswa (tetap muncul & dinamis membingkai wajah)
+      if (lastFaceResult && lastFaceResult.detected && lastFaceResult.box) {
+        const faceLabel = lastFaceResult.label || 'Wajah';
+        const faceConf = Math.round((lastFaceResult.confidence || 0) * 100);
+        liveBoxes.push({
+          box: lastFaceResult.box,
+          dimensions: lastFaceResult.dimensions,
+          label: `${faceLabel} ${faceConf}%`,
+          color: lastFaceResult.matched ? '#10B981' : '#F59E0B'
+        });
+      }
+
+      // 2. Komponen APD (Helm, Baju, Jeans, Sepatu - muncul jika terdeteksi)
+      if (lastApdResult) {
+        Object.entries(lastApdResult).forEach(([key, apdItem]) => {
+          if (apdItem.wajib && apdItem.worn && apdItem.box) {
+            liveBoxes.push({
+              box: apdItem.box,
+              dimensions: apdItem.dimensions,
+              label: `${apdItem.label || key.toUpperCase()} ${Math.round(apdItem.probability * 100)}%`,
+              color: apdItem.color || '#22C55E'
+            });
+          }
+
+          // Perbarui badge tag status di kanan atas
+          const tag = document.getElementById(kioskApdItems[key]?.element);
+          if (tag) {
+            if (!apdItem.wajib) {
+              tag.style.display = 'none';
+            } else {
+              const score = Math.round(apdItem.probability * 100);
+              tag.textContent = apdItem.validasi_manual
+                ? `${kioskApdItems[key].label}: Validasi PLP (${apdItem.worn ? 'Sesuai' : 'Kurang'}, ${score}%)`
+                : `${kioskApdItems[key].label}: ${apdItem.worn ? 'OK' : 'Kurang'} (${score}%)`;
+              tag.style.borderColor = apdItem.color || (apdItem.worn ? '#22C55E' : '#EF4444');
+              tag.style.color = apdItem.color || (apdItem.worn ? '#22C55E' : '#EF4444');
+              tag.style.display = 'block';
+            }
+          }
+        });
+      }
+
+      drawDetectionBoxes(liveBoxes);
+
+      const elapsed = Date.now() - startTime;
+      const remainingSec = Math.max(0, (KIOSK_APD_VERIFY_DURATION_MS - elapsed) / 1000).toFixed(1);
+      setKioskStatus(
+        'Memeriksa Kelengkapan APD & Wajah...',
+        `Waktu pemindaian: ${remainingSec} dtk tersisa. Berdiri tegak menghadap kamera.`,
+        false
+      );
+
+      await new Promise(resolve => setTimeout(resolve, KIOSK_APD_LIVE_INTERVAL_MS));
+    }
+
+    kioskState.apdImages = framesCollected.length >= KIOSK_APD_SCAN_FRAME_COUNT
+      ? framesCollected
+      : new Array(KIOSK_APD_SCAN_FRAME_COUNT).fill(framesCollected[framesCollected.length - 1]);
+
+    renderKioskApd(lastApdResult, lastFaceResult);
   } catch (error) {
     setKioskStatus('Pemindaian APD gagal', error.message, true);
     setKioskBusy(false, 'Coba Pemindaian APD Lagi');

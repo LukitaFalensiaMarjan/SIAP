@@ -18,6 +18,8 @@ from kiosk_inference import (
     infer_apd,
     infer_face,
     infer_face_sequence,
+    infer_single_frame_apd,
+    warmup_models,
 )
 
 
@@ -622,40 +624,52 @@ def kiosk_student():
 def kiosk_identity(data):
     if not isinstance(data, dict):
         return None, (jsonify({"error": "Data identitas mahasiswa tidak valid"}), 400)
-    fields = ("nim", "nama", "kelas")
-    if any(not isinstance(data.get(field), str) for field in fields):
-        return None, (jsonify({"error": "NIM, nama, dan kelas wajib diisi"}), 400)
-    identity = {field: data[field].strip() for field in fields}
-    if any(not value for value in identity.values()):
-        return None, (jsonify({"error": "NIM, nama, dan kelas wajib diisi"}), 400)
-    if (
-        len(identity["nim"]) > 32
-        or len(identity["nama"]) > 150
-        or len(identity["kelas"]) > 30
-    ):
-        return None, (jsonify({"error": "Data identitas melebihi batas"}), 400)
+
+    nim = str(data.get("nim", "")).strip()
+    if not nim:
+        return None, (jsonify({"error": "NIM wajib diisi"}), 400)
 
     conn = get_db()
     row = conn.execute(
         "SELECT nim, nama, kelas FROM mahasiswa WHERE nim = ?",
-        (identity["nim"],),
+        (nim,),
     ).fetchone()
-    conn.close()
+
     if not row:
+        conn.close()
         return None, (jsonify({"error": "Data mahasiswa tidak ditemukan"}), 404)
 
     student = dict(row)
-    normalized_name = " ".join(identity["nama"].casefold().split())
-    normalized_class = " ".join(identity["kelas"].casefold().split())
-    if (
-        normalized_name != " ".join(student["nama"].casefold().split())
-        or normalized_class != " ".join(student["kelas"].casefold().split())
-    ):
-        return None, (
-            jsonify({"error": "Nama atau kelas tidak sesuai dengan NIM yang dimasukkan"}),
-            403,
-        )
-    return student, None
+
+    # 1. Autentikasi dengan NIM dan Password
+    password = data.get("password")
+    if password is not None:
+        user = conn.execute(
+            "SELECT password_hash FROM pengguna WHERE identifier = ?",
+            (nim,),
+        ).fetchone()
+        conn.close()
+        if not user or not check_password_hash(user["password_hash"], str(password)):
+            return None, (jsonify({"error": "Kata sandi salah"}), 401)
+        return student, None
+
+    conn.close()
+
+    # 2. Dukungan data identitas lengkap (nama & kelas)
+    if "nama" in data and "kelas" in data:
+        normalized_name = " ".join(str(data["nama"]).casefold().split())
+        normalized_class = " ".join(str(data["kelas"]).casefold().split())
+        if (
+            normalized_name != " ".join(student["nama"].casefold().split())
+            or normalized_class != " ".join(student["kelas"].casefold().split())
+        ):
+            return None, (
+                jsonify({"error": "Nama atau kelas tidak sesuai dengan NIM yang dimasukkan"}),
+                403,
+            )
+        return student, None
+
+    return None, (jsonify({"error": "Kata sandi atau identitas wajib diisi"}), 400)
 
 
 def kiosk_session(student, session_id):
@@ -770,7 +784,7 @@ def kiosk_scan():
     if error:
         return error
     phase = data.get("phase")
-    if phase not in ("wajah", "apd"):
+    if phase not in ("wajah", "apd", "live_apd"):
         return jsonify({"error": "Tahap pemindaian tidak valid"}), 400
     if phase == "wajah":
         crop_mode = data.get("crop_mode", "hog")
@@ -788,6 +802,35 @@ def kiosk_scan():
     session_row, rule, error = kiosk_session(student, data.get("sesi_id"))
     if error:
         return error
+
+    # Pemindaian Real-Time: Deteksi APD Dinamis + Tetap Mendeteksi Wajah Mahasiswa
+    if (phase in ("live_apd", "apd")) and data.get("image"):
+        crop_mode = data.get("crop_mode", "hog")
+        try:
+            frame = decode_frame(data.get("image"))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        try:
+            face_result = infer_face(frame, student["nama"], crop_mode)
+            prev_ema = data.get("previous_ema") or {}
+            prev_det = data.get("previous_detected") or {}
+            apd_result = infer_single_frame_apd(
+                frame, set(rule["wajib"]), prev_ema, prev_det
+            )
+            for item, res in apd_result.items():
+                res["wajib"] = item in rule["wajib"]
+                res["validasi_manual"] = item == "jeans" and item in rule["wajib"]
+            return jsonify(
+                {
+                    "lab": session_row["lab"],
+                    "wajib": rule["wajib"],
+                    "face": face_result,
+                    "apd": apd_result,
+                }
+            )
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            return jsonify({"error": f"Model tidak dapat dijalankan: {exc}"}), 503
+
     try:
         frames = decode_frame_batch(
             data.get("images"), APD_SCAN_FRAME_COUNT, "Pemindaian APD", 12_000_000
@@ -1914,7 +1957,9 @@ def init_db():
             ("admin", "Administrator SIAP", "operator", "admin123"),
             ("dosen01", "Dr. Dosen Polman", "dosen", "dosen123"),
             ("plp01", "Petugas PLP", "PLP", "plp123"),
-            ("224443012", "Muhammad Basit Rozak Akbar", "mahasiswa", "mahasiswa123"),
+            ("224443009", "Lukita Falensia Marjan", "mahasiswa", "mahasiswa123"),
+            ("224443003", "Bintang Shobri Al Chakim", "mahasiswa", "mahasiswa123"),
+            ("224443012", "Muhammad Basit", "mahasiswa", "mahasiswa123"),
         ]
         conn.executemany(
             "INSERT INTO pengguna (identifier, nama, peran, password_hash) VALUES (?, ?, ?, ?)",
@@ -1925,7 +1970,9 @@ def init_db():
         conn.executemany(
             "INSERT INTO mahasiswa (nim, nama, kelas) VALUES (?, ?, ?)",
             [
-                ("224443012", "Muhammad Basit Rozak Akbar", "3AEC1"),
+                ("224443009", "Lukita Falensia Marjan", "3AEC1"),
+                ("224443003", "Bintang Shobri Al Chakim", "3AEC1"),
+                ("224443012", "Muhammad Basit", "3AEC1"),
                 ("224201020", "Fajar Ramadhan", "2MEA"),
                 ("223104021", "Dinda Larasati", "3FEA"),
                 ("224302008", "Rafi Maulana", "2AEB"),
@@ -1953,4 +2000,7 @@ init_db()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    print("[SIAP] Melakukan pre-loading model AI ke memori...")
+    warmup_models()
+    print("[SIAP] Model AI siap. Menjalankan server di http://127.0.0.1:5000")
+    app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False)
