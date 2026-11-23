@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminal Kiosk Presensi Jurusan AE — POLMAN SMART ATTENDANCE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/student.css">
+  <style>
+    /* ── KIOSK TERMINAL JURUSAN AE SPECIFIC STYLES ────────────────────── */
+    :root {
+      --kiosk-navy-900: #071526;
+      --kiosk-navy-800: #0B1E38;
+      --kiosk-navy-700: #102A4E;
+      --kiosk-navy-600: #143E6B;
+      --kiosk-blue: #2563EB;
+      --kiosk-cyan: #0284C7;
+      --kiosk-green: #10B981;
+      --kiosk-green-bg: #ECFDF5;
+      --kiosk-red: #EF4444;
+      --kiosk-red-bg: #FEF2F2;
+      --kiosk-amber: #D97706;
+      --kiosk-amber-bg: #FFFBEB;
+      --kiosk-slate-50: #F8FAFC;
+      --kiosk-slate-100: #F1F5F9;
+      --kiosk-slate-200: #E2E8F0;
+      --kiosk-slate-600: #475569;
+      --kiosk-slate-800: #1E293B;
+    }
+
+    * {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      box-sizing: border-box;
+    }
+
+    body.kiosk-body {
+      background: #F1F5F9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: #0F172A;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* Kiosk Topbar */
+    .kiosk-navbar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--kiosk-slate-200);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .kiosk-brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .kiosk-brand-logo {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .kiosk-brand-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--kiosk-navy-900);
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .kiosk-brand-sub {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748B;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .kiosk-top-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .kiosk-device-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 12px;
+      background: #F0F9FF;
+      border: 1px solid #BAE6FD;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0284C7;
+    }
+
+    .kiosk-clock-pill {
+      display: flex;
+      flex-direction: column;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1E293B;
+      line-height: 1.2;
+    }
+
+    .kiosk-clock-date {
+      font-size: 10px;
+      color: #64748B;
+      font-weight: 600;
+    }
+
+    .btn-kiosk-exit {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #DC2626;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn-kiosk-exit:hover {
+      background: #DC2626;
+      color: #FFFFFF;
+      transform: translateY(-1px);
+    }
+
+    /* Kiosk Main Content Area */
+    .kiosk-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── SCANNING KIOSK VIEW ─────────────────────────────────────────── */
+    #kioskScanningView {
+      display: block;
+      animation: kioskFadeIn 0.4s ease;
+    }
+
+    @keyframes kioskFadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .kiosk-grid {
+      display: grid;
+      grid-template-columns: 370px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* Left Side: Student Profile & System Session Card */
+    .kiosk-sidebar-card {
+      background: #FFFFFF;
+      border: 1px solid var(--kiosk-slate-200);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Circular Student Profile Photo / Avatar */
+    .kiosk-avatar-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 4px 0 16px;
+    }
+
+    .kiosk-avatar-circle {
+      position: relative;
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%);
+      border: 3.5px solid #FFFFFF;
+      box-shadow: 0 8px 24px -4px rgba(20, 62, 107, 0.16), 0 0 0 1.5px #CBD5E1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .kiosk-avatar-circle:hover {
+      transform: scale(1.03);
+      box-shadow: 0 10px 28px -4px rgba(20, 62, 107, 0.22), 0 0 0 1.5px #93C5FD;
+    }
+
+    .kiosk-avatar-circle .kiosk-avatar-svg {
+      width: 96px;
+      height: 96px;
+      margin-top: 10px;
+    }
+
+    .kiosk-active-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: #ECFDF5;
+      color: #059669;
+      border: 1px solid #A7F3D0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      margin-top: 10px;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.12);
+    }
+
+    .student-info-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--kiosk-slate-100);
+    }
+
+    .student-info-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .student-info-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #64748B;
+    }
+
+    .student-info-val {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #0F172A;
+    }
+
+    /* Sesi Praktikum Terjadwal Card (Purely Configured by Admin) */
+    .session-admin-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .session-admin-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: #143E6B;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .session-admin-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0F172A;
+      line-height: 1.35;
+    }
+
+    .session-admin-meta {
+      font-size: 11px;
+      color: #64748B;
+      line-height: 1.4;
+    }
+
+    /* Right Side: Camera Viewport */
+    .kiosk-camera-card {
+      background: #FFFFFF;
+      border: 1px solid var(--kiosk-slate-200);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Camera Selection Toolbar (Reverted as requested) */
+    .camera-selector-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    .camera-select-field {
+      height: 38px;
+      border-radius: 8px;
+      border: 1px solid #CBD5E1;
+      padding: 0 12px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0F172A;
+      background: #FFFFFF;
+      outline: none;
+      min-width: 260px;
+    }
+
+    .kiosk-viewport-stage {
+      position: relative;
+      background: #000000;
+      border-radius: 14px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      min-height: 440px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Real Video Stream from Camera (No Mascot Image) */
+    .kiosk-video-el {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+      background: #071526;
+    }
+
+    /* AI Scanning Overlay Elements */
+    .kiosk-laser {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #38BDF8, #22C55E, #38BDF8, transparent);
+      box-shadow: 0 0 16px #38BDF8;
+      z-index: 10;
+      display: none;
+      animation: laserScan 2.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes laserScan {
+      0% { top: 5%; }
+      100% { top: 92%; }
+    }
+
+    /* Bracket corners */
+    .kiosk-bracket {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-color: #38BDF8;
+      border-style: solid;
+      z-index: 8;
+      pointer-events: none;
+    }
+    .kiosk-bracket.tl { top: 20px; left: 20px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+    .kiosk-bracket.tr { top: 20px; right: 20px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+    .kiosk-bracket.bl { bottom: 20px; left: 20px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+    .kiosk-bracket.br { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+
+    /* HUD Top Chips */
+    .kiosk-hud-strip {
+      position: absolute;
+      top: 18px;
+      left: 60px;
+      right: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 9;
+      pointer-events: none;
+    }
+
+    .kiosk-hud-chip {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #F8FAFC;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-dot-live {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 10px #10B981;
+    }
+
+    /* Face Target Box (Step 1) */
+    .face-target-box {
+      position: absolute;
+      width: 170px;
+      height: 200px;
+      border: 2px dashed rgba(56, 189, 248, 0.85);
+      border-radius: 16px;
+      z-index: 6;
+      pointer-events: none;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 8px;
+    }
+
+    .face-target-label {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #38BDF8;
+      letter-spacing: 0.5px;
+    }
+
+    /* APD Live Dynamic Bounding Tags (Step 2) */
+    .apd-live-tags-container {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    .apd-detection-box {
+      position: absolute;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(2px);
+    }
+
+    .apd-box-helm {
+      top: 10%;
+      left: 50%;
+      width: 150px;
+      height: 52px;
+      transform: translateX(-50%);
+    }
+
+    .apd-box-wearpack {
+      top: 25%;
+      left: 50%;
+      width: 240px;
+      height: 125px;
+      transform: translateX(-50%);
+    }
+
+    .apd-box-jeans {
+      top: 56%;
+      left: 50%;
+      width: 180px;
+      height: 95px;
+      transform: translateX(-50%);
+    }
+
+    .apd-box-sepatu {
+      top: 79%;
+      left: 50%;
+      width: 170px;
+      height: 50px;
+      transform: translateX(-50%);
+    }
+
+    .apd-status-pass {
+      border: 2px solid #10B981;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+    }
+
+    /* Bottom Control Bar of Viewport */
+    .kiosk-action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .btn-kiosk-scan {
+      padding: 14px 32px;
+      border-radius: 10px;
+      background: #143E6B;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 14px rgba(20, 62, 107, 0.25);
+    }
+
+    .btn-kiosk-scan:hover:not(:disabled) {
+      background: #0C213E;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(20, 62, 107, 0.35);
+    }
+
+    .btn-kiosk-scan:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-kiosk-scan:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    /* ── POP-UP MODAL HASIL ABSENSI (MODAL KONFIRMASI PRESENSI) ───────── */
+    .kiosk-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: modalFadeBackdrop 0.25s ease;
+    }
+
+    @keyframes modalFadeBackdrop {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .kiosk-modal-content {
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 600px;
+      border-radius: 20px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+      animation: modalScaleContent 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    @keyframes modalScaleContent {
+      from { opacity: 0; transform: scale(0.93) translateY(12px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-banner-header {
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: #FFFFFF;
+      background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+    }
+
+    .modal-banner-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .modal-body-details {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Grid of All Student Specs: Nama, NIM, Kelas, Prodi, Jurusan, Matkul, Tanggal, Jam */
+    .modal-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+
+    .modal-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .modal-info-item.full-width {
+      grid-column: span 2;
+    }
+
+    .modal-info-key {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-info-value {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #0F172A;
+    }
+
+    /* Checklist APD Breakdown in Modal */
+    .apd-checklist-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .apd-check-item {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .apd-check-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    .apd-check-pill {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #ECFDF5;
+      color: #059669;
+      border: 1px solid #A7F3D0;
+    }
+
+    .modal-notice-box {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      color: #166534;
+    }
+
+    .btn-modal-finish {
+      width: 100%;
+      height: 48px;
+      border-radius: 10px;
+      background: #143E6B;
+      color: #FFFFFF;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(20, 62, 107, 0.25);
+    }
+
+    .btn-modal-finish:hover {
+      background: #0B2B4E;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(20, 62, 107, 0.35);
+    }
+
+    @media (max-width: 900px) {
+      .kiosk-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="kiosk-body">
+
+  <!-- ── 1. KIOSK NAVBAR ─────────────────────────────────────────────── -->
+  <header class="kiosk-navbar">
+    <div class="kiosk-brand-wrap">
+      <img src="../assets/img/logo-polman.png" alt="POLMAN Logo" class="kiosk-brand-logo">
+      <div>
+        <div class="kiosk-brand-title">POLMAN SMART ATTENDANCE</div>
+        <div class="kiosk-brand-sub">TERMINAL KIOSK JURUSAN AE &bull; OTOMASI MANUFAKTUR</div>
+      </div>
+    </div>
+
+    <div class="kiosk-top-right">
+      <div class="kiosk-device-badge">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; display: inline-block;"></span>
+        <span>PC KIOSK LAB AE &bull; ONLINE</span>
+      </div>
+
+      <div class="kiosk-clock-pill">
+        <span id="kioskRealTimeClock">--:--:-- WIB</span>
+        <span class="kiosk-clock-date" id="kioskRealDate">--</span>
+      </div>
+
+      <a href="../login.html" class="btn-kiosk-exit" title="Keluar dari Terminal Kiosk">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Keluar Kiosk</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ── 2. MAIN CONTAINER ───────────────────────────────────────────── -->
+  <main class="kiosk-container">
+
+    <!-- ── SCANNING KIOSK VIEW (SEBELAH KIRI INFO, SEBELAH KANAN SCAN) ── -->
+    <section id="kioskScanningView">
+      <!-- Breadcrumb Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <div>
+          <div style="font-size: 11px; font-weight: 800; color: #0284C7; letter-spacing: 0.8px; text-transform: uppercase;">IDENTITY CONFIRMATION &bull; JURUSAN AE</div>
+          <h1 style="font-size: 22px; font-weight: 800; color: #0F172A; margin: 2px 0 4px; letter-spacing: -0.4px;">Konfirmasi Identitas Anda</h1>
+          <p style="font-size: 12.5px; color: #64748B; margin: 0;">Pastikan informasi mahasiswa sudah sesuai sebelum melanjutkan proses verifikasi.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 12px; font-weight: 700; color: #0F172A; background: #FFFFFF; border: 1px solid #CBD5E1; padding: 6px 14px; border-radius: 999px;" id="kioskStepBadge">
+            Langkah 1: Verifikasi Wajah
+          </span>
+          <button onclick="logoutKioskUser()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: #F1F5F9; border: 1px solid #CBD5E1; color: #475569; font-size: 12px; font-weight: 700; cursor: pointer;" title="Kembali ke layar login awal">
+            Ganti Akun
+          </button>
+        </div>
+      </div>
+
+      <div class="kiosk-grid">
+        
+        <!-- ── SEBELAH KIRI: INFORMASI MAHASISWA & SESI ADMIN ── -->
+        <div class="kiosk-sidebar-card">
+          <div>
+            <div style="font-size: 10.5px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">PROFIL MAHASISWA KIOSK</div>
+            
+            <!-- Circular Profile Photo / Avatar -->
+            <div class="kiosk-avatar-wrapper">
+              <div class="kiosk-avatar-circle">
+                <svg class="kiosk-avatar-svg" viewBox="0 0 100 100" fill="none">
+                  <!-- Helmet -->
+                  <path d="M28 42C28 29.8497 37.8497 20 50 20C62.1503 20 72 29.8497 72 42H28Z" fill="#143E6B"/>
+                  <rect x="25" y="40" width="50" height="5" rx="2.5" fill="#0B2B4E"/>
+                  <!-- Face -->
+                  <circle cx="50" cy="50" r="18" fill="#D97706" opacity="0.85"/>
+                  <!-- Wearpack -->
+                  <path d="M20 90C20 75 32 68 50 68C68 68 80 75 80 90V100H20V90Z" fill="#1D4ED8"/>
+                  <path d="M50 68V100" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="3 3"/>
+                </svg>
+              </div>
+              <span class="kiosk-active-chip">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
+                <span>STATUS AKADEMIK: AKTIF</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Student Meta Rows (Dynamic: Nama, NIM, Kelas, Prodi, Jurusan) -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="student-info-row">
+              <span class="student-info-label">Nama Lengkap</span>
+              <span class="student-info-val" id="kioskDisplayNama">Muhammad Basit Rozak Akbar S.P</span>
+            </div>
+
+            <div class="student-info-row">
+              <span class="student-info-label">Nomor Induk Mahasiswa (NIM)</span>
+              <span class="student-info-val" id="kioskDisplayNim">224443012</span>
+            </div>
+
+            <div class="student-info-row">
+              <span class="student-info-label">Kelas</span>
+              <span class="student-info-val" id="kioskDisplayKelas">3AEC1</span>
+            </div>
+
+            <div class="student-info-row">
+              <span class="student-info-label">Program Studi</span>
+              <span class="student-info-val" id="kioskDisplayProdi" style="font-size: 13px;">Teknologi Rekayasa Informatika Industri</span>
+            </div>
+
+            <div class="student-info-row">
+              <span class="student-info-label">Jurusan</span>
+              <span class="student-info-val" id="kioskDisplayJurusan" style="color: #0284C7;">AE</span>
+            </div>
+          </div>
+
+          <!-- Sesi Praktikum Aktif (Purely Configured by Admin - No Student Controls) -->
+          <div class="session-admin-box">
+            <div class="session-admin-tag">
+              <span>SESI PRAKTIKUM HARI INI</span>
+              <span style="color: #059669; font-weight: 800;">DIATUR ADMIN</span>
+            </div>
+            <div class="session-admin-title" id="kioskSessionTitle">Praktik Proses Manufaktur &amp; Kendali</div>
+            <div class="session-admin-meta">
+              Ruang: <strong>Lab. CNC &amp; Otomasi</strong><br>
+              Jadwal: <strong>07:00 – 10:00 WIB</strong>
+            </div>
+          </div>
+
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 12px; font-size: 11px; color: #64748B; line-height: 1.45;">
+            Sesi praktikum dan aturan APD dikelola terpusat oleh Admin Jurusan. Berdirilah tegak menghadap kamera untuk verifikasi wajah dan APD.
+          </div>
+        </div>
+
+        <!-- ── SEBELAH KANAN: AREA KAMERA SCANNING KIOSK ── -->
+        <div class="kiosk-camera-card">
+          
+          <!-- Dropdown Pilihan Kamera Kiosk (Point 3) -->
+          <div class="camera-selector-row">
+            <div>
+              <div style="font-size: 10.5px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">PILIH PERANGKAT KAMERA KIOSK</div>
+              <div style="font-size: 11px; color: #0284C7; font-weight: 700;" id="cameraStatusFeedback">Memuat daftar perangkat kamera...</div>
+            </div>
+            <select id="kioskCameraSelect" class="camera-select-field" onchange="handleCameraSelectionChange()">
+              <option value="">Memuat kamera...</option>
+            </select>
+          </div>
+
+          <!-- Video & Scanning Viewport Box (No Mascot Image - Real Video Stream) -->
+          <div class="kiosk-viewport-stage" id="kioskViewport">
+            <!-- Real Live Video Feed from Webcam/Kiosk Camera -->
+            <video class="kiosk-video-el" id="kioskLiveVideo" autoplay playsinline muted></video>
+            
+            <!-- Scanning Laser -->
+            <div class="kiosk-laser" id="kioskLaserBar"></div>
+
+            <!-- Corner Framing Brackets -->
+            <div class="kiosk-bracket tl"></div>
+            <div class="kiosk-bracket tr"></div>
+            <div class="kiosk-bracket bl"></div>
+            <div class="kiosk-bracket br"></div>
+
+            <!-- HUD Top Chips -->
+            <div class="kiosk-hud-strip">
+              <span class="kiosk-hud-chip">
+                <span class="hud-dot-live"></span>
+                <span id="camHudChipText">LIVE KAMERA KIOSK</span>
+              </span>
+              <span class="kiosk-hud-chip" id="hudDetectionModeChip">STANDBY &bull; SIAP</span>
+            </div>
+
+            <!-- Face Detection Target Frame (Step 1) -->
+            <div class="face-target-box" id="faceTargetFrame">
+              <span class="face-target-label">AREA WAJAH</span>
+            </div>
+
+            <!-- APD Live Dynamic Bounding Boxes (Step 2) -->
+            <div class="apd-live-tags-container" id="apdBouningContainer">
+              <div class="apd-detection-box apd-box-helm apd-status-pass" id="boxHelm">
+                <span>HELM SAFETY &bull; 98% OK</span>
+              </div>
+              <div class="apd-detection-box apd-box-wearpack apd-status-pass" id="boxWearpack">
+                <span>BAJU PRAKTIK &bull; 99% OK</span>
+              </div>
+              <div class="apd-detection-box apd-box-jeans apd-status-pass" id="boxJeans">
+                <span>CELANA JEANS &bull; 96% OK</span>
+              </div>
+              <div class="apd-detection-box apd-box-sepatu apd-status-pass" id="boxSepatu">
+                <span>SEPATU SAFETY &bull; 97% OK</span>
+              </div>
+            </div>
+
+            <!-- Floating Scan Guidance Pill at Bottom of Viewport -->
+            <div style="position: absolute; bottom: 20px; left: 24px; right: 24px; z-index: 12; display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 16px; color: #FFFFFF;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                <div>
+                  <div style="font-size: 12.5px; font-weight: 700;" id="kioskGuideText">Posisikan wajah Anda tepat di dalam bingkai kamera.</div>
+                  <div style="font-size: 10.5px; color: #94A3B8;" id="kioskGuideSubText">Tekan tombol di bawah untuk memulai verifikasi wajah dan APD.</div>
+                </div>
+              </div>
+              <span id="scanTimerBadge" style="font-size: 11px; font-weight: 800; color: #38BDF8; background: rgba(56, 189, 248, 0.15); padding: 4px 10px; border-radius: 6px; display: none;">02.0s</span>
+            </div>
+          </div>
+
+          <!-- Action Bar (Pure Main Scan Button - No Simulation Buttons) -->
+          <div class="kiosk-action-bar">
+            <!-- Main Button: Mulai Verifikasi Wajah -->
+            <button class="btn-kiosk-scan" id="btnMainScanAction" onclick="startKioskScanProcess()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+              </svg>
+              <span id="btnMainScanText">Mulai Verifikasi Wajah</span>
+            </button>
+
+            <div style="font-size: 11.5px; color: #64748B; text-align: right;">
+              Setelah verifikasi wajah sesuai, sistem otomatis melanjutkan pemeriksaan kelengkapan APD.
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── 3. POP-UP MODAL HASIL ABSENSI ───────────────────────────────── -->
+  <div class="kiosk-modal-backdrop" id="modalHasilAbsensi">
+    <div class="kiosk-modal-content">
+      
+      <!-- Top Banner Header -->
+      <div class="modal-banner-header" id="modalBannerHeader">
+        <div class="modal-banner-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; opacity: 0.9;">KONFIRMASI PRESENSI KIOSK</div>
+          <h2 style="font-size: 20px; font-weight: 800; margin: 2px 0 0;">Presensi Berhasil Dicatat!</h2>
+        </div>
+      </div>
+
+      <!-- Body Details -->
+      <div class="modal-body-details">
+        
+        <!-- Status Kehadiran Highlight Badge -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 10px; background: #ECFDF5; border: 1px solid #A7F3D0;" id="modalStatusHighlightBox">
+          <span style="font-size: 12px; font-weight: 700; color: #065F46;">Status Presensi &amp; APD:</span>
+          <span style="font-size: 13px; font-weight: 800; color: #059669; letter-spacing: 0.3px;" id="modalStatusText">HADIR - SESUAI</span>
+        </div>
+
+        <!-- 8 Full Specifications Grid: Nama, NIM, Kelas, Prodi, Jurusan, Mata Kuliah, Tanggal, Jam -->
+        <div class="modal-info-grid">
+          <div class="modal-info-item full-width">
+            <span class="modal-info-key">Nama Mahasiswa</span>
+            <span class="modal-info-value" id="popNama">Muhammad Basit Rozak Akbar S.P</span>
+          </div>
+
+          <div class="modal-info-item">
+            <span class="modal-info-key">NIM</span>
+            <span class="modal-info-value" id="popNim">224443012</span>
+          </div>
+
+          <div class="modal-info-item">
+            <span class="modal-info-key">Kelas</span>
+            <span class="modal-info-value" id="popKelas">3AEC1</span>
+          </div>
+
+          <div class="modal-info-item">
+            <span class="modal-info-key">Program Studi</span>
+            <span class="modal-info-value" id="popProdi">Teknologi Rekayasa Informatika Industri</span>
+          </div>
+
+          <div class="modal-info-item">
+            <span class="modal-info-key">Jurusan</span>
+            <span class="modal-info-value" id="popJurusan" style="color: #0284C7;">AE</span>
+          </div>
+
+          <div class="modal-info-item full-width">
+            <span class="modal-info-key">Mata Kuliah / Sesi Praktikum</span>
+            <span class="modal-info-value" id="popMatkul" style="color: #143E6B;">Praktik Proses Manufaktur &amp; Kendali</span>
+          </div>
+
+          <div class="modal-info-item">
+            <span class="modal-info-key">Tanggal Presensi</span>
+            <span class="modal-info-value" id="popTanggal">23 November 2026</span>
+          </div>
+
+          <div class="modal-info-item">
+            <span class="modal-info-key">Waktu / Jam Absen</span>
+            <span class="modal-info-value" id="popJam">07:28:15 WIB</span>
+          </div>
+        </div>
+
+        <!-- APD Items Breakdown -->
+        <div>
+          <div style="font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">HASIL PEMERIKSAAN APD (AI VISION)</div>
+          <div class="apd-checklist-row">
+            <div class="apd-check-item">
+              <span class="apd-check-label">Helm Safety</span>
+              <span class="apd-check-pill" id="popApdHelm">Sesuai</span>
+            </div>
+            <div class="apd-check-item">
+              <span class="apd-check-label">Baju Praktik</span>
+              <span class="apd-check-pill" id="popApdWearpack">Sesuai</span>
+            </div>
+            <div class="apd-check-item">
+              <span class="apd-check-label">Celana Jeans</span>
+              <span class="apd-check-pill" id="popApdJeans">Sesuai</span>
+            </div>
+            <div class="apd-check-item">
+              <span class="apd-check-label">Sepatu Safety</span>
+              <span class="apd-check-pill" id="popApdSepatu">Sesuai</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Follow-up Notice Message -->
+        <div class="modal-notice-box" id="modalNoticeBox">
+          Presensi kehadiran Anda telah resmi terverifikasi dan tercatat ke database akademik Jurusan AE Politeknik Manufaktur Bandung.
+        </div>
+
+        <!-- Finish Button: Returns to Kiosk Login Screen for Next Student -->
+        <button class="btn-modal-finish" onclick="finishAndReturnToKioskLogin()">
+          <span>Selesai &bull; Absen Mahasiswa Berikutnya</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. KIOSK JAVASCRIPT LOGIC ────────────────────────────────────── -->
+  <script>
+    // State management
+    const currentKiosk = {
+      isLoggedIn: true,
+      student: {
+        nim: '224443012',
+        nama: 'Muhammad Basit Rozak Akbar S.P',
+        kelas: '3AEC1',
+        prodi: 'Teknologi Rekayasa Informatika Industri',
+        jurusan: 'AE'
+      },
+      scanning: false,
+      stream: null,
+      selectedCameraId: null
+    };
+
+    // Live Clock Updater
+    function updateKioskClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('id-ID', { hour12: false }) + ' WIB';
+      const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const clockEl = document.getElementById('kioskRealTimeClock');
+      const dateEl = document.getElementById('kioskRealDate');
+      if (clockEl) clockEl.textContent = timeStr;
+      if (dateEl) dateEl.textContent = dateStr;
+    }
+    setInterval(updateKioskClock, 1000);
+    updateKioskClock();
+
+    // Inisialisasi Profil Mahasiswa dari Login Awal (URL param / localStorage)
+    function initAuthenticatedStudent() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const passedNim = urlParams.get('nim') || localStorage.getItem('siap_auth_nim') || '224443012';
+
+      if (passedNim === '224443009') {
+        currentKiosk.student = {
+          nim: '224443009',
+          nama: 'Lukita Falensia Marjan',
+          kelas: '3AEC1',
+          prodi: 'Teknologi Rekayasa Informatika Industri',
+          jurusan: 'AE'
+        };
+      } else if (passedNim === '224443003') {
+        currentKiosk.student = {
+          nim: '224443003',
+          nama: 'Bintang Shobri Al Chakim',
+          kelas: '3AEC1',
+          prodi: 'Teknologi Rekayasa Informatika Industri',
+          jurusan: 'AE'
+        };
+      } else {
+        // Akun Utama: Muhammad Basit Rozak Akbar S.P
+        currentKiosk.student = {
+          nim: '224443012',
+          nama: 'Muhammad Basit Rozak Akbar S.P',
+          kelas: '3AEC1',
+          prodi: 'Teknologi Rekayasa Informatika Industri',
+          jurusan: 'AE'
+        };
+      }
+
+      // Tampilkan ke DOM Sidebar Kiosk
+      const elNama = document.getElementById('kioskDisplayNama');
+      const elNim = document.getElementById('kioskDisplayNim');
+      const elKelas = document.getElementById('kioskDisplayKelas');
+      const elProdi = document.getElementById('kioskDisplayProdi');
+      const elJurusan = document.getElementById('kioskDisplayJurusan');
+
+      if (elNama) elNama.textContent = currentKiosk.student.nama;
+      if (elNim) elNim.textContent = currentKiosk.student.nim;
+      if (elKelas) elKelas.textContent = currentKiosk.student.kelas;
+      if (elProdi) elProdi.textContent = currentKiosk.student.prodi;
+      if (elJurusan) elJurusan.textContent = currentKiosk.student.jurusan;
+    }
+
+    // Keluar dari Kiosk / Ganti Akun -> Langsung kembali ke form login awal
+    function logoutKioskUser() {
+      stopCameraStream();
+      localStorage.removeItem('siap_auth_nim');
+      window.location.href = '../login.html';
+    }
+
+    // Enumerate Available Cameras (Point 3)
+    async function initKioskCameraList() {
+      const select = document.getElementById('kioskCameraSelect');
+      const feedback = document.getElementById('cameraStatusFeedback');
+      select.innerHTML = '';
+
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+          throw new Error('MediaDevices API tidak didukung pada browser ini.');
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+        if (videoDevices.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'Kamera Kiosk Terintegrasi (Otomatis)';
+          select.appendChild(opt);
+          feedback.textContent = '1 Kamera internal Kiosk terdeteksi.';
+        } else {
+          videoDevices.forEach((device, idx) => {
+            const opt = document.createElement('option');
+            opt.value = device.deviceId;
+            opt.textContent = device.label || `Kamera Kiosk ${idx + 1} (${device.deviceId.substring(0, 8)}...)`;
+            select.appendChild(opt);
+          });
+          currentKiosk.selectedCameraId = videoDevices[0].deviceId;
+          feedback.textContent = `${videoDevices.length} Kamera terdeteksi. Siap digunakan.`;
+        }
+      } catch (err) {
+        console.warn('Gagal memuat kamera:', err);
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Kamera Kiosk Bawaan (Default)';
+        select.appendChild(opt);
+        feedback.textContent = 'Menggunakan kamera bawaan Kiosk.';
+      }
+    }
+
+    // Switch camera handler
+    async function handleCameraSelectionChange() {
+      const select = document.getElementById('kioskCameraSelect');
+      currentKiosk.selectedCameraId = select.value || null;
+      await startCameraStream();
+    }
+
+    // Start Webcam Live Feed directly to <video>
+    async function startCameraStream() {
+      const videoEl = document.getElementById('kioskLiveVideo');
+      const hudChipText = document.getElementById('camHudChipText');
+      stopCameraStream();
+
+      const constraints = {
+        video: currentKiosk.selectedCameraId
+          ? { deviceId: { exact: currentKiosk.selectedCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+      };
+
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          currentKiosk.stream = await navigator.mediaDevices.getUserMedia(constraints);
+          videoEl.srcObject = currentKiosk.stream;
+          videoEl.style.display = 'block';
+          hudChipText.textContent = 'LIVE KAMERA KIOSK AKTIF';
+        }
+      } catch (err) {
+        console.warn('Webcam stream note:', err);
+        hudChipText.textContent = 'KAMERA VISION STANDBY';
+      }
+    }
+
+    function stopCameraStream() {
+      if (currentKiosk.stream) {
+        currentKiosk.stream.getTracks().forEach(track => track.stop());
+        currentKiosk.stream = null;
+      }
+    }
+
+    // Reset Scanning UI
+    function resetScanningState() {
+      currentKiosk.scanning = false;
+
+      document.getElementById('kioskStepBadge').textContent = 'Langkah 1: Verifikasi Wajah';
+      document.getElementById('hudDetectionModeChip').textContent = 'SIAP MEMINDAI';
+      document.getElementById('faceTargetFrame').style.display = 'flex';
+
+      document.getElementById('kioskLaserBar').style.display = 'none';
+      document.getElementById('scanTimerBadge').style.display = 'none';
+      document.getElementById('btnMainScanAction').disabled = false;
+      document.getElementById('btnMainScanText').textContent = 'Mulai Verifikasi Wajah';
+
+      document.getElementById('kioskGuideText').textContent = 'Posisikan wajah Anda tepat di dalam bingkai kamera.';
+      document.getElementById('kioskGuideSubText').textContent = 'Tekan tombol di bawah untuk memulai verifikasi wajah dan APD.';
+
+      // Hide APD boxes
+      document.getElementById('boxHelm').style.display = 'none';
+      document.getElementById('boxWearpack').style.display = 'none';
+      document.getElementById('boxJeans').style.display = 'none';
+      document.getElementById('boxSepatu').style.display = 'none';
+    }
+
+    // Main Scanning Sequence: Face Scan -> Auto APD Check -> Modal Pop-up (No Simulation Buttons)
+    async function startKioskScanProcess() {
+      if (currentKiosk.scanning) return;
+      currentKiosk.scanning = true;
+
+      const mainBtn = document.getElementById('btnMainScanAction');
+      const btnText = document.getElementById('btnMainScanText');
+      const laser = document.getElementById('kioskLaserBar');
+      const timerBadge = document.getElementById('scanTimerBadge');
+      const guideText = document.getElementById('kioskGuideText');
+      const guideSubText = document.getElementById('kioskGuideSubText');
+      const faceTarget = document.getElementById('faceTargetFrame');
+
+      mainBtn.disabled = true;
+      laser.style.display = 'block';
+      timerBadge.style.display = 'inline-block';
+
+      // ── TAHAP 1: VERIFIKASI WAJAH ──
+      document.getElementById('kioskStepBadge').textContent = 'Memindai Wajah...';
+      document.getElementById('hudDetectionModeChip').textContent = 'MEMINDAI WAJAH';
+      btnText.textContent = 'Memverifikasi Wajah...';
+      guideText.textContent = 'Memverifikasi identitas wajah ' + currentKiosk.student.nama + '...';
+      guideSubText.textContent = 'Tetap menghadap kamera dan jangan bergerak.';
+      timerBadge.textContent = '01.5s';
+
+      await new Promise(r => setTimeout(r, 1400));
+
+      // Wajah Berhasil Terverifikasi
+      guideText.textContent = 'Wajah terverifikasi cocok (99.6%)!';
+      guideSubText.textContent = 'Sistem langsung melanjutkan ke pemeriksaan kelengkapan APD...';
+      document.getElementById('hudDetectionModeChip').textContent = 'WAJAH SESUAI';
+      timerBadge.textContent = 'OK';
+      faceTarget.style.display = 'none';
+
+      await new Promise(r => setTimeout(r, 800));
+
+      // ── TAHAP 2: PENGECEKAN APD (OTOMATIS LANJUT) ──
+      document.getElementById('kioskStepBadge').textContent = 'Langkah 2: Pemeriksaan APD';
+      document.getElementById('hudDetectionModeChip').textContent = 'INSPEKSI APD';
+      btnText.textContent = 'Memeriksa Kelengkapan APD...';
+      guideText.textContent = 'AI Vision sedang memindai Helm, Baju Praktik, Jeans, & Sepatu Safety...';
+      guideSubText.textContent = 'Berdiri tegak menghadap kamera.';
+      timerBadge.textContent = '02.0s';
+
+      // Dynamic Bounding Boxes on Live Camera
+      const boxHelm = document.getElementById('boxHelm');
+      const boxWearpack = document.getElementById('boxWearpack');
+      const boxJeans = document.getElementById('boxJeans');
+      const boxSepatu = document.getElementById('boxSepatu');
+
+      boxHelm.style.display = 'flex';
+      boxWearpack.style.display = 'flex';
+      boxJeans.style.display = 'flex';
+      boxSepatu.style.display = 'flex';
+
+      await new Promise(r => setTimeout(r, 1800));
+
+      // Selesai Scanning -> Tampilkan Pop-up Hasil Absensi
+      laser.style.display = 'none';
+      timerBadge.style.display = 'none';
+
+      openHasilModal();
+    }
+
+    // Open Modal Pop-up with all requested specifications (Point 1 & 4)
+    function openHasilModal() {
+      const modal = document.getElementById('modalHasilAbsensi');
+
+      // Populate Full Profile & Academic Info
+      document.getElementById('popNama').textContent = currentKiosk.student.nama;
+      document.getElementById('popNim').textContent = currentKiosk.student.nim;
+      document.getElementById('popKelas').textContent = currentKiosk.student.kelas;
+      document.getElementById('popProdi').textContent = currentKiosk.student.prodi;
+      document.getElementById('popJurusan').textContent = currentKiosk.student.jurusan;
+      document.getElementById('popMatkul').textContent = document.getElementById('kioskSessionTitle').textContent;
+
+      // Current Date & Time
+      const now = new Date();
+      document.getElementById('popTanggal').textContent = now.toLocaleDateString('id-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+      document.getElementById('popJam').textContent = now.toLocaleTimeString('id-ID', { hour12: false }) + ' WIB';
+
+      modal.style.display = 'flex';
+    }
+
+    // Close Modal and Return to Kiosk Login for Next Student (Point 4)
+    function finishAndReturnToKioskLogin() {
+      document.getElementById('modalHasilAbsensi').style.display = 'none';
+      logoutKioskUser(); // Menghentikan kamera dan langsung kembali ke form login awal
+    }
+
+    // Auto-init Kiosk saat halaman dimuat setelah login diawal
+    window.addEventListener('DOMContentLoaded', async () => {
+      initAuthenticatedStudent();
+      resetScanningState();
+      await initKioskCameraList();
+      await startCameraStream();
+    });
+  </script>
+</body>
+</html>
