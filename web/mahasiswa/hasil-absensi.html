@@ -87,41 +87,15 @@
 
       <!-- Profile Pill -->
       <a href="profil.html" class="mhs-profile-pill">
-        <div class="mhs-avatar-circle">MB</div>
+        <div class="mhs-avatar-circle">--</div>
         <div class="mhs-user-meta">
-          <span class="mhs-user-name">Muhammad Basit Rozak Akbar S.P</span>
+          <span class="mhs-user-name">Memuat profil...</span>
           <span class="mhs-user-sub">Mahasiswa · 3AEC1</span>
         </div>
       </a>
 
       <!-- Notification Dropdown Panel -->
-      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--student-border);">
-          <div style="font-size: 13px; font-weight: 800; color: var(--student-text-main);">Pusat Pemberitahuan</div>
-          <button onclick="markAllNotificationsRead()" style="background: none; border: none; font-size: 11px; font-weight: 700; color: var(--student-blue); cursor: pointer;">Tandai Dibaca</button>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Absensi berhasil dicatat</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Kehadiran Praktik Proses Manufaktur tercatat pukul 07.27 WIB.</p>
-            <span style="font-size: 10px; color: #94A3B8;">18 Nov 2026 · 07.27</span>
-          </div>
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Hasil pemeriksaan sedang ditinjau</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Satu parameter sesi CNC Dasar menunggu validasi admin.</p>
-            <span style="font-size: 10px; color: #94A3B8;">11 Nov 2026 · 07.31</span>
-          </div>
-        </div>
-        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--student-border); text-align: center;">
-          <a href="notifikasi.html" style="font-size: 12px; font-weight: 700; color: var(--student-blue); text-decoration: none;">Lihat Seluruh Notifikasi &rarr;</a>
-        </div>
-      </div>
+      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()"><div style="padding:16px;color:#64748B;font-size:12px;">Notifikasi belum tersedia karena data notifikasi belum disimpan di database.</div></div>
     </header>
 
     <main class="mhs-container">
@@ -144,16 +118,11 @@
             <input type="text" id="searchMataKuliah" class="mhs-search-input" placeholder="Cari nama mata kuliah..." oninput="filterRiwayatTable()">
           </div>
 
-          <select class="mhs-select-dropdown" id="filterSemester" onchange="filterRiwayatTable()">
-            <option value="ganjil">Semester Ganjil 2026/2027</option>
-            <option value="genap">Semester Genap 2025/2026</option>
-          </select>
-
           <select class="mhs-select-dropdown" id="filterStatus" onchange="filterRiwayatTable()">
             <option value="semua">Semua status</option>
-            <option value="sesuai">Sesuai (Lengkap)</option>
-            <option value="menunggu">Menunggu validasi</option>
-            <option value="terlambat">Terlambat</option>
+            <option value="lengkap">APD lengkap</option>
+            <option value="kurang">APD tidak lengkap</option>
+            <option value="menunggu_validasi">Menunggu validasi jeans</option>
           </select>
         </div>
 
@@ -165,60 +134,13 @@
                 <th>Tanggal</th>
                 <th>Mata Kuliah</th>
                 <th>Jam Hadir</th>
-                <th>Keterlambatan</th>
+                <th>Laboratorium</th>
                 <th>Kehadiran</th>
-                <th>Pemeriksaan</th>
+                <th>Status APD</th>
               </tr>
             </thead>
-            <tbody>
-              <tr data-status="sesuai" onclick="openDetailModal('Praktik Proses Manufaktur', '18 Nov 2026', '07.27', '—', 'Hadir', 'Sesuai', '98.5%')">
-                <td style="color: #64748B;">18 Nov 2026</td>
-                <td style="font-weight: 700;">Praktik Proses Manufaktur</td>
-                <td>07.27</td>
-                <td style="color: #94A3B8;">—</td>
-                <td><span class="mhs-badge mhs-badge-green">Hadir</span></td>
-                <td><span class="mhs-badge mhs-badge-green">Sesuai</span></td>
-              </tr>
-              <tr data-status="terlambat" onclick="openDetailModal('Teknologi Pengecoran', '15 Nov 2026', '07.34', '4 menit', 'Hadir', 'Sesuai', '96.2%')">
-                <td style="color: #64748B;">15 Nov 2026</td>
-                <td style="font-weight: 700;">Teknologi Pengecoran</td>
-                <td>07.34</td>
-                <td style="color: #D97706; font-weight: 600;">4 menit</td>
-                <td><span class="mhs-badge mhs-badge-green">Hadir</span></td>
-                <td><span class="mhs-badge mhs-badge-green">Sesuai</span></td>
-              </tr>
-              <tr data-status="menunggu" onclick="openDetailModal('Praktik CNC Dasar', '11 Nov 2026', '07.29', '—', 'Hadir', 'Menunggu validasi', '88.0%')">
-                <td style="color: #64748B;">11 Nov 2026</td>
-                <td style="font-weight: 700;">Praktik CNC Dasar</td>
-                <td>07.29</td>
-                <td style="color: #94A3B8;">—</td>
-                <td><span class="mhs-badge mhs-badge-green">Hadir</span></td>
-                <td><span class="mhs-badge mhs-badge-amber">Menunggu validasi</span></td>
-              </tr>
-              <tr data-status="sesuai" onclick="openDetailModal('Keselamatan dan Kesehatan Kerja', '08 Nov 2026', '07.25', '—', 'Hadir', 'Sesuai', '99.1%')">
-                <td style="color: #64748B;">08 Nov 2026</td>
-                <td style="font-weight: 700;">Keselamatan dan Kesehatan Kerja</td>
-                <td>07.25</td>
-                <td style="color: #94A3B8;">—</td>
-                <td><span class="mhs-badge mhs-badge-green">Hadir</span></td>
-                <td><span class="mhs-badge mhs-badge-green">Sesuai</span></td>
-              </tr>
-              <tr data-status="sesuai" onclick="openDetailModal('Proses Permesinan Frais', '04 Nov 2026', '07.28', '—', 'Hadir', 'Sesuai', '97.4%')">
-                <td style="color: #64748B;">04 Nov 2026</td>
-                <td style="font-weight: 700;">Proses Permesinan Frais</td>
-                <td>07.28</td>
-                <td style="color: #94A3B8;">—</td>
-                <td><span class="mhs-badge mhs-badge-green">Hadir</span></td>
-                <td><span class="mhs-badge mhs-badge-green">Sesuai</span></td>
-              </tr>
-              <tr data-status="terlambat" onclick="openDetailModal('Pengelasan SMAW', '01 Nov 2026', '07.40', '10 menit', 'Hadir', 'Sesuai', '95.0%')">
-                <td style="color: #64748B;">01 Nov 2026</td>
-                <td style="font-weight: 700;">Pengelasan SMAW</td>
-                <td>07.40</td>
-                <td style="color: #D97706; font-weight: 600;">10 menit</td>
-                <td><span class="mhs-badge mhs-badge-green">Hadir</span></td>
-                <td><span class="mhs-badge mhs-badge-green">Sesuai</span></td>
-              </tr>
+            <tbody id="studentAttendanceHistory">
+              <tr><td colspan="6">Memuat riwayat absensi...</td></tr>
             </tbody>
           </table>
         </div>
@@ -226,14 +148,11 @@
         <!-- Empty State -->
         <div id="tableEmptyMessage" style="display: none; text-align: center; padding: 36px 12px; color: #94A3B8;">
           <div style="font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 4px;">Tidak ada catatan absensi yang sesuai filter</div>
-          <div style="font-size: 12px;">Coba gunakan kata kunci pencarian atau pilihan filter status lain.</div>
+          <div style="font-size: 12px;">Catatan absensi tersimpan akan tampil di sini.</div>
         </div>
 
         <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: #94A3B8;">
-          <span>Menampilkan 6 rekam kehadiran terverifikasi AI</span>
-          <button onclick="showToast('Rekam absensi semester berhasil diunduh (PDF)')" style="background: none; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 14px; font-size: 11.5px; font-weight: 700; color: #334155; cursor: pointer;">
-            Cetak Rekap (PDF)
-          </button>
+          <span id="studentAttendanceCount">Memuat catatan...</span>
         </div>
 
       </div>
@@ -252,24 +171,16 @@
       <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px; margin-bottom: 16px; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px;">
         <div style="display: flex; justify-content: space-between;"><span style="color: #64748B;">Tanggal Sesi:</span> <strong id="mdTanggal">18 Nov 2026</strong></div>
         <div style="display: flex; justify-content: space-between;"><span style="color: #64748B;">Jam Hadir:</span> <span id="mdJam" style="font-weight: 700;">07.27 WIB</span></div>
-        <div style="display: flex; justify-content: space-between;"><span style="color: #64748B;">Keterlambatan:</span> <span id="mdTerlambat" style="font-weight: 700;">—</span></div>
-        <div style="display: flex; justify-content: space-between;"><span style="color: #64748B;">Skor Kecocokan AI:</span> <span id="mdSkor" style="color: #059669; font-weight: 800;">98.5%</span></div>
+        <div style="display: flex; justify-content: space-between;"><span style="color: #64748B;">Laboratorium:</span> <span id="mdLab" style="font-weight: 700;">—</span></div>
+        <div style="display: flex; justify-content: space-between;"><span style="color: #64748B;">Status:</span> <span id="mdStatus" style="font-weight: 700;">—</span></div>
       </div>
 
-      <div style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 8px;">Breakdown Verifikasi APD Otomatis</div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; font-size: 11.5px;">
-        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 8px; color: #065F46;">
-          Wajah: <strong>Terdaftar</strong>
-        </div>
-        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 8px; color: #065F46;">
-          Helm: <strong>Terdeteksi (99%)</strong>
-        </div>
-        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 8px; color: #065F46;">
-          Wearpack: <strong>Lengkap</strong>
-        </div>
-        <div style="background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 8px; color: #065F46;">
-          Sepatu Safety: <strong>Sesuai</strong>
-        </div>
+      <div style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 8px;">Hasil pemeriksaan APD</div>
+      <div id="studentAttendanceApdDetails" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; font-size: 11.5px;">
+        <div data-attendance-apd="helm">Helm: —</div>
+        <div data-attendance-apd="baju">Baju praktik: —</div>
+        <div data-attendance-apd="jeans">Jeans: —</div>
+        <div data-attendance-apd="sepatu">Sepatu safety: —</div>
       </div>
 
       <div style="display: flex; justify-content: flex-end;">
@@ -279,15 +190,5 @@
   </div>
 
   <script src="../assets/js/student.js"></script>
-  <script>
-    function openDetailModal(matkul, tgl, jam, lambat, hadir, periksa, skor) {
-      document.getElementById('mdMatkul').innerText = matkul;
-      document.getElementById('mdTanggal').innerText = tgl;
-      document.getElementById('mdJam').innerText = jam + ' WIB';
-      document.getElementById('mdTerlambat').innerText = lambat;
-      document.getElementById('mdSkor').innerText = skor;
-      openMhsModal('modalDetailAbsensi');
-    }
-  </script>
 </body>
 </html>

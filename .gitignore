@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *.pyo
 .env
+.venv/
+siap.db
 
 # Model file besar (opsional: uncomment jika tidak mau push)
 # models/*.keras

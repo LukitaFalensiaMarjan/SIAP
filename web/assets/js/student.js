@@ -1,6 +1,6 @@
 /**
  * POLMAN SMART ATTENDANCE — INTERACTIVE STUDENT PORTAL
- * Handles notifications, live table filters, compensation simulator, profile modals, and toast feedback
+ * Handles student data views, attendance filters, profile modals, and toast feedback
  */
 
 // Toast notification helper
@@ -12,7 +12,7 @@ function showToast(message) {
     toast.className = 'mhs-toast';
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span>${message}</span>`;
+  toast.textContent = message;
   toast.classList.add('show');
   setTimeout(() => {
     toast.classList.remove('show');
@@ -39,18 +39,6 @@ function toggleNotificationDropdown(e) {
   } else {
     dropdown.classList.add('show');
   }
-}
-
-// Mark notifications as read
-function markAllNotificationsRead() {
-  const badge = document.querySelector('.mhs-bell-badge');
-  if (badge) badge.style.display = 'none';
-  document.querySelectorAll('.mhs-badge-blue').forEach(b => {
-    if (b.innerText.trim() === 'Baru') {
-      b.style.display = 'none';
-    }
-  });
-  showToast('Semua notifikasi ditandai telah dibaca.');
 }
 
 // Close dropdown on outside click
@@ -118,116 +106,303 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// Compensation Calculator Simulator
-function simulateCompensation(minutes) {
-  const totalLate = parseInt(minutes, 10) || 0;
-  const compMinutes = totalLate * 5;
-  const jp = Math.floor(compMinutes / 50);
-  const remainingMins = compMinutes % 50;
-
-  const lateEl = document.getElementById('calcLateMinutes');
-  const compEl = document.getElementById('calcCompMinutes');
-  const jpEl = document.getElementById('calcCompJP');
-  const remainDebtEl = document.getElementById('calcRemainDebt');
-
-  if (lateEl) lateEl.innerText = `${totalLate} menit`;
-  if (compEl) compEl.innerText = `${compMinutes} menit`;
-  if (jpEl) jpEl.innerText = `${jp} JP ${remainingMins} menit`;
-  if (remainDebtEl) {
-    const alreadyDone = 50;
-    const debt = Math.max(0, compMinutes - alreadyDone);
-    remainDebtEl.innerText = `${debt} menit`;
+async function initSiapSession() {
+  try {
+    const response = await fetch('/api/auth/me');
+    if (!response.ok) {
+      if (!window.location.pathname.endsWith('/login.html')) {
+        window.location.href = '/login.html';
+      }
+      return;
+    }
+    const result = await response.json();
+    if (result.user && String(result.user.peran).toLowerCase() !== 'mahasiswa') {
+      window.location.href = '/admin/dashboard.html';
+      return;
+    }
+    sessionStorage.setItem('siap_user', JSON.stringify(result.user));
+  } catch (error) {
+    console.warn('Sesi pengguna belum dapat dimuat:', error);
   }
 }
 
-// ── DYNAMIC NOTIFICATIONS SYNC (FROM ADMIN DECISIONS) ──
-function initStudentNotifications() {
-  let storedNotifs = [];
+document.addEventListener('DOMContentLoaded', initSiapSession);
+
+async function logoutSiap() {
   try {
-    const raw = localStorage.getItem('siap_notifications');
-    if (raw) storedNotifs = JSON.parse(raw);
-  } catch (e) {
-    storedNotifs = [];
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } finally {
+    sessionStorage.removeItem('siap_user');
+    window.location.href = '/';
   }
+}
 
-  // 1. Render in notifikasi.html if present
-  const notifListEl = document.getElementById('mhsNotifCardsList');
-  if (notifListEl && storedNotifs.length > 0) {
-    const htmlCards = storedNotifs.map(n => {
-      if (n.isViolation) {
-        return `
-          <div class="mhs-notif-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;" onclick="showToast('Silakan segera menuju ke administrasi jurusan untuk pengambilan fisik Surat Peringatan (SP).')">
-            <div class="mhs-notif-body">
-              <div class="mhs-notif-title-row">
-                <span class="mhs-notif-title" style="color: #991B1B;">${n.title}</span>
-                <div style="display: flex; gap: 6px;">
-                  <span class="mhs-badge mhs-badge-red" style="font-size: 10px;">${n.badgeText || 'Surat Peringatan'}</span>
-                  ${n.isNew ? '<span class="mhs-badge mhs-badge-blue" style="font-size: 10px;">Baru</span>' : ''}
-                </div>
-              </div>
-              <div class="mhs-notif-desc" style="color: #7F1D1D; font-weight: 500; margin: 6px 0 8px;">
-                ${n.desc}
-              </div>
-              <div class="mhs-notif-date" style="color: #991B1B;">${n.date} · Administrasi Jurusan</div>
-            </div>
-          </div>
-        `;
-      } else {
-        return `
-          <div class="mhs-notif-card" onclick="showToast('Membuka rincian notifikasi')">
-            <div class="mhs-notif-body">
-              <div class="mhs-notif-title-row">
-                <span class="mhs-notif-title">${n.title}</span>
-                ${n.isNew ? '<span class="mhs-badge mhs-badge-blue">Baru</span>' : ''}
-              </div>
-              <div class="mhs-notif-desc">${n.desc}</div>
-              <div class="mhs-notif-date">${n.date}</div>
-            </div>
-          </div>
-        `;
-      }
-    }).join('');
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('a[href="../login.html"], a[href="/login.html"]').forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      logoutSiap();
+    });
+  });
+});
 
-    notifListEl.innerHTML = htmlCards + notifListEl.innerHTML;
+function studentInitials(name) {
+  return String(name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0])
+    .join('')
+    .toUpperCase();
+}
+
+function studentDate(value) {
+  if (!value) return '—';
+  return new Date(`${value}T00:00:00`).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+function studentTime(value) {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+function setStudentText(id, value) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = value == null || value === '' ? '—' : value;
+}
+
+function apdStatusLabel(value, item, required) {
+  if (!required) return 'Tidak wajib';
+  if (value == null) return item === 'jeans' ? 'Menunggu pemeriksaan manual' : 'Belum diperiksa';
+  return Number(value) === 1 ? 'Sesuai' : 'Tidak sesuai';
+}
+
+function attendanceStatusLabel(status) {
+  if (status === 'lengkap') return 'Lengkap';
+  if (status === 'kurang') return 'Tidak lengkap';
+  if (status === 'menunggu_validasi') return 'Menunggu validasi';
+  return 'Belum diketahui';
+}
+
+function attendanceBadgeClass(status) {
+  if (status === 'lengkap') return 'mhs-badge mhs-badge-green';
+  if (status === 'menunggu_validasi') return 'mhs-badge mhs-badge-amber';
+  return 'mhs-badge mhs-badge-red';
+}
+
+function renderStudentAttendanceRow(item) {
+  const row = document.createElement('tr');
+  row.dataset.status = item.status;
+  if (document.getElementById('modalDetailAbsensi')) {
+    row.addEventListener('click', () => openStudentAttendanceDetail(item));
   }
+  const values = [studentDate(item.tanggal), item.mata_kuliah, studentTime(item.waktu), item.lab, 'Hadir'];
+  values.forEach((value, index) => {
+    const cell = row.insertCell();
+    cell.textContent = value || '—';
+    if (index === 1) cell.style.fontWeight = '700';
+    if (index === 0 || index === 3) cell.style.color = '#64748B';
+  });
+  const statusCell = row.insertCell();
+  const badge = document.createElement('span');
+  badge.className = attendanceBadgeClass(item.status);
+  badge.textContent = attendanceStatusLabel(item.status);
+  statusCell.appendChild(badge);
+  return row;
+}
 
-  // 2. Render in dropdown list across all student pages
-  const dropdownContainer = document.querySelector('.mhs-notif-dropdown');
-  if (dropdownContainer && storedNotifs.length > 0) {
-    const listWrap = dropdownContainer.querySelector('div[style*="max-height: 280px"]') || dropdownContainer.children[1];
-    if (listWrap) {
-      const dropdownHtml = storedNotifs.map(n => {
-        if (n.isViolation) {
-          return `
-            <div style="background: #FEF2F2; padding: 10px; border-radius: 8px; border: 1px solid #FCA5A5; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-                <span style="font-size: 12px; font-weight: 700; color: #991B1B;">${n.title}</span>
-                <span class="mhs-badge mhs-badge-red" style="font-size: 9px;">SP</span>
-              </div>
-              <p style="font-size: 11px; color: #7F1D1D; margin: 0 0 4px; line-height: 1.35;">${n.desc}</p>
-              <span style="font-size: 10px; color: #B91C1C;">${n.date}</span>
-            </div>
-          `;
-        } else {
-          return `
-            <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-                <span style="font-size: 12px; font-weight: 700; color: #0F172A;">${n.title}</span>
-                <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-              </div>
-              <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">${n.desc}</p>
-              <span style="font-size: 10px; color: #94A3B8;">${n.date}</span>
-            </div>
-          `;
-        }
-      }).join('');
-      listWrap.innerHTML = dropdownHtml + listWrap.innerHTML;
+function renderStudentAttendance(data) {
+  const historyBody = document.getElementById('studentAttendanceHistory');
+  const recentBody = document.getElementById('studentRecentAttendance');
+  const attendance = data.attendance || [];
+  if (historyBody) {
+    historyBody.replaceChildren();
+    attendance.forEach(item => historyBody.appendChild(renderStudentAttendanceRow(item)));
+    filterRiwayatTable();
+  }
+  if (recentBody) {
+    recentBody.replaceChildren();
+    const recent = attendance.slice(0, 3);
+    if (!recent.length) {
+      const row = recentBody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 6;
+      cell.textContent = 'Belum ada catatan absensi tersimpan.';
+    } else {
+      recent.forEach(item => recentBody.appendChild(renderStudentAttendanceRow(item)));
     }
-
-    // Ensure red dot indicator is visible on bell button
-    const bellBadge = document.querySelector('.mhs-bell-badge');
-    if (bellBadge) bellBadge.style.display = 'inline-block';
   }
+  setStudentText('studentAttendanceCount', `${attendance.length} catatan tersimpan`);
+  setStudentText('studentAttendanceTotal', data.summary.total);
+  setStudentText('studentAttendanceComplete', data.summary.lengkap);
+  setStudentText('studentAttendanceIncomplete', data.summary.kurang);
+  setStudentText('studentAttendancePending', data.summary.menunggu_validasi);
+}
+
+function openStudentAttendanceDetail(item) {
+  setStudentText('mdMatkul', item.mata_kuliah);
+  setStudentText('mdTanggal', studentDate(item.tanggal));
+  setStudentText('mdJam', `${studentTime(item.waktu)} WIB`);
+  setStudentText('mdLab', item.lab);
+  setStudentText('mdStatus', attendanceStatusLabel(item.status));
+  document.querySelectorAll('[data-attendance-apd]').forEach(element => {
+    const itemName = element.dataset.attendanceApd;
+    const labels = { helm: 'Helm', baju: 'Baju praktik', jeans: 'Jeans', sepatu: 'Sepatu safety' };
+    const required = (item.wajib || []).includes(itemName);
+    element.textContent = `${labels[itemName]}: ${apdStatusLabel(item[itemName], itemName, required)}`;
+  });
+  openMhsModal('modalDetailAbsensi');
+}
+
+function renderStudentSessions(sessions) {
+  const session = sessions[0];
+  if (!session) {
+    setStudentText('studentTodayCourse', 'Tidak ada sesi aktif hari ini');
+    setStudentText('studentTodayStart', '—');
+    setStudentText('studentTodayEnd', '—');
+    setStudentText('studentTodayLecturer', '—');
+    setStudentText('studentTodayRoom', '—');
+    setStudentText('studentTodayRequiredItems', 'Belum ada aturan sesi hari ini');
+    setStudentText('studentTodaySessionStatus', 'Tidak ada sesi');
+    setStudentText('studentTodaySessionCount', '');
+    ['helm', 'baju', 'jeans', 'sepatu'].forEach(item => {
+      const rule = document.querySelector(`[data-student-apd-rule="${item}"]`);
+      const state = document.querySelector(`[data-student-apd-state="${item}"]`);
+      if (rule) rule.textContent = 'Tidak ada sesi';
+      if (state) state.textContent = '—';
+    });
+    return;
+  }
+
+  const labels = { helm: 'Helm', baju: 'Baju praktik', jeans: 'Jeans', sepatu: 'Sepatu safety' };
+  setStudentText('studentTodayCourse', session.mata_kuliah);
+  setStudentText('studentTodayStart', session.jam_mulai);
+  setStudentText('studentTodayEnd', session.jam_selesai);
+  setStudentText('studentTodayLecturer', session.dosen);
+  setStudentText('studentTodayRoom', session.ruang || session.lab);
+  setStudentText('studentTodayRequiredItems', (session.wajib || []).map(item => labels[item]).join(', ') || 'Tidak ada APD wajib');
+  setStudentText('studentTodaySessionStatus', 'Sesi tersedia hari ini');
+  setStudentText('studentTodaySessionCount', `${sessions.length} sesi terjadwal hari ini`);
+  ['helm', 'baju', 'jeans', 'sepatu'].forEach(item => {
+    const required = (session.wajib || []).includes(item);
+    const rule = document.querySelector(`[data-student-apd-rule="${item}"]`);
+    const state = document.querySelector(`[data-student-apd-state="${item}"]`);
+    if (rule) rule.textContent = required ? 'Wajib sesuai aturan sesi' : 'Tidak diwajibkan sesi ini';
+    if (state) state.textContent = required ? 'Wajib' : 'Opsional';
+  });
+}
+
+function renderStudentProfile(student) {
+  const initials = studentInitials(student.nama);
+  document.querySelectorAll('.mhs-user-name').forEach(element => {
+    element.textContent = student.nama;
+  });
+  document.querySelectorAll('.mhs-user-sub').forEach(element => {
+    element.textContent = `Mahasiswa · ${student.kelas}`;
+  });
+  document.querySelectorAll('.mhs-avatar-circle').forEach(element => {
+    element.textContent = initials;
+  });
+  setStudentText('studentWelcome', `Selamat datang, ${student.nama}.`);
+  setStudentText('studentDashboardName', student.nama);
+  setStudentText('studentDashboardClass', student.kelas);
+  setStudentText('studentDashboardAvatar', initials);
+  const nim = document.getElementById('studentDashboardNim');
+  if (nim) {
+    nim.textContent = student.nim;
+    nim.onclick = () => copyText(student.nim, 'NIM');
+  }
+  setStudentText('studentProfileName', student.nama);
+  setStudentText('studentProfileRole', `Mahasiswa · Kelas ${student.kelas}`);
+  setStudentText('studentProfileAvatar', initials);
+  const profileNim = document.getElementById('studentProfileNim');
+  if (profileNim) {
+    profileNim.replaceChildren();
+    const value = document.createElement('span');
+    value.style.cssText = 'font-size:16px;font-weight:700;';
+    value.textContent = student.nim;
+    profileNim.appendChild(value);
+    profileNim.onclick = () => copyText(student.nim, 'NIM');
+  }
+  setStudentText('studentProfileClass', student.kelas);
+}
+
+function renderUnavailableStudentPage() {
+  const title = document.querySelector('.mhs-page-title');
+  const main = document.querySelector('.mhs-container');
+  if (!title || !main || !title.textContent.includes('Kompensasi')) return;
+  const header = main.querySelector('.mhs-page-header');
+  const card = document.createElement('section');
+  card.className = 'mhs-card-white';
+  card.style.cssText = 'padding:24px;margin-top:18px;';
+  const heading = document.createElement('h2');
+  heading.textContent = 'Fitur belum tersedia';
+  heading.style.cssText = 'font-size:18px;font-weight:800;color:#0F172A;margin:0 0 8px;';
+  const message = document.createElement('p');
+  message.textContent = 'Data evaluasi dan kompensasi belum dapat ditampilkan karena belum ada tabel penyimpanan atau ketentuan perhitungan yang disepakati.';
+  message.style.cssText = 'font-size:13px;line-height:1.6;color:#64748B;margin:0;';
+  card.append(heading, message);
+  main.replaceChildren();
+  if (header) main.appendChild(header);
+  main.appendChild(card);
+}
+
+async function loadStudentOverview() {
+  renderUnavailableStudentPage();
+  try {
+    const response = await fetch('/api/student/overview');
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Data mahasiswa gagal dimuat.');
+    renderStudentProfile(result.student);
+    renderStudentAttendance(result);
+    renderStudentSessions(result.sessions_today || []);
+    setStudentText('studentTodayDate', new Date().toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    }));
+  } catch (error) {
+    showToast(error.message);
+    ['studentDashboardName', 'studentProfileName', 'studentAttendanceHistory', 'studentRecentAttendance'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = error.message;
+    });
+  }
+}
+
+function markAllNotificationsRead() {
+  showToast('Fitur notifikasi belum tersedia karena belum ada data notifikasi tersimpan.');
+}
+
+function initStudentNotifications() {
+  const unavailableMessage = 'Notifikasi belum tersedia karena data notifikasi belum disimpan di database.';
+  const dropdown = document.getElementById('mhsNotifDropdown');
+  if (dropdown) {
+    dropdown.replaceChildren();
+    const message = document.createElement('p');
+    message.textContent = unavailableMessage;
+    message.style.cssText = 'font-size:12px;line-height:1.5;color:#64748B;margin:0;';
+    dropdown.appendChild(message);
+  }
+  const list = document.getElementById('mhsNotifCardsList');
+  if (list) {
+    list.replaceChildren();
+    const message = document.createElement('div');
+    message.className = 'mhs-card-white';
+    message.style.cssText = 'padding:24px;color:#64748B;font-size:13px;';
+    message.textContent = unavailableMessage;
+    list.appendChild(message);
+  }
+  document.querySelectorAll('.mhs-bell-badge').forEach(badge => badge.remove());
 }
 
 document.addEventListener('DOMContentLoaded', initStudentNotifications);
+document.addEventListener('DOMContentLoaded', loadStudentOverview);

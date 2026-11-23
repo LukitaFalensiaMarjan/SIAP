@@ -1784,8 +1784,8 @@
       <!-- Right Mock Card -->
       <div class="session-mock-card">
         <div class="mock-header">
-          <div class="mock-kicker">STATUS SESI PRAKTIKUM</div>
-          <div class="mock-course">Contoh: Proses Manufaktur - Sesi 2B/01</div>
+          <div class="mock-kicker">ALUR SESI PRAKTIKUM</div>
+          <div class="mock-course">Pilih sesi aktif yang sesuai dengan kelas Anda</div>
         </div>
 
         <!-- Row 1: APD -->
@@ -1794,12 +1794,11 @@
             <div>
               <div class="mock-label-group">
                 <span class="mock-title">Pemeriksaan APD</span>
-                <span class="badge-subtle-green">Sesuai regulasi</span>
               </div>
-              <div class="mock-sub">Helm safety, kemeja praktek, sepatu safety</div>
+              <div class="mock-sub">Hasil pemeriksaan dicatat pada sesi yang dipilih.</div>
             </div>
           </div>
-          <button class="btn-mock-action" onclick="alert('Rincian APD: Helm OK, Kemeja OK, Jeans OK, Sepatu OK.')">Lihat detail</button>
+          <span class="btn-mock-action">Aturan mengikuti lab</span>
         </div>
 
         <!-- Row 2: Keputusan Akhir -->
@@ -1809,14 +1808,14 @@
               <div class="mock-label-group">
                 <span class="mock-title">Keputusan Akhir</span>
               </div>
-              <div class="mock-sub">Hadir • Verifikasi otomatis oleh sistem</div>
+              <div class="mock-sub">Kehadiran dan pemeriksaan APD tersimpan pada data absensi.</div>
             </div>
           </div>
-          <button class="btn-mock-action" onclick="alert('Status validasi telah dikonfirmasi.')">Validasi manual</button>
+          <span class="btn-mock-action">Tersimpan setelah pemindaian</span>
         </div>
 
         <div class="mock-lock-footer">
-               <span>Pusat verifikasi dapat dikonfirmasi oleh admin.</span>
+          <span>Validasi jeans dilakukan manual oleh PLP.</span>
         </div>
       </div>
     </div>
@@ -1995,23 +1994,36 @@
       }
     }
 
-    function handleUnifiedSubmit(e) {
+    async function handleUnifiedSubmit(e) {
       e.preventDefault();
       const idVal = document.getElementById('inputIdentifier').value.trim();
       const passVal = document.getElementById('inputPassword').value.trim();
+      const submitButton = e.submitter || e.currentTarget.querySelector('button[type="submit"]');
+      const originalLabel = submitButton ? submitButton.textContent.trim() : 'Masuk';
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Memeriksa akun...';
+      }
 
-      // Detection:
-      // If user inputs 'admin' or an NIP (typically 18 digits or starts with 19) or password is admin123
-      // -> route to admin dashboard. Otherwise -> route to mahasiswa dashboard.
-      const isAdmin = idVal.toLowerCase() === 'admin' || 
-                      idVal.length >= 15 || 
-                      idVal.startsWith('19') || 
-                      passVal === 'admin123';
-
-      if (isAdmin) {
-        window.location.href = 'admin/dashboard.html';
-      } else {
-        window.location.href = 'mahasiswa/dashboard.html';
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: idVal, password: passVal })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          alert(result.error || 'Login gagal');
+          return;
+        }
+        window.location.href = result.redirect;
+      } catch (error) {
+        alert('Backend tidak dapat dijangkau. Jalankan aplikasi melalui Flask.');
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalLabel;
+        }
       }
     }
 

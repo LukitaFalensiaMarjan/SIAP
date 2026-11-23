@@ -71,41 +71,15 @@
 
       <!-- Profile Pill -->
       <a href="profil.html" class="mhs-profile-pill">
-        <div class="mhs-avatar-circle">MB</div>
+        <div class="mhs-avatar-circle">--</div>
         <div class="mhs-user-meta">
-          <span class="mhs-user-name">Muhammad Basit Rozak Akbar S.P</span>
+          <span class="mhs-user-name">Memuat profil...</span>
           <span class="mhs-user-sub">Mahasiswa · 3AEC1</span>
         </div>
       </a>
 
       <!-- Notification Dropdown Panel -->
-      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--student-border);">
-          <div style="font-size: 13px; font-weight: 800; color: var(--student-text-main);">Pusat Pemberitahuan</div>
-          <button onclick="markAllNotificationsRead()" style="background: none; border: none; font-size: 11px; font-weight: 700; color: var(--student-blue); cursor: pointer;">Tandai Dibaca</button>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Absensi berhasil dicatat</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Kehadiran Praktik Proses Manufaktur tercatat pukul 07.27 WIB.</p>
-            <span style="font-size: 10px; color: #94A3B8;">18 Nov 2026 · 07.27</span>
-          </div>
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Hasil pemeriksaan sedang ditinjau</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Satu parameter sesi CNC Dasar menunggu validasi admin.</p>
-            <span style="font-size: 10px; color: #94A3B8;">11 Nov 2026 · 07.31</span>
-          </div>
-        </div>
-        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--student-border); text-align: center;">
-          <a href="notifikasi.html" style="font-size: 12px; font-weight: 700; color: var(--student-blue); text-decoration: none;">Lihat Seluruh Notifikasi &rarr;</a>
-        </div>
-      </div>
+      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()"><div style="padding:16px;color:#64748B;font-size:12px;">Notifikasi belum tersedia karena data notifikasi belum disimpan di database.</div></div>
     </header>
 
     <main class="mhs-container">
@@ -117,55 +91,14 @@
           <h1 class="mhs-page-title">Notifikasi</h1>
           <p class="mhs-page-desc">Pemberitahuan terkait absensi dan kegiatan praktikum Anda.</p>
         </div>
-        <button onclick="markAllNotificationsRead()" style="background: #FFF; border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer;">
-          Tandai Semua Dibaca
-        </button>
+        <span style="font-size:12px;color:#64748B;">Belum ada data notifikasi tersimpan.</span>
       </div>
 
       <!-- Notification Cards List (No Icons) -->
       <div id="mhsNotifCardsList">
-        
-        <!-- Notif 1 -->
-        <div class="mhs-notif-card" onclick="showToast('Membuka detail sesi Praktik Proses Manufaktur')">
-          <div class="mhs-notif-body">
-            <div class="mhs-notif-title-row">
-              <span class="mhs-notif-title">Absensi berhasil dicatat</span>
-              <span class="mhs-badge mhs-badge-blue">Baru</span>
-            </div>
-            <div class="mhs-notif-desc">
-              Kehadiran Praktik Proses Manufaktur tercatat pada 18 November pukul 07.27 WIB.
-            </div>
-            <div class="mhs-notif-date">18 November 2026 · 07.27</div>
-          </div>
+        <div class="mhs-card-white" style="padding:24px;color:#64748B;font-size:13px;">
+          Notifikasi belum tersedia karena data notifikasi belum disimpan di database.
         </div>
-
-        <!-- Notif 2 -->
-        <div class="mhs-notif-card" onclick="showToast('Membuka status validasi admin CNC Dasar')">
-          <div class="mhs-notif-body">
-            <div class="mhs-notif-title-row">
-              <span class="mhs-notif-title">Hasil pemeriksaan sedang ditinjau</span>
-              <span class="mhs-badge mhs-badge-blue">Baru</span>
-            </div>
-            <div class="mhs-notif-desc">
-              Satu parameter pada sesi Praktik CNC Dasar menunggu validasi admin. Kehadiran Anda tetap tercatat.
-            </div>
-            <div class="mhs-notif-date">11 November 2026 · 07.31</div>
-          </div>
-        </div>
-
-        <!-- Notif 3 -->
-        <div class="mhs-notif-card" onclick="showToast('Pengingat jadwal: Rabu, 20 Nov 07.30 di Lab CNC')">
-          <div class="mhs-notif-body">
-            <div class="mhs-notif-title-row">
-              <span class="mhs-notif-title">Pengingat jadwal praktikum</span>
-            </div>
-            <div class="mhs-notif-desc">
-              Praktik Proses Manufaktur dimulai Rabu, 20 November pukul 07.30 di Laboratorium CNC.
-            </div>
-            <div class="mhs-notif-date">19 November 2026 · 16.00</div>
-          </div>
-        </div>
-
       </div>
 
     </main>

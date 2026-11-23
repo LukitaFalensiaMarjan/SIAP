@@ -94,19 +94,18 @@
 
   <div class="adm-main-wrapper">
     <header class="adm-topbar">
-      <button class="adm-notif-btn" onclick="showToast('Notifikasi sistem: Seluruh perangkat kiosk online.')" title="Pusat Notifikasi">
+      <button class="adm-notif-btn" title="Notifikasi belum tersedia">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
-        <span class="adm-notif-dot"></span>
       </button>
 
       <div class="adm-profile-pill">
         <div class="adm-avatar-circle">RK</div>
         <div class="adm-user-meta">
-          <span class="adm-user-name">Rina Kartika</span>
-          <span class="adm-user-sub">Administrator</span>
+          <span class="adm-user-name">Memuat pengguna...</span>
+          <span class="adm-user-sub"></span>
         </div>
       </div>
     </header>
@@ -116,80 +115,54 @@
       <!-- Page Header -->
       <div class="adm-page-header">
         <div>
-          <div class="adm-eyebrow">Rabu, 20 November 2026</div>
+          <div class="adm-eyebrow" id="dashboardDate"></div>
           <h1 class="adm-page-title">Ringkasan operasional</h1>
           <p class="adm-page-desc">Pantau aktivitas absensi dan tindak lanjut yang membutuhkan perhatian.</p>
         </div>
-        <select class="adm-select-dropdown" onchange="showToast('Rentang data diperbarui: ' + this.options[this.selectedIndex].text)">
-          <option>Hari ini</option>
-          <option>Minggu ini</option>
-          <option>Bulan berjalan</option>
+        <select class="adm-select-dropdown" id="dashboardPeriod" onchange="loadAdminDashboard()">
+          <option value="today">Hari ini</option>
+          <option value="week">Minggu ini</option>
+          <option value="month">Bulan berjalan</option>
+          <option value="all">Semua data</option>
         </select>
       </div>
 
       <!-- 4 Stat Cards (Image 2) -->
       <div class="adm-stat-strip-4">
         <div class="adm-stat-card">
-          <div class="adm-stat-lbl">Mahasiswa aktif</div>
-          <div class="adm-stat-val-big">1.248</div>
-          <div class="adm-stat-sub">6 jurusan</div>
+          <div class="adm-stat-lbl">Mahasiswa terdaftar</div>
+          <div class="adm-stat-val-big" id="dashboardStudentCount">—</div>
+          <div class="adm-stat-sub">Data mahasiswa tersimpan</div>
         </div>
 
         <div class="adm-stat-card">
-          <div class="adm-stat-lbl">Sesi praktikum hari ini</div>
-          <div class="adm-stat-val-big" style="color: #0284C7;">186</div>
-          <div class="adm-stat-sub">108 tepat waktu</div>
+          <div class="adm-stat-lbl">Sesi praktikum</div>
+          <div class="adm-stat-val-big" id="dashboardSessionCount" style="color: #0284C7;">—</div>
+          <div class="adm-stat-sub">Sesi pada rentang terpilih</div>
         </div>
 
         <div class="adm-stat-card" style="border-left: 3px solid #D97706;">
           <div class="adm-stat-lbl">Menunggu validasi</div>
-          <div class="adm-stat-val-big" style="color: #D97706;">8</div>
-          <div class="adm-stat-sub">Perlu ditinjau</div>
+          <div class="adm-stat-val-big" id="dashboardPendingCount" style="color: #D97706;">—</div>
+          <div class="adm-stat-sub">Perlu ditinjau PLP</div>
         </div>
 
         <div class="adm-stat-card">
-          <div class="adm-stat-lbl">Kiosk online</div>
-          <div class="adm-stat-val-big" style="color: #0E8A57;">6/7</div>
-          <div class="adm-stat-sub">1 perangkat offline</div>
+          <div class="adm-stat-lbl">Total absensi</div>
+          <div class="adm-stat-val-big" id="dashboardAttendanceCount" style="color: #0E8A57;">—</div>
+          <div class="adm-stat-sub">Pada rentang terpilih</div>
         </div>
       </div>
 
-      <!-- Live Monitoring Kiosk (Exact Image 2) -->
       <div class="adm-card-white" style="padding: 22px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div>
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">Live Monitoring Kiosk</div>
-            <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Aktivitas scanning saat ini</h2>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="adm-badge adm-badge-green" style="font-size: 10.5px;">1 kamera aktif · Siaga mendeteksi</span>
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">Status Perangkat</div>
+            <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Monitoring kiosk</h2>
           </div>
         </div>
-
-        <!-- Live Visual Stage -->
-        <div class="kiosk-live-screen">
-          <div style="position: absolute; top: 14px; left: 16px; background: rgba(15,23,42,0.85); color: #FFF; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
-            Kiosk CNC 01 · Lab. CNC
-          </div>
-
-          <img src="../assets/img/maskot-k3.png" alt="Mascot K3" class="kiosk-mascot-feed">
-
-          <div class="reticle-box">
-            <span class="reticle-tag" style="top: -12px; left: 10px;">Wajah Terverifikasi (99%)</span>
-            <span class="reticle-tag" style="top: 28px; right: -20px;">Helm Sesuai</span>
-            <span class="reticle-tag" style="bottom: 110px; left: -10px;">Wearpack Lengkap</span>
-            <span class="reticle-tag" style="bottom: -10px; right: 10px;">Sepatu Safety OK</span>
-          </div>
-
-          <div style="position: absolute; bottom: 16px; right: 16px;">
-            <button class="adm-btn-primary" onclick="openAdmModal('modalManualOverride')">
-              Verifikasi manual
-            </button>
-          </div>
-        </div>
-
-        <div style="margin-top: 12px; font-size: 11.5px; color: #64748B;">
-          Sistem mendeteksi 4 parameter APD secara simultan. Admin dapat melakukan override manual jika diperlukan.
+        <div style="padding: 18px; border: 1px solid var(--admin-border); border-radius: 10px; color: #64748B; font-size: 13px;">
+          Status online, kamera, dan aktivitas langsung belum tersedia karena belum ada data registrasi atau heartbeat perangkat kiosk.
         </div>
       </div>
 
@@ -203,37 +176,14 @@
               <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Enam hari terakhir</h3>
             </div>
             <div style="font-size: 11.5px; display: flex; gap: 12px; color: #64748B;">
-              <span>Tepat waktu</span>
-              <span>Terlambat</span>
+              <span>Lengkap</span>
+              <span>Kurang</span>
+              <span>Menunggu validasi</span>
             </div>
           </div>
 
-          <!-- CSS Bar Chart (Sen - Sab) -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; height: 160px; padding: 10px 10px 0; border-bottom: 1px solid var(--admin-border);">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px;">
-              <div style="width: 22px; height: 120px; background: #0284C7; border-radius: 4px;"></div>
-              <span style="font-size: 11px; color: #64748B;">Sen</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px;">
-              <div style="width: 22px; height: 135px; background: #0284C7; border-radius: 4px;"></div>
-              <span style="font-size: 11px; color: #64748B;">Sel</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px;">
-              <div style="width: 22px; height: 140px; background: #0284C7; border-radius: 4px;"></div>
-              <span style="font-size: 11px; color: #64748B;">Rab</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px;">
-              <div style="width: 22px; height: 110px; background: #0284C7; border-radius: 4px;"></div>
-              <span style="font-size: 11px; color: #64748B;">Kam</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px;">
-              <div style="width: 22px; height: 130px; background: #0284C7; border-radius: 4px;"></div>
-              <span style="font-size: 11px; color: #64748B;">Jum</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px;">
-              <div style="width: 22px; height: 75px; background: #0284C7; border-radius: 4px;"></div>
-              <span style="font-size: 11px; color: #64748B;">Sab</span>
-            </div>
+          <div id="attendanceTrend" style="display: grid; gap: 8px; min-height: 120px; padding: 10px 0;">
+            <div style="color: #64748B; font-size: 12px;">Memuat ringkasan...</div>
           </div>
         </div>
 
@@ -241,25 +191,25 @@
         <div class="adm-card-white" style="padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
             <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">Status Pemeriksaan</div>
-            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 2px 0 16px;">Hari ini</h3>
+            <h3 id="dashboardStatusLabel" style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 2px 0 16px;">Hari ini</h3>
 
             <div style="text-align: center; margin-bottom: 16px;">
-              <div style="font-size: 36px; font-weight: 800; color: #0F172A; line-height: 1;">186</div>
+              <div id="dashboardStatusTotal" style="font-size: 36px; font-weight: 800; color: #0F172A; line-height: 1;">—</div>
               <div style="font-size: 11px; color: #64748B;">Total pemeriksaan</div>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
               <div style="display: flex; justify-content: space-between;">
                 <span>Sesuai</span>
-                <strong>164 (88%)</strong>
+                <strong id="dashboardStatusComplete">—</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #D97706;">
                 <span>Menunggu validasi</span>
-                <strong>8 (4%)</strong>
+                <strong id="dashboardStatusPending">—</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #DC2626;">
                 <span>Tidak lengkap</span>
-                <strong>14 (8%)</strong>
+                <strong id="dashboardStatusIncomplete">—</strong>
               </div>
             </div>
           </div>
@@ -282,30 +232,8 @@
             <a href="absensi.html" style="font-size: 12px; font-weight: 700; color: #0284C7; text-decoration: none;">Lihat antrean &rarr;</a>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #F8FAFC; border-radius: 8px;">
-              <div>
-                <div style="font-weight: 700; font-size: 13px;">Fajar Ramadhan <span style="font-size: 11px; color: #64748B;">(2MEA)</span></div>
-                <div style="font-size: 11.5px; color: #D97706;">Sepatu safety · Skor 74%</div>
-              </div>
-              <button class="adm-btn-action-edit" onclick="window.location.href='absensi.html'">Tinjau</button>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #F8FAFC; border-radius: 8px;">
-              <div>
-                <div style="font-weight: 700; font-size: 13px;">Dinda Larasati <span style="font-size: 11px; color: #64748B;">(3FEA)</span></div>
-                <div style="font-size: 11.5px; color: #D97706;">Helm keselamatan · Skor 68%</div>
-              </div>
-              <button class="adm-btn-action-edit" onclick="window.location.href='absensi.html'">Tinjau</button>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #F8FAFC; border-radius: 8px;">
-              <div>
-                <div style="font-weight: 700; font-size: 13px;">Rafi Maulana <span style="font-size: 11px; color: #64748B;">(2AEB)</span></div>
-                <div style="font-size: 11.5px; color: #D97706;">Baju praktik · Skor 71%</div>
-              </div>
-              <button class="adm-btn-action-edit" onclick="window.location.href='absensi.html'">Tinjau</button>
-            </div>
+          <div id="validationQueue" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="color: #64748B; font-size: 12px;">Memuat antrean validasi...</div>
           </div>
         </div>
 
@@ -313,20 +241,20 @@
         <div style="background: #0D2342; border-radius: 14px; padding: 22px; color: #FFF; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
             <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #94A3B8; margin-bottom: 4px;">Sesi Hari Ini</div>
-            <div style="font-size: 22px; font-weight: 800; margin-bottom: 18px;">8 sesi praktikum</div>
+            <div id="sessionsTodayCount" style="font-size: 22px; font-weight: 800; margin-bottom: 18px;">— sesi praktikum</div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
               <div>
-                <div style="font-size: 20px; font-weight: 800;">3</div>
-                <div style="font-size: 10.5px; color: #94A3B8;">Sedang berlangsung</div>
+                <div id="sessionsTodayActive" style="font-size: 20px; font-weight: 800;">—</div>
+                <div style="font-size: 10.5px; color: #94A3B8;">Aktif</div>
               </div>
               <div>
-                <div style="font-size: 20px; font-weight: 800;">4</div>
-                <div style="font-size: 10.5px; color: #94A3B8;">Akan datang</div>
+                <div id="sessionsTodayInactive" style="font-size: 20px; font-weight: 800;">—</div>
+                <div style="font-size: 10.5px; color: #94A3B8;">Nonaktif</div>
               </div>
               <div>
-                <div style="font-size: 20px; font-weight: 800;">1</div>
-                <div style="font-size: 10.5px; color: #94A3B8;">Selesai</div>
+                <div id="sessionsTodayList" style="font-size: 20px; font-weight: 800;">—</div>
+                <div style="font-size: 10.5px; color: #94A3B8;">Kelas hari ini</div>
               </div>
             </div>
           </div>
@@ -342,7 +270,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div>
             <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">Aktivitas Terbaru</div>
-            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Absensi hari ini</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Absensi pada rentang terpilih</h3>
           </div>
           <a href="absensi.html" style="font-size: 12px; font-weight: 700; color: #0284C7; text-decoration: none;">Monitoring lengkap &rarr;</a>
         </div>
@@ -360,61 +288,14 @@
                 <th>Pemeriksaan</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td style="color: #64748B;">07.27</td>
-                <td>224201001</td>
-                <td style="font-weight: 700;">Aulia Pratama</td>
-                <td>2MEA</td>
-                <td>Proses Manufaktur</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-green">Sesuai</span></td>
-              </tr>
-              <tr>
-                <td style="color: #64748B;">07.31</td>
-                <td>224201020</td>
-                <td style="font-weight: 700;">Fajar Ramadhan</td>
-                <td>2MEA</td>
-                <td>Proses Manufaktur</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-amber">Menunggu validasi</span></td>
-              </tr>
+            <tbody id="dashboardRecentAttendance">
+              <tr><td colspan="7">Memuat data absensi...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
     </main>
-  </div>
-
-  <!-- Modal Manual Override -->
-  <div class="adm-modal-backdrop" id="modalManualOverride" onclick="if(event.target===this)closeAdmModal('modalManualOverride')">
-    <div class="adm-modal-content">
-      <div class="adm-modal-head">
-        <div>
-          <div class="adm-eyebrow">Validasi Mandiri</div>
-          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;">Keputusan Verifikasi Manual</h3>
-        </div>
-        <button class="adm-modal-close" onclick="closeAdmModal('modalManualOverride')">Tutup</button>
-      </div>
-      <div class="adm-modal-body">
-        <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">
-          Pilih status penetapan kehadiran dan kelengkapan APD untuk sesi praktikum yang sedang ditinjau.
-        </p>
-        <div style="background: #F8FAFC; border: 1px solid var(--admin-border); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12.5px;">
-          <div>Mahasiswa: <strong>Fajar Ramadhan (224201020 · 2MEA)</strong></div>
-          <div style="margin-top: 4px;">Catatan AI: Sepatu safety tertutup bayangan (Confidence 74%)</div>
-        </div>
-        <div style="display: flex; gap: 10px;">
-          <button onclick="closeAdmModal('modalManualOverride'); showToast('Status disetujui: Hadir & APD Sesuai!')" class="adm-btn-primary" style="flex: 1; background: #0E8A57;">
-            Setujui (Lengkap)
-          </button>
-          <button onclick="closeAdmModal('modalManualOverride'); showToast('Dicatat sebagai pelanggaran APD.');" class="adm-btn-primary" style="flex: 1; background: #DC2626;">
-            Tolak (Tidak Sesuai)
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <script src="../assets/js/admin.js"></script>

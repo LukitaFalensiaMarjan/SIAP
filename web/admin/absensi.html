@@ -69,8 +69,8 @@
       <div class="adm-profile-pill">
         <div class="adm-avatar-circle">RK</div>
         <div class="adm-user-meta">
-          <span class="adm-user-name">Rina Kartika</span>
-          <span class="adm-user-sub">Administrator</span>
+          <span class="adm-user-name">Memuat akun...</span>
+          <span class="adm-user-sub">Akun aktif</span>
         </div>
       </div>
     </header>
@@ -82,32 +82,33 @@
         <div>
           <div class="adm-eyebrow">Operasional</div>
           <h1 class="adm-page-title">Monitoring Absensi</h1>
-          <p class="adm-page-desc">Pantau kehadiran mahasiswa dan hasil pemeriksaan kepatuhan APD dari pemindaian kamera kiosk praktikum.</p>
+          <p class="adm-page-desc">Pantau data absensi tersimpan dan validasi celana jeans secara manual oleh PLP.</p>
         </div>
-        <button class="adm-btn-primary" onclick="showToast('Rekapitulasi absensi berhasil diunduh.')">
-          Unduh Rekap
+        <button class="adm-btn-primary" onclick="window.location.href='laporan.html'">
+          Buka Laporan
         </button>
       </div>
 
       <!-- Main Unified Attendance Card -->
       <div class="adm-card-white">
 
-        <!-- Filter Bar with Dropdown (All, Sesuai, Pelanggaran) -->
+        <!-- Filter Bar -->
         <div class="adm-filter-bar">
           <input type="text" id="searchAbsensi" class="adm-search-input" placeholder="Cari nama atau NIM mahasiswa..." oninput="applyAbsensiFilters()">
+
+          <select id="filterSesiAbsensi" class="adm-select-dropdown" onchange="loadAttendanceMonitor()">
+            <option value="all">Semua sesi praktikum</option>
+          </select>
           
           <select id="filterKelasAbsensi" class="adm-select-dropdown" onchange="applyAbsensiFilters()">
             <option value="all">Semua kelas</option>
-            <option value="2MEA">2MEA</option>
-            <option value="3FEA">3FEA</option>
-            <option value="2AEB">2AEB</option>
           </select>
 
-          <!-- Dropdown Status APD: All, Sesuai, Pelanggaran -->
           <select id="filterStatusAPD" class="adm-select-dropdown" style="font-weight: 700; color: #0F172A; min-width: 170px;" onchange="applyAbsensiFilters()">
-            <option value="all">Status APD: All</option>
-            <option value="sesuai">Status APD: Sesuai</option>
-            <option value="pelanggaran">Status APD: Pelanggaran</option>
+            <option value="all">Semua status APD</option>
+            <option value="lengkap">Lengkap</option>
+            <option value="kurang">Tidak lengkap</option>
+            <option value="menunggu_validasi">Menunggu validasi jeans</option>
           </select>
         </div>
 
@@ -120,137 +121,14 @@
                 <th>NIM</th>
                 <th>Nama Lengkap</th>
                 <th>Kelas</th>
-                <th>Kehadiran</th>
+                <th>Sesi</th>
+                <th>Jeans (manual)</th>
                 <th>Status APD</th>
-                <th style="text-align: right;">Aksi</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody id="attendanceTableBody">
-              <!-- Row 1: Fajar Ramadhan (Tidak Sesuai / Anomali Sepatu) -->
-              <tr data-id="abs-1" data-kelas="2MEA" data-status="pelanggaran">
-                <td style="color: #64748B;">07.31</td>
-                <td style="font-weight: 700;">224201020</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Fajar Ramadhan</div>
-                  <div style="font-size: 11px; color: #64748B;">Praktik Proses Manufaktur</div>
-                </td>
-                <td>2MEA</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-red status-badge">Tidak Sesuai</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-1')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
-
-              <!-- Row 2: Dinda Larasati (Tidak Sesuai / Helm) -->
-              <tr data-id="abs-2" data-kelas="3FEA" data-status="pelanggaran">
-                <td style="color: #64748B;">08.04</td>
-                <td style="font-weight: 700;">223104021</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Dinda Larasati</div>
-                  <div style="font-size: 11px; color: #64748B;">Teknologi Pengecoran</div>
-                </td>
-                <td>3FEA</td>
-                <td><span class="adm-badge adm-badge-amber">Terlambat (4m)</span></td>
-                <td><span class="adm-badge adm-badge-red status-badge">Tidak Sesuai</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-2')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
-
-              <!-- Row 3: Rafi Maulana (Tidak Sesuai / Wearpack) -->
-              <tr data-id="abs-3" data-kelas="2AEB" data-status="pelanggaran">
-                <td style="color: #64748B;">Kemarin 13.02</td>
-                <td style="font-weight: 700;">224302008</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Rafi Maulana</div>
-                  <div style="font-size: 11px; color: #64748B;">Sistem Kendali</div>
-                </td>
-                <td>2AEB</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-red status-badge">Tidak Sesuai</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-3')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
-
-              <!-- Row 4: Muhammad Basit Rozak Akbar S.P (Sesuai) -->
-              <tr data-id="abs-4" data-kelas="3AEC1" data-status="sesuai">
-                <td style="color: #64748B;">07.27</td>
-                <td style="font-weight: 700;">224443012</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Muhammad Basit Rozak Akbar S.P</div>
-                  <div style="font-size: 11px; color: #64748B;">Praktik Proses Manufaktur</div>
-                </td>
-                <td>3AEC1</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-green status-badge">Sesuai</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-4')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
-
-              <!-- Row 5: Nadia Fitriani (Sesuai) -->
-              <tr data-id="abs-5" data-kelas="2MEA" data-status="sesuai">
-                <td style="color: #64748B;">07.34</td>
-                <td style="font-weight: 700;">224201014</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Nadia Fitriani</div>
-                  <div style="font-size: 11px; color: #64748B;">Praktik Proses Manufaktur</div>
-                </td>
-                <td>2MEA</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-green status-badge">Sesuai</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-5')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
-
-              <!-- Row 6: Hendra Setiawan (Sesuai) -->
-              <tr data-id="abs-7" data-kelas="2MEA" data-status="sesuai">
-                <td style="color: #64748B;">07.29</td>
-                <td style="font-weight: 700;">224201042</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Hendra Setiawan</div>
-                  <div style="font-size: 11px; color: #64748B;">Praktik Proses Manufaktur</div>
-                </td>
-                <td>2MEA</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-green status-badge">Sesuai</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-7')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
-
-              <!-- Row 7: Rizki Kurniawan (Pelanggaran SP) -->
-              <tr data-id="abs-6" data-kelas="2MEA" data-status="pelanggaran">
-                <td style="color: #64748B;">Kemarin 07.25</td>
-                <td style="font-weight: 700;">224201035</td>
-                <td>
-                  <div style="font-weight: 700; color: #0F172A;">Rizki Kurniawan</div>
-                  <div style="font-size: 11px; color: #64748B;">Praktik Proses Manufaktur</div>
-                </td>
-                <td>2MEA</td>
-                <td><span class="adm-badge adm-badge-green">Hadir</span></td>
-                <td><span class="adm-badge adm-badge-red status-badge">Pelanggaran (SP)</span></td>
-                <td style="text-align: right;">
-                  <button class="adm-btn-action-edit" onclick="openDetailAbsensi('abs-6')">
-                    Detail
-                  </button>
-                </td>
-              </tr>
+              <tr><td colspan="8">Memuat data absensi...</td></tr>
             </tbody>
           </table>
         </div>
@@ -258,110 +136,6 @@
       </div>
 
     </main>
-  </div>
-
-  <!-- ── MODAL POP-UP DETAIL ABSENSI ── -->
-  <div class="adm-modal-backdrop" id="modalDetailAbsensi" onclick="if(event.target===this)closeAdmModal('modalDetailAbsensi')">
-    <div class="adm-modal-content adm-modal-lg">
-      
-      <!-- Modal Header -->
-      <div class="adm-modal-head">
-        <div>
-          <div class="adm-eyebrow" id="modalEyebrow">Pemeriksaan Kiosk Praktikum</div>
-          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;" id="modalStudentTitle">Detail Absensi &amp; Pemeriksaan APD</h3>
-        </div>
-        <button class="adm-modal-close" onclick="closeAdmModal('modalDetailAbsensi')">✕</button>
-      </div>
-
-      <!-- Modal Body (2-Column Grid) -->
-      <div class="adm-modal-body">
-        <div class="adm-modal-detail-grid">
-          
-          <!-- Column 1: Kiosk Scanning Camera Capture -->
-          <div>
-            <div class="kiosk-capture-box">
-              <div class="kiosk-capture-header">
-                <div style="display: flex; align-items: center; font-size: 11px; font-weight: 800; color: #FFF; letter-spacing: 0.5px;">
-                  <span class="kiosk-rec-dot"></span> LIVE CAPTURE
-                </div>
-                <span id="kioskNameBadge" style="font-size: 10px; color: #94A3B8; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px;">Kiosk 01</span>
-              </div>
-
-              <!-- Mascot / Capture Image -->
-              <img src="../assets/img/maskot-k3.png" alt="Tangkapan Kiosk" class="kiosk-capture-img" id="captureImg">
-
-              <!-- Dynamic Visual Overlay Tags -->
-              <div class="kiosk-overlay-tag tag-head valid" id="tagHead">Helm: Sesuai</div>
-              <div class="kiosk-overlay-tag tag-body valid" id="tagBody">Wearpack: Sesuai</div>
-              <div class="kiosk-overlay-tag tag-feet invalid" id="tagFeet">Sepatu: Perlu Validasi</div>
-
-              <div class="kiosk-capture-footer">
-                <span id="captureTimeFooter">07.31:14 WIB</span>
-                <span>Resolusi HD 1080p</span>
-              </div>
-            </div>
-
-            <div style="font-size: 11px; color: #64748B; margin-top: 8px; text-align: center;">
-              Foto otomatis diambil kamera kiosk saat verifikasi biometrik &amp; scanning APD.
-            </div>
-          </div>
-
-          <!-- Column 2: Student Metadata & AI Parameter Breakdown -->
-          <div>
-            <!-- Identity Info Card -->
-            <div style="background: #F8FAFC; border: 1px solid var(--admin-border); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div>
-                  <div style="font-size: 15px; font-weight: 800; color: #0F172A;" id="detNama">Fajar Ramadhan</div>
-                  <div style="font-size: 12px; color: #475569; margin-top: 2px;" id="detNIMKelas">NIM: 224201020 · Kelas: 2MEA</div>
-                </div>
-                <span class="adm-badge" id="detStatusBadge" style="font-size: 11px;">Tidak Sesuai</span>
-              </div>
-              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #E2E8F0; font-size: 12px; color: #334155; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <div>Mata Kuliah: <strong id="detMatkul">Praktik Proses Manufaktur</strong></div>
-                <div>Waktu Absen: <strong id="detWaktu">07.31 WIB</strong></div>
-              </div>
-            </div>
-
-            <!-- Parameters Inspection Checklist -->
-            <div style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px; margin-bottom: 8px;">
-              Hasil Pemeriksaan Parameter APD
-            </div>
-
-            <div id="parameterChecklist" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-              <!-- Parameter items populated by JS -->
-            </div>
-
-            <!-- AI Conclusion / Anomaly Warning Box -->
-            <div id="aiSummaryBox" style="border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.45; border: 1px solid transparent;">
-              <!-- Populated by JS -->
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Modal Footer (Decision Buttons - Only shown for non-compliant rows) -->
-      <div class="adm-modal-foot" id="modalActionFooter" style="display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; border-top: 1px solid var(--admin-border); padding: 16px 24px;">
-        <button type="button" class="adm-btn-foot-cancel" onclick="closeAdmModal('modalDetailAbsensi')">
-          Tutup
-        </button>
-        
-        <!-- Validation Buttons Group (Dynamic: hidden if compliant, visible if not compliant) -->
-        <div id="validationButtonsGroup" style="display: flex; gap: 10px;">
-          <!-- Validation Button 1: Mark Violation (Send SP) -->
-          <button type="button" class="adm-btn-primary" id="btnTandaiPelanggaran" onclick="executeValidationAction('pelanggaran')" style="background: #DC2626; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #FFF; cursor: pointer;">
-            Tandai Pelanggaran SP
-          </button>
-          
-          <!-- Validation Button 2: Confirm Compliant (Correct false scan) -->
-          <button type="button" class="adm-btn-primary" id="btnKonfirmasiSesuai" onclick="executeValidationAction('sesuai')" style="background: #0E8A57; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #FFF; cursor: pointer;" title="Koreksi jika kamera salah deteksi scanning">
-            Konfirmasi Sesuai
-          </button>
-        </div>
-      </div>
-
-    </div>
   </div>
 
   <script src="../assets/js/admin.js"></script>

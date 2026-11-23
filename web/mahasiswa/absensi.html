@@ -9,6 +9,115 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/student.css">
   <style>
+    .kiosk-camera-viewport {
+      aspect-ratio: 16 / 9;
+      min-height: 360px;
+      isolation: isolate;
+    }
+
+    .kiosk-camera-hud {
+      position: absolute;
+      top: 14px;
+      left: 54px;
+      right: 54px;
+      z-index: 9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .kiosk-camera-hud-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 7px;
+      background: rgba(15, 23, 42, 0.78);
+      color: #E2E8F0;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      backdrop-filter: blur(8px);
+    }
+
+    .kiosk-camera-hud-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #38BDF8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+    }
+
+    .kiosk-view-status-bar {
+      top: 54px;
+      right: auto;
+      bottom: auto;
+      left: 14px;
+      width: min(245px, calc(100% - 28px));
+      box-sizing: border-box;
+      background: rgba(10, 20, 36, 0.88);
+      border-color: rgba(148, 163, 184, 0.3);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+    }
+
+    .kiosk-face-guide-frame {
+      position: absolute;
+      top: 16%;
+      left: 50%;
+      width: min(38%, 250px);
+      height: 60%;
+      min-height: 190px;
+      transform: translateX(-50%);
+      border: 1px dashed rgba(56, 189, 248, 0.82);
+      border-radius: 46% 46% 34% 34%;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.12), inset 0 0 24px rgba(56, 189, 248, 0.06);
+      pointer-events: none;
+    }
+
+    .kiosk-face-guide-frame::before,
+    .kiosk-face-guide-frame::after {
+      position: absolute;
+      left: 50%;
+      content: "";
+      transform: translateX(-50%);
+      background: rgba(56, 189, 248, 0.55);
+    }
+
+    .kiosk-face-guide-frame::before {
+      top: 50%;
+      width: 24px;
+      height: 1px;
+    }
+
+    .kiosk-face-guide-frame::after {
+      top: calc(50% - 12px);
+      width: 1px;
+      height: 24px;
+    }
+
+    .kiosk-face-guide-label {
+      position: absolute;
+      top: 12px;
+      right: -8px;
+      padding: 3px 8px;
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      border-radius: 5px;
+      background: rgba(8, 20, 38, 0.9);
+      color: #7DD3FC;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      white-space: nowrap;
+    }
+
+    .kiosk-apd-instruction {
+      display: none;
+    }
+
     /* Viewport Silhouette & Elements */
     .kiosk-silhouette-svg {
       width: 170px;
@@ -48,17 +157,36 @@
     /* Kiosk APD Detection Overlays in Step 2 */
     .kiosk-apd-tag-box {
       position: absolute;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(16, 185, 129, 0.25);
+      box-sizing: border-box;
+      padding: 7px 8px;
+      border: 2px solid rgba(52, 211, 153, 0.92);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(6, 78, 59, 0.86) 0 30px, rgba(16, 185, 129, 0.08) 30px);
       color: #34D399;
-      border: 1px solid rgba(52, 211, 153, 0.5);
-      backdrop-filter: blur(4px);
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.18), inset 0 0 14px rgba(16, 185, 129, 0.08);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(2px);
       z-index: 6;
       display: none;
       animation: fadeInTag 0.3s ease forwards;
+    }
+
+    .kiosk-apd-tag-box.not-detected {
+      border-color: rgba(252, 165, 165, 0.95);
+      background: linear-gradient(180deg, rgba(127, 29, 29, 0.9) 0 30px, rgba(220, 38, 38, 0.08) 30px);
+      color: #FCA5A5;
+      box-shadow: 0 0 14px rgba(220, 38, 38, 0.16), inset 0 0 14px rgba(220, 38, 38, 0.06);
+    }
+
+    .kiosk-apd-tag-box.manual-review {
+      border-color: rgba(252, 211, 77, 0.95);
+      background: linear-gradient(180deg, rgba(120, 53, 15, 0.9) 0 30px, rgba(217, 119, 6, 0.08) 30px);
+      color: #FCD34D;
+      box-shadow: 0 0 14px rgba(217, 119, 6, 0.16), inset 0 0 14px rgba(217, 119, 6, 0.06);
     }
 
     @keyframes fadeInTag {
@@ -66,10 +194,10 @@
       to { opacity: 1; transform: scale(1); }
     }
 
-    .apd-tag-head { top: 40px; right: 28px; }
-    .apd-tag-chest { top: 125px; left: 24px; }
-    .apd-tag-legs { top: 220px; right: 28px; }
-    .apd-tag-feet { bottom: 85px; left: 24px; }
+    .apd-tag-head { top: 17%; left: 50%; width: 22%; height: 14%; transform: translateX(-50%); }
+    .apd-tag-chest { top: 31%; left: 50%; width: 31%; height: 23%; transform: translateX(-50%); }
+    .apd-tag-legs { top: 54%; left: 50%; width: 29%; height: 23%; transform: translateX(-50%); }
+    .apd-tag-feet { top: 77%; left: 50%; width: 25%; height: 12%; transform: translateX(-50%); }
 
     /* Success Card Overlay */
     .kiosk-success-overlay {
@@ -88,6 +216,75 @@
       animation: fadeInOverlay 0.3s ease forwards;
     }
 
+    .kiosk-camera-video {
+      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+    }
+
+    #step1ViewElements {
+      position: absolute;
+      inset: 0;
+      box-sizing: border-box;
+      justify-content: center;
+      padding: 52px 24px 86px;
+      pointer-events: none;
+    }
+
+    @media (max-width: 640px) {
+      .kiosk-camera-viewport {
+        aspect-ratio: 4 / 3;
+        min-height: 320px;
+      }
+
+      .kiosk-view-status-bar {
+        top: auto;
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        width: auto;
+        padding: 8px 10px;
+      }
+
+      .kiosk-face-guide-frame {
+        top: 12%;
+        width: 48%;
+        height: 54%;
+        min-height: 150px;
+      }
+
+      .kiosk-silhouette-svg {
+        width: 135px;
+        height: 145px;
+        margin-bottom: 8px;
+      }
+
+      .kiosk-guide-title {
+        max-width: 290px;
+        font-size: 12px;
+      }
+
+      .kiosk-guide-sub {
+        max-width: 290px;
+        font-size: 10px;
+      }
+
+      .kiosk-apd-tag-box {
+        padding: 5px;
+        font-size: 8px;
+      }
+
+      .apd-tag-head { top: 15%; width: 27%; height: 10%; }
+      .apd-tag-chest { top: 25%; width: 38%; height: 16%; }
+      .apd-tag-legs { top: 42%; width: 36%; height: 16%; }
+      .apd-tag-feet { top: 59%; width: 32%; height: 12%; }
+    }
+
     @keyframes fadeInOverlay {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -100,7 +297,7 @@
   <header class="kiosk-header-bar">
     <!-- Left: Back Button + POLMAN Logo -->
     <div style="display: flex; align-items: center; gap: 16px;">
-      <button class="kiosk-back-btn" onclick="window.location.href='dashboard.html'" title="Kembali ke Dashboard Mahasiswa">
+      <button class="kiosk-back-btn" onclick="window.location.href='../index.html'" title="Kembali ke halaman utama">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="19" y1="12" x2="5" y2="12"></line>
           <polyline points="12 19 5 12 12 5"></polyline>
@@ -123,7 +320,7 @@
         <div style="font-size: 11px; color: #64748B;" id="stepSubTitle">Verifikasi identitas mahasiswa</div>
       </div>
       <span class="kiosk-step-pill" id="stepPillBadge">Step 1 of 2</span>
-      <a href="../login.html" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Keluar dari Kiosk">
+      <a href="../index.html" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Keluar dari Kiosk">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
           <polyline points="16 17 21 12 16 7"></polyline>
@@ -174,41 +371,44 @@
             </svg>
 
             <!-- Active Pill -->
-            <span class="kiosk-active-pill">
+            <span class="kiosk-active-pill" id="kioskStudentStatus">
               <span style="width: 6px; height: 6px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
-              ACTIVE
+              KIOSK SIAP
             </span>
           </div>
 
-          <!-- Student Profile Data -->
-          <div style="margin-bottom: 14px;">
-            <div style="font-size: 18px; font-weight: 800; color: #0F172A;" id="kioskName">Muhammad Basit Rozak Akbar S.P</div>
-            <div style="font-size: 12.5px; font-weight: 600; color: #64748B; margin-top: 2px;">NIM 224443012</div>
-          </div>
-
-          <div style="margin-bottom: 14px;">
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #94A3B8; margin-bottom: 2px;">PROGRAM STUDI</div>
-            <div style="font-size: 13.5px; font-weight: 700; color: #1E293B;">Teknik Otomasi Manufaktur dan Mekatronika</div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div>
-              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #94A3B8; margin-bottom: 2px;">KELAS</div>
-              <div style="font-size: 14px; font-weight: 700; color: #0F172A;">3AEC1</div>
-            </div>
-            <div>
-              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #94A3B8; margin-bottom: 2px;">STATUS AKADEMIK</div>
-              <div style="font-size: 13px; font-weight: 700; color: #10B981;">
-                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10B981; margin-right: 4px;"></span>
-                Active
+          <form id="kioskIdentityForm" style="margin-bottom: 14px;" autocomplete="off">
+            <div style="display: grid; gap: 10px; margin-bottom: 12px;">
+              <div>
+                <label for="kioskInputName" style="display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 5px;">Nama lengkap</label>
+                <input id="kioskInputName" type="text" maxlength="150" required autocomplete="off" style="width: 100%; padding: 9px 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit;">
+              </div>
+              <div>
+                <label for="kioskInputNim" style="display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 5px;">NIM</label>
+                <input id="kioskInputNim" type="text" maxlength="32" required autocomplete="off" style="width: 100%; padding: 9px 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit;">
+              </div>
+              <div>
+                <label for="kioskInputClass" style="display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 5px;">Kelas</label>
+                <input id="kioskInputClass" type="text" maxlength="30" required autocomplete="off" style="width: 100%; padding: 9px 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit;">
               </div>
             </div>
-          </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="submit" id="btnKioskIdentitySubmit" style="flex: 1; padding: 9px 12px; border: 0; border-radius: 8px; background: #143E6B; color: #FFF; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;">Verifikasi Identitas</button>
+              <button type="button" id="btnKioskIdentityReset" hidden style="padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #143E6B; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;">Ubah</button>
+            </div>
+            <div id="kioskIdentityMessage" role="status" style="font-size: 11px; color: #64748B; margin-top: 7px;">Masukkan nama, NIM, dan kelas sesuai data mahasiswa.</div>
+          </form>
+
+          <label for="kioskSession" style="display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 6px;">Sesi praktikum</label>
+          <select id="kioskSession" disabled style="width: 100%; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit;">
+            <option value="">Verifikasi identitas terlebih dahulu</option>
+          </select>
+          <div id="kioskSessionMessage" role="status" style="font-size: 11px; color: #64748B; margin-top: 6px;">Sesi akan ditampilkan sesuai kelas mahasiswa.</div>
         </div>
 
         <!-- Tip Box at Bottom -->
         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; font-size: 11.5px; color: #64748B; line-height: 1.45;">
-          Jika data tidak sesuai, kembali dan periksa kembali NIM yang dimasukkan pada terminal kiosk.
+          Kamera hanya aktif selama proses pemindaian. Citra diproses untuk verifikasi dan tidak disimpan.
         </div>
       </div>
 
@@ -227,8 +427,35 @@
           </span>
         </div>
 
+        <div style="margin-bottom: 16px;">
+          <label for="kioskCamera" style="display: block; font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 6px;">Pilih kamera</label>
+          <select id="kioskCamera" aria-describedby="kioskCameraMessage" style="width: 100%; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit;">
+            <option value="">Memuat daftar kamera...</option>
+          </select>
+          <div id="kioskCameraMessage" role="status" style="font-size: 11px; color: #64748B; margin-top: 6px;"></div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <label for="kioskFaceCropMode" style="display: block; font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 6px;">Mode deteksi wajah</label>
+          <select id="kioskFaceCropMode" aria-describedby="kioskFaceCropMessage" style="width: 100%; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit;">
+            <option value="hog">Deteksi otomatis (HOG)</option>
+            <option value="guide">Kotak panduan tengah</option>
+          </select>
+          <div id="kioskFaceCropMessage" role="status" style="font-size: 11px; color: #64748B; margin-top: 6px;">Jika deteksi otomatis tidak menemukan wajah, pilih kotak panduan tengah.</div>
+        </div>
+
         <!-- Camera Viewport Box -->
         <div class="kiosk-camera-viewport" id="camViewport">
+          <video class="kiosk-camera-video" id="kioskVideo" autoplay muted playsinline></video>
+          <canvas id="kioskCanvas" hidden></canvas>
+
+          <div class="kiosk-camera-hud" aria-hidden="true">
+            <span class="kiosk-camera-hud-chip">
+              <span class="kiosk-camera-hud-dot"></span>
+              CAMERA VISION
+            </span>
+            <span class="kiosk-camera-hud-chip">LOCAL AI SCAN</span>
+          </div>
           
           <!-- Corner Framing Brackets -->
           <div class="kiosk-corner-bracket tl"></div>
@@ -241,6 +468,9 @@
 
           <!-- Step 1 Elements: Face Silhouette & Instructions -->
           <div id="step1ViewElements" style="display: flex; flex-direction: column; align-items: center; z-index: 5;">
+            <div class="kiosk-face-guide-frame" aria-hidden="true">
+              <span class="kiosk-face-guide-label">AREA WAJAH</span>
+            </div>
             <!-- Face Outline SVG -->
             <svg class="kiosk-silhouette-svg" id="faceSilhouette" viewBox="0 0 140 150" fill="none">
               <!-- Head Oval -->
@@ -258,15 +488,14 @@
             <div class="kiosk-guide-sub" id="guideSub">Pastikan wajah terlihat jelas dan pencahayaan mencukupi.</div>
           </div>
 
-          <!-- Step 2 Elements: Full Mascot APD Inspection (Initially Hidden) -->
+          <!-- Step 2 Elements: APD Inspection (Initially Hidden) -->
           <div id="step2ViewElements" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative; z-index: 5;">
-            <img src="../assets/img/maskot-k3.png" alt="Scanning APD K3" style="max-height: 290px; width: auto; object-fit: contain; margin-bottom: 20px;">
-            
+            <div class="kiosk-apd-instruction" style="font-size: 13px; color: #E2E8F0; background: rgba(15, 23, 42, .78); padding: 10px 14px; border-radius: 8px;">Berdiri tegak dan pastikan tubuh terlihat penuh.</div>
             <!-- Dynamic Bounding Boxes -->
-            <div class="kiosk-apd-tag-box apd-tag-head" id="tagHelm">Helm: Sesuai Standar</div>
-            <div class="kiosk-apd-tag-box apd-tag-chest" id="tagWearpack">Wearpack: Lengkap &amp; Rapi</div>
-            <div class="kiosk-apd-tag-box apd-tag-legs" id="tagCelana">Celana: Jeans Standar</div>
-            <div class="kiosk-apd-tag-box apd-tag-feet" id="tagSepatu">Sepatu: Steel Toe Safety</div>
+            <div class="kiosk-apd-tag-box apd-tag-head" id="tagHelm"></div>
+            <div class="kiosk-apd-tag-box apd-tag-chest" id="tagWearpack"></div>
+            <div class="kiosk-apd-tag-box apd-tag-legs" id="tagCelana"></div>
+            <div class="kiosk-apd-tag-box apd-tag-feet" id="tagSepatu"></div>
           </div>
 
           <!-- Floating Status Bar at Bottom of Viewport -->
@@ -290,30 +519,27 @@
             </div>
             <h2 style="font-size: 22px; font-weight: 800; color: #FFFFFF; margin: 0 0 6px;">Absensi Berhasil Dicatat!</h2>
             <p style="font-size: 13px; color: #94A3B8; max-width: 420px; margin: 0 0 20px;">
-              Kehadiran dan pemeriksaan kelengkapan APD K3 Anda telah terverifikasi sah di basis data laboratorium POLMAN.
+              Kehadiran Anda telah tersimpan. Jeans yang diwajibkan akan menunggu validasi manual PLP.
             </p>
             
             <div style="background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 20px; width: 100%; max-width: 380px; margin-bottom: 24px; text-align: left; font-size: 12px; color: #E2E8F0;">
               <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                 <span style="color: #94A3B8;">Waktu Presensi:</span>
-                <strong style="color: #FFF;">07.27:14 WIB (Tepat Waktu)</strong>
+                <strong style="color: #FFF;" id="successTime">—</strong>
               </div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                 <span style="color: #94A3B8;">Status APD:</span>
-                <span style="color: #34D399; font-weight: 700;">100% Sesuai Standar K3</span>
+                <span style="color: #34D399; font-weight: 700;" id="successApdStatus">—</span>
               </div>
               <div style="display: flex; justify-content: space-between;">
                 <span style="color: #94A3B8;">Sesi Praktikum:</span>
-                <strong style="color: #FFF;">Praktik Proses Manufaktur</strong>
+                <strong style="color: #FFF;" id="successSession">—</strong>
               </div>
             </div>
 
-            <div style="display: flex; gap: 12px; width: 100%; max-width: 380px;">
-              <button onclick="resetKioskToStart()" style="flex: 1; height: 44px; border-radius: 8px; background: #143E6B; color: #FFF; border: none; font-weight: 700; font-size: 13px; cursor: pointer;">
-                Mahasiswa Berikutnya
-              </button>
-              <button onclick="window.location.href='hasil-absensi.html'" style="flex: 1; height: 44px; border-radius: 8px; background: rgba(255,255,255,0.1); color: #FFF; border: 1px solid rgba(255,255,255,0.2); font-weight: 700; font-size: 13px; cursor: pointer;">
-                Lihat Riwayat Saya
+            <div style="width: 100%; max-width: 380px;">
+              <button onclick="window.location.reload()" style="width: 100%; height: 44px; border-radius: 8px; background: #143E6B; color: #FFF; border: none; font-weight: 700; font-size: 13px; cursor: pointer;">
+                Selesai — Mahasiswa Berikutnya
               </button>
             </div>
           </div>
@@ -322,16 +548,21 @@
 
         <!-- Bottom Action Row -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 16px;">
-          <button class="kiosk-btn-primary" id="btnKioskAction" onclick="handleKioskAction()">
-            Mulai Verifikasi Wajah
-          </button>
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <button type="button" class="kiosk-btn-primary" id="btnKioskAction">
+              Mulai Verifikasi Wajah
+            </button>
+            <button type="button" id="btnKioskApdRetry" hidden style="padding: 13px 18px; border: 1px solid #143E6B; border-radius: 10px; background: #FFF; color: #143E6B; font: inherit; font-weight: 700; cursor: pointer;">
+              Ulangi Pemeriksaan APD
+            </button>
+          </div>
 
           <div class="kiosk-security-note">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: #94A3B8;">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
-            <span>Data wajah hanya digunakan untuk verifikasi identitas dalam prototipe ini dan tidak disimpan.</span>
+            <span>Citra dikirim ke server lokal untuk inferensi dan tidak disimpan sebagai foto absensi.</span>
           </div>
         </div>
 
@@ -352,192 +583,6 @@
     </div>
   </footer>
 
-  <script src="../assets/js/student.js"></script>
-  <script>
-    let currentKioskStep = 1; // 1 = Face Verification, 2 = APD Inspection, 3 = Completed
-
-    function handleKioskAction() {
-      if (currentKioskStep === 1) {
-        startFaceVerification();
-      } else if (currentKioskStep === 2) {
-        startAPDInspection();
-      }
-    }
-
-    // Step 1: Face Verification
-    function startFaceVerification() {
-      const btn = document.getElementById('btnKioskAction');
-      const camPill = document.getElementById('camStatusPill');
-      const camDot = document.getElementById('camStatusDot');
-      const camText = document.getElementById('camStatusText');
-      const laser = document.getElementById('scanLaser');
-      const statusH = document.getElementById('camStatusHeader');
-      const statusD = document.getElementById('camStatusDetail');
-      const silhouette = document.getElementById('faceSilhouette');
-
-      btn.disabled = true;
-      btn.innerText = "Memproses Pemindaian...";
-      btn.style.opacity = "0.7";
-
-      // Camera turns on
-      camPill.classList.add('active');
-      camDot.style.background = "#10B981";
-      camText.innerText = "CAMERA ACTIVE";
-
-      // Laser animation starts
-      laser.style.display = "block";
-      laser.style.animation = "kioskLaserAnimation 1.8s infinite ease-in-out";
-
-      statusH.innerText = "Memindai biometrik wajah...";
-      statusD.innerText = "Mengekstrak 128 titik landmark biometrik wajah...";
-
-      setTimeout(() => {
-        statusD.innerText = "Mencocokkan dengan basis data NIM 224443012 (Muhammad Basit Rozak Akbar S.P)...";
-      }, 1000);
-
-      setTimeout(() => {
-        // Face Matched!
-        laser.style.display = "none";
-        silhouette.classList.add('matched');
-
-        statusH.innerText = "Wajah Terverifikasi: Muhammad Basit Rozak Akbar S.P (99.8%)";
-        statusH.style.color = "#34D399";
-        statusD.innerText = "Identitas cocok. Silakan lanjut ke pemeriksaan kelengkapan APD.";
-        
-        btn.disabled = false;
-        btn.style.opacity = "1";
-        btn.innerText = "Lanjut ke Pemeriksaan APD K3 →";
-        btn.onclick = transitionToStep2;
-      }, 2200);
-    }
-
-    // Transition to Step 2: APD Inspection
-    function transitionToStep2() {
-      currentKioskStep = 2;
-
-      // Update Header
-      document.getElementById('stepMainTitle').innerText = "APD Inspection";
-      document.getElementById('stepSubTitle').innerText = "Pemeriksaan kelengkapan keselamatan K3";
-      document.getElementById('stepPillBadge').innerText = "Step 2 of 2";
-
-      // Update Page Title
-      document.getElementById('kioskEyebrow').innerText = "SAFETY COMPLIANCE";
-      document.getElementById('kioskPageTitle').innerText = "Pemeriksaan Kelengkapan APD K3";
-      document.getElementById('kioskPageDesc').innerText = "Berdirilah tegak di depan kamera agar seluruh perlengkapan APD dari kepala hingga kaki terdeteksi.";
-
-      // Update Viewport Title
-      document.getElementById('viewportEyebrow').innerText = "FULL BODY INSPECTION";
-      document.getElementById('viewportTitle').innerText = "Deteksi Visual APD";
-
-      // Switch Viewport contents: Hide face silhouette, show Mascot full body
-      document.getElementById('step1ViewElements').style.display = "none";
-      const step2El = document.getElementById('step2ViewElements');
-      step2El.style.display = "flex";
-
-      // Update Status Bar
-      const statusH = document.getElementById('camStatusHeader');
-      const statusD = document.getElementById('camStatusDetail');
-      statusH.innerText = "Posisikan seluruh tubuh di depan kamera";
-      statusH.style.color = "#FFFFFF";
-      statusD.innerText = "Pastikan Helm, Wearpack, Celana jeans, dan Sepatu safety terlihat jelas.";
-
-      // Update Action Button
-      const btn = document.getElementById('btnKioskAction');
-      btn.innerText = "Mulai Pemindaian APD";
-      btn.onclick = startAPDInspection;
-    }
-
-    // Step 2: APD Full-Body Inspection
-    function startAPDInspection() {
-      const btn = document.getElementById('btnKioskAction');
-      const laser = document.getElementById('scanLaser');
-      const statusH = document.getElementById('camStatusHeader');
-      const statusD = document.getElementById('camStatusDetail');
-
-      btn.disabled = true;
-      btn.innerText = "Menganalisis Parameter APD...";
-      btn.style.opacity = "0.7";
-
-      laser.style.display = "block";
-      laser.style.animation = "kioskLaserAnimation 2.2s infinite ease-in-out";
-
-      statusH.innerText = "AI sedang mendeteksi kelengkapan APD...";
-      statusD.innerText = "Memindai Helm Keselamatan, Wearpack, Celana Jeans, dan Sepatu Safety...";
-
-      // Sequential tag display
-      setTimeout(() => {
-        document.getElementById('tagHelm').style.display = "block";
-      }, 600);
-
-      setTimeout(() => {
-        document.getElementById('tagWearpack').style.display = "block";
-      }, 1200);
-
-      setTimeout(() => {
-        document.getElementById('tagCelana').style.display = "block";
-        document.getElementById('tagSepatu').style.display = "block";
-      }, 1800);
-
-      setTimeout(() => {
-        laser.style.display = "none";
-        statusH.innerText = "Seluruh APD 100% Sesuai Standar K3!";
-        statusH.style.color = "#34D399";
-        statusD.innerText = "Pemeriksaan selesai tanpa pelanggaran. Klik untuk menyimpan presensi.";
-
-        btn.disabled = false;
-        btn.style.opacity = "1";
-        btn.style.background = "#059669";
-        btn.innerText = "Simpan & Konfirmasi Kehadiran";
-        btn.onclick = finishKioskAttendance;
-      }, 2400);
-    }
-
-    // Finish & Show Celebration Screen
-    function finishKioskAttendance() {
-      document.getElementById('successOverlay').style.display = "flex";
-      showToast("Presensi berhasil dicatat! Status: Hadir Tepat Waktu.");
-    }
-
-    // Reset Kiosk for next student
-    function resetKioskToStart() {
-      currentKioskStep = 1;
-      document.getElementById('successOverlay').style.display = "none";
-      document.getElementById('step1ViewElements').style.display = "flex";
-      document.getElementById('step2ViewElements').style.display = "none";
-
-      document.querySelectorAll('.kiosk-apd-tag-box').forEach(el => el.style.display = "none");
-      document.getElementById('faceSilhouette').classList.remove('matched');
-
-      // Reset Header & Titles
-      document.getElementById('stepMainTitle').innerText = "Student Verification";
-      document.getElementById('stepSubTitle').innerText = "Verifikasi identitas mahasiswa";
-      document.getElementById('stepPillBadge').innerText = "Step 1 of 2";
-
-      document.getElementById('kioskEyebrow').innerText = "IDENTITY CONFIRMATION";
-      document.getElementById('kioskPageTitle').innerText = "Konfirmasi Identitas Anda";
-      document.getElementById('kioskPageDesc').innerText = "Pastikan informasi mahasiswa sudah sesuai sebelum melanjutkan proses verifikasi.";
-
-      document.getElementById('viewportEyebrow').innerText = "FACE VERIFICATION";
-      document.getElementById('viewportTitle').innerText = "Verifikasi Wajah";
-
-      const camPill = document.getElementById('camStatusPill');
-      camPill.classList.remove('active');
-      document.getElementById('camStatusDot').style.background = "#94A3B8";
-      document.getElementById('camStatusText').innerText = "CAMERA OFF";
-
-      const statusH = document.getElementById('camStatusHeader');
-      const statusD = document.getElementById('camStatusDetail');
-      statusH.innerText = "Menunggu kamera";
-      statusH.style.color = "#FFFFFF";
-      statusD.innerText = "Klik tombol di bawah untuk memulai.";
-
-      const btn = document.getElementById('btnKioskAction');
-      btn.disabled = false;
-      btn.style.opacity = "1";
-      btn.style.background = "#143E6B";
-      btn.innerText = "Mulai Verifikasi Wajah";
-      btn.onclick = handleKioskAction;
-    }
-  </script>
+  <script src="../assets/js/kiosk.js"></script>
 </body>
 </html>

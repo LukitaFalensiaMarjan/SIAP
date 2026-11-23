@@ -87,213 +87,30 @@
 
       <!-- Profile Pill -->
       <a href="profil.html" class="mhs-profile-pill">
-        <div class="mhs-avatar-circle">MB</div>
+        <div class="mhs-avatar-circle">--</div>
         <div class="mhs-user-meta">
-          <span class="mhs-user-name">Muhammad Basit Rozak Akbar S.P</span>
+          <span class="mhs-user-name">Memuat profil...</span>
           <span class="mhs-user-sub">Mahasiswa · 3AEC1</span>
         </div>
       </a>
 
       <!-- Notification Dropdown Panel -->
-      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--student-border);">
-          <div style="font-size: 13px; font-weight: 800; color: var(--student-text-main);">Pusat Pemberitahuan</div>
-          <button onclick="markAllNotificationsRead()" style="background: none; border: none; font-size: 11px; font-weight: 700; color: var(--student-blue); cursor: pointer;">Tandai Dibaca</button>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Absensi berhasil dicatat</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Kehadiran Praktik Proses Manufaktur tercatat pukul 07.27 WIB.</p>
-            <span style="font-size: 10px; color: #94A3B8;">18 Nov 2026 · 07.27</span>
-          </div>
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Hasil pemeriksaan sedang ditinjau</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Satu parameter sesi CNC Dasar menunggu validasi admin.</p>
-            <span style="font-size: 10px; color: #94A3B8;">11 Nov 2026 · 07.31</span>
-          </div>
-        </div>
-        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--student-border); text-align: center;">
-          <a href="notifikasi.html" style="font-size: 12px; font-weight: 700; color: var(--student-blue); text-decoration: none;">Lihat Seluruh Notifikasi &rarr;</a>
-        </div>
-      </div>
+      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()"><div style="padding:16px;color:#64748B;font-size:12px;">Notifikasi belum tersedia karena data notifikasi belum disimpan di database.</div></div>
     </header>
 
     <main class="mhs-container">
-      
-      <!-- Page Header -->
       <div class="mhs-page-header">
         <div>
-          <div class="mhs-eyebrow">Evaluasi Semester</div>
+          <div class="mhs-eyebrow">Evaluasi &amp; Kompensasi</div>
           <h1 class="mhs-page-title">Evaluasi &amp; Kompensasi</h1>
-          <p class="mhs-page-desc">Informasi kewajiban kompensasi berdasarkan catatan keterlambatan semester berjalan.</p>
+          <p class="mhs-page-desc">Data evaluasi dan kompensasi belum tersedia karena belum ada model penyimpanannya.</p>
         </div>
       </div>
-
-      <!-- Top Card: Ringkasan Kompensasi Semester -->
-      <div class="mhs-card-white" style="padding: 24px; margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-          <div>
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 4px;">Simulasi Minggu Evaluasi</div>
-            <h2 style="font-size: 18px; font-weight: 800; color: #0F172A; margin: 0;">Ringkasan kompensasi semester</h2>
-          </div>
-          <span class="mhs-badge mhs-badge-amber" style="font-size: 11.5px; padding: 4px 12px;">Perlu diselesaikan</span>
-        </div>
-
-        <!-- 4 Stat Metrics Grid -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 16px 0; border-top: 1px solid var(--student-border); border-bottom: 1px solid var(--student-border);">
-          <div>
-            <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Total keterlambatan</div>
-            <div id="calcLateMinutes" style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1.1;">14 menit</div>
-            <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">2 sesi praktikum</div>
-          </div>
-
-          <div>
-            <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Total kompensasi</div>
-            <div id="calcCompMinutes" style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1.1;">70 menit</div>
-            <div id="calcCompJP" style="font-size: 11px; color: #94A3B8; margin-top: 4px;">1 JP 20 menit</div>
-          </div>
-
-          <div>
-            <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Sudah diselesaikan</div>
-            <div style="font-size: 24px; font-weight: 800; color: #059669; line-height: 1.1;">50 menit</div>
-            <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">1 JP tervalidasi</div>
-          </div>
-
-          <div>
-            <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Sisa kompensasi</div>
-            <div id="calcRemainDebt" style="font-size: 24px; font-weight: 800; color: #D97706; line-height: 1.1;">20 menit</div>
-            <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">0 JP 20 menit</div>
-          </div>
-        </div>
-
-        <!-- Progress Bar -->
-        <div class="mhs-progress-container">
-          <div class="mhs-progress-head">
-            <span>Progres penyelesaian</span>
-            <span style="color: #1E40AF;">71%</span>
-          </div>
-          <div class="mhs-progress-track">
-            <div class="mhs-progress-fill" style="width: 71%;"></div>
-          </div>
-          <div style="font-size: 11px; color: #64748B; margin-top: 6px;">50 dari 70 menit telah diselesaikan dan divalidasi admin.</div>
-        </div>
-
-        <!-- Rule Footer -->
-        <div class="mhs-calc-rule-footer">
-          <div><strong>Ketentuan perhitungan:</strong> 1 menit keterlambatan = 5 menit kompensasi · 1 JP = 50 menit</div>
-          <button onclick="openMhsModal('modalKompensasiSim')" style="background: none; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #0284C7; cursor: pointer;">
-            Buka Simulator Hitung
-          </button>
-        </div>
-      </div>
-
-      <!-- Bottom Card: Rincian Per Sesi -->
-      <div class="mhs-card-white" style="padding: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <div>
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 4px;">Riwayat Kompensasi</div>
-            <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 0;">Rincian per sesi</h3>
-          </div>
-          <button onclick="openMhsModal('modalSubmitKompensasi')" style="background: #0C213E; color: #FFF; border: none; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer;">
-            Ajukan Bukti Pelunasan
-          </button>
-        </div>
-
-        <div style="overflow-x: auto;">
-          <table class="mhs-table-clean">
-            <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>Mata Kuliah</th>
-                <th>Terlambat</th>
-                <th>Kompensasi</th>
-                <th>Diselesaikan</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="color: #64748B;">15 Nov 2026</td>
-                <td style="font-weight: 700;">Teknologi Pengecoran</td>
-                <td style="color: #D97706; font-weight: 600;">4 menit</td>
-                <td>20 menit</td>
-                <td style="color: #94A3B8;">—</td>
-                <td><span class="mhs-badge mhs-badge-amber">Belum diselesaikan</span></td>
-              </tr>
-              <tr>
-                <td style="color: #64748B;">28 Okt 2026</td>
-                <td style="font-weight: 700;">Praktik CNC Dasar</td>
-                <td style="color: #D97706; font-weight: 600;">10 menit</td>
-                <td>50 menit</td>
-                <td style="color: #059669; font-weight: 700;">50 menit</td>
-                <td><span class="mhs-badge mhs-badge-green">Selesai</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="mhs-card-white" style="padding: 24px; color: #64748B; font-size: 13px;">
+        Belum ada data evaluasi atau kompensasi tersimpan untuk ditampilkan.
       </div>
 
     </main>
-  </div>
-
-  <!-- Interactive Compensation Simulator Modal -->
-  <div class="mhs-modal-backdrop" id="modalKompensasiSim" onclick="if(event.target===this)closeMhsModal('modalKompensasiSim')">
-    <div class="mhs-modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0F172A;">Simulator Hitung Kompensasi</h3>
-        <button onclick="closeMhsModal('modalKompensasiSim')" style="background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; color: #94A3B8;">Tutup</button>
-      </div>
-      <p style="font-size: 12.5px; color: #64748B; margin-bottom: 16px;">
-        Geser slider untuk mensimulasikan perhitungan kewajiban kompensasi praktikum secara real-time.
-      </p>
-
-      <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
-        <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 8px;">
-          Simulasi Total Keterlambatan: <span id="sliderValDisplay" style="color: #1E40AF; font-size: 14px;">14 menit</span>
-        </label>
-        <input type="range" min="0" max="60" value="14" style="width: 100%; accent-color: #1E40AF;" oninput="document.getElementById('sliderValDisplay').innerText = this.value + ' menit'; simulateCompensation(this.value)">
-      </div>
-
-      <div style="display: flex; justify-content: flex-end;">
-        <button onclick="closeMhsModal('modalKompensasiSim')" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #CBD5E1; background: #FFF; font-weight: 700; font-size: 12.5px; cursor: pointer;">Tutup</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Ajukan Bukti Pelunasan -->
-  <div class="mhs-modal-backdrop" id="modalSubmitKompensasi" onclick="if(event.target===this)closeMhsModal('modalSubmitKompensasi')">
-    <div class="mhs-modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0F172A;">Ajukan Bukti Kompensasi</h3>
-        <button onclick="closeMhsModal('modalSubmitKompensasi')" style="background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; color: #94A3B8;">Tutup</button>
-      </div>
-      <form onsubmit="event.preventDefault(); closeMhsModal('modalSubmitKompensasi'); showToast('Bukti kompensasi berhasil diajukan untuk diverifikasi Admin!');">
-        <div style="margin-bottom: 12px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">Pilih Sesi Kompensasi</label>
-          <select style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 12.5px;" required>
-            <option>Teknologi Pengecoran (15 Nov 2026 - 20 menit)</option>
-          </select>
-        </div>
-        <div style="margin-bottom: 12px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">Bentuk Tugas Pengganti</label>
-          <input type="text" placeholder="Misal: Perawatan Mesin Bubut Lab 1" style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 12.5px; box-sizing: border-box;" required>
-        </div>
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">Unggah Lembar Pengesahan Dosen / Teknisi</label>
-          <input type="file" style="font-size: 12px;">
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button type="button" onclick="closeMhsModal('modalSubmitKompensasi')" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #CBD5E1; background: #FFF; font-weight: 700; font-size: 12.5px; cursor: pointer;">Batal</button>
-          <button type="submit" style="padding: 8px 16px; border-radius: 8px; background: #0C213E; color: #FFF; border: none; font-weight: 700; font-size: 12.5px; cursor: pointer;">Kirim Pengajuan</button>
-        </div>
-      </form>
-    </div>
   </div>
 
   <script src="../assets/js/student.js"></script>

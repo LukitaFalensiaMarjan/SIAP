@@ -9,3 +9,4 @@ tabulate
 scikit-learn
 matplotlib
 flask
+werkzeug

@@ -371,7 +371,7 @@
 
     <div class="unified-login-card" id="unifiedLoginCard" onclick="event.stopPropagation()">
       <!-- Round close button -->
-      <button class="modal-close-round" onclick="closeLoginModal()" title="Tutup">✕</button>
+      <button class="modal-close-round" onclick="closeLoginModal()" title="Kembali ke halaman utama" aria-label="Kembali ke halaman utama">✕</button>
 
       <!-- Left Column: Spalserra Mascot & Practical Portal Box -->
       <div class="unified-stage-col">
@@ -449,6 +449,9 @@
           <span></span>
           <span>Akses dilindungi dan aktivitas akun dicatat untuk keamanan.</span>
         </div>
+        <a href="index.html" style="display: block; margin-top: 14px; color: #143E6B; font-size: 12px; font-weight: 700; text-align: center; text-decoration: none;">
+          Kembali ke halaman utama
+        </a>
       </div>
     </div>
 
@@ -476,23 +479,35 @@
       }
     }
 
-    function handleUnifiedSubmit(e) {
+    async function handleUnifiedSubmit(e) {
       e.preventDefault();
       const idVal = document.getElementById('inputIdentifier').value.trim();
       const passVal = document.getElementById('inputPassword').value.trim();
+      const submitButton = e.submitter;
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerText = 'Memeriksa akun...';
+      }
 
-      // Detection:
-      // If user inputs 'admin' or an NIP (typically 18 digits or starts with 19) or password is admin123
-      // -> route to admin dashboard. Otherwise -> route to mahasiswa dashboard.
-      const isAdmin = idVal.toLowerCase() === 'admin' ||
-        idVal.length >= 15 ||
-        idVal.startsWith('19') ||
-        passVal === 'admin123';
-
-      if (isAdmin) {
-        window.location.href = 'admin/dashboard.html';
-      } else {
-        window.location.href = 'mahasiswa/dashboard.html';
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: idVal, password: passVal })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          alert(result.error || 'Login gagal');
+          return;
+        }
+        window.location.href = result.redirect;
+      } catch (error) {
+        alert('Backend tidak dapat dijangkau. Jalankan aplikasi melalui Flask.');
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.innerText = 'Masuk';
+        }
       }
     }
 

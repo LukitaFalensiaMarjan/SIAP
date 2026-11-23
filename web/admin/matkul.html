@@ -70,8 +70,8 @@
       <div class="adm-profile-pill">
         <div class="adm-avatar-circle">RK</div>
         <div class="adm-user-meta">
-          <span class="adm-user-name">Rina Kartika</span>
-          <span class="adm-user-sub">Administrator</span>
+          <span class="adm-user-name">Memuat akun...</span>
+          <span class="adm-user-sub">Akun aktif</span>
         </div>
       </div>
     </header>
@@ -83,10 +83,10 @@
         <div>
           <div class="adm-eyebrow">Data &amp; Konfigurasi</div>
           <h1 class="adm-page-title">Akademik &amp; Aturan</h1>
-          <p class="adm-page-desc">Kelola data akademik beserta aturan pemeriksaan yang berlaku untuk setiap sesi.</p>
+          <p class="adm-page-desc">Kelola jadwal praktikum dan kewajiban APD per laboratorium.</p>
         </div>
         <div id="btnGroupHeader">
-          <button class="adm-btn-primary" id="btnActionTop" onclick="handleTopActionClick()">
+          <button class="adm-btn-primary" id="btnActionTop" onclick="handleTopActionClick()" hidden>
             Tambah jadwal
           </button>
         </div>
@@ -100,7 +100,7 @@
           <button class="adm-tab-btn active" onclick="switchAdmTab('containerAkademik', 0, this); updateTopActionBtn('Tambah jadwal')">
             Data Akademik
           </button>
-          <button class="adm-tab-btn" onclick="switchAdmTab('containerAkademik', 1, this); updateTopActionBtn('Buat aturan')">
+          <button class="adm-tab-btn" onclick="switchAdmTab('containerAkademik', 1, this); updateTopActionBtn('Kelola aturan')">
             Aturan AI Inspection
           </button>
         </div>
@@ -112,9 +112,6 @@
             
             <select id="filterKelasJadwal" class="adm-select-dropdown" onchange="filterAdmTable('tableJadwal', 'searchJadwal', 'filterKelasJadwal', null)">
               <option value="semua">Semua kelas</option>
-              <option value="2MEA">2MEA</option>
-              <option value="3FEA">3FEA</option>
-              <option value="2AEB">2AEB</option>
             </select>
           </div>
 
@@ -122,52 +119,18 @@
             <table class="adm-table-clean" id="tableJadwal">
               <thead>
                 <tr>
-                  <th>Hari</th>
+                  <th>Tanggal</th>
                   <th>Jam</th>
                   <th>Kelas</th>
                   <th>Mata Kuliah</th>
                   <th>Dosen</th>
                   <th>Ruang</th>
+                  <th>Status</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr data-kelas="2MEA">
-                  <td>Rabu</td>
-                  <td style="font-weight: 700;">07.30–11.30</td>
-                  <td>2MEA</td>
-                  <td>Praktik Proses Manufaktur</td>
-                  <td>Ahmad Hidayat</td>
-                  <td>Lab. CNC</td>
-                  <td>
-                    <button class="adm-btn-action-edit" onclick="openAdmModal('modalEditJadwal')">Edit</button>
-                    <button class="adm-btn-action-delete" onclick="showToast('Jadwal dihapus')">Hapus</button>
-                  </td>
-                </tr>
-                <tr data-kelas="3FEA">
-                  <td>Kamis</td>
-                  <td style="font-weight: 700;">07.30–11.30</td>
-                  <td>3FEA</td>
-                  <td>Teknologi Pengecoran</td>
-                  <td>Dedi Suhendra</td>
-                  <td>Lab. Foundry</td>
-                  <td>
-                    <button class="adm-btn-action-edit" onclick="openAdmModal('modalEditJadwal')">Edit</button>
-                    <button class="adm-btn-action-delete" onclick="showToast('Jadwal dihapus')">Hapus</button>
-                  </td>
-                </tr>
-                <tr data-kelas="2AEB">
-                  <td>Jumat</td>
-                  <td style="font-weight: 700;">08.00–12.00</td>
-                  <td>2AEB</td>
-                  <td>Sistem Kendali</td>
-                  <td>Rina Mulyani</td>
-                  <td>Lab. Automation</td>
-                  <td>
-                    <button class="adm-btn-action-edit" onclick="openAdmModal('modalEditJadwal')">Edit</button>
-                    <button class="adm-btn-action-delete" onclick="showToast('Jadwal dihapus')">Hapus</button>
-                  </td>
-                </tr>
+              <tbody id="tabelJadwalBody">
+                <tr><td colspan="8">Memuat sesi praktikum...</td></tr>
               </tbody>
             </table>
           </div>
@@ -176,19 +139,16 @@
         <!-- ── TAB 2: ATURAN AI INSPECTION (Image 4) ── -->
         <div class="adm-tab-content" style="display: none;">
           <div class="adm-filter-bar">
-            <input type="text" id="searchAturan" class="adm-search-input" placeholder="Cari di aturan ai inspection..." oninput="filterAdmTable('tableAturan', 'searchAturan', 'filterKelasAturan', null)">
+            <input type="text" id="searchAturan" class="adm-search-input" placeholder="Cari aturan berdasarkan laboratorium..." oninput="filterAdmTable('tableAturan', 'searchAturan', 'filterLabAturan', 'filterStatusAturan')">
             
-            <select id="filterKelasAturan" class="adm-select-dropdown" onchange="filterAdmTable('tableAturan', 'searchAturan', 'filterKelasAturan', null)">
-              <option value="semua">Semua kelas</option>
-              <option value="2MEA">2MEA</option>
-              <option value="3FEA">3FEA</option>
-              <option value="2AEB">2AEB</option>
+            <select id="filterLabAturan" class="adm-select-dropdown" onchange="filterAdmTable('tableAturan', 'searchAturan', 'filterLabAturan', 'filterStatusAturan')">
+              <option value="semua">Semua laboratorium</option>
             </select>
 
-            <select class="adm-select-dropdown">
-              <option>Semua status</option>
-              <option>Berlaku</option>
-              <option>Nonaktif</option>
+            <select id="filterStatusAturan" class="adm-select-dropdown" onchange="filterAdmTable('tableAturan', 'searchAturan', 'filterLabAturan', 'filterStatusAturan')">
+              <option value="semua">Semua status</option>
+              <option value="aktif">Berlaku</option>
+              <option value="nonaktif">Nonaktif</option>
             </select>
           </div>
 
@@ -196,60 +156,18 @@
             <table class="adm-table-clean" id="tableAturan">
               <thead>
                 <tr>
-                  <th>Kelas</th>
-                  <th>Mata Kuliah</th>
+                  <th>Laboratorium</th>
                   <th>Wajah</th>
                   <th>Helm</th>
                   <th>Baju Praktik</th>
-                  <th>Celana Jeans</th>
+                  <th>Celana Jeans (manual)</th>
                   <th>Sepatu Safety</th>
                   <th>Status</th>
                   <th>Aksi</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr data-kelas="2MEA">
-                  <td>2MEA</td>
-                  <td style="font-weight: 700;">Proses Manufaktur</td>
-                  <td><span class="adm-badge adm-badge-blue">Wajib</span></td>
-                  <td>Aktif</td>
-                  <td>Aktif</td>
-                  <td>Aktif</td>
-                  <td>Aktif</td>
-                  <td><span class="adm-badge adm-badge-green">Berlaku</span></td>
-                  <td>
-                    <button class="adm-btn-action-edit" onclick="openAdmModal('modalAturanAI')">Edit</button>
-                    <button class="adm-btn-action-delete" onclick="showToast('Aturan dihapus')">Hapus</button>
-                  </td>
-                </tr>
-                <tr data-kelas="3FEA">
-                  <td>3FEA</td>
-                  <td style="font-weight: 700;">Teknologi Pengecoran</td>
-                  <td><span class="adm-badge adm-badge-blue">Wajib</span></td>
-                  <td>Aktif</td>
-                  <td>Aktif</td>
-                  <td>Aktif</td>
-                  <td>Aktif</td>
-                  <td><span class="adm-badge adm-badge-green">Berlaku</span></td>
-                  <td>
-                    <button class="adm-btn-action-edit" onclick="openAdmModal('modalAturanAI')">Edit</button>
-                    <button class="adm-btn-action-delete" onclick="showToast('Aturan dihapus')">Hapus</button>
-                  </td>
-                </tr>
-                <tr data-kelas="2AEB">
-                  <td>2AEB</td>
-                  <td style="font-weight: 700;">Sistem Kendali</td>
-                  <td><span class="adm-badge adm-badge-blue">Wajib</span></td>
-                  <td style="color: #94A3B8;">Tidak diperiksa</td>
-                  <td>Aktif</td>
-                  <td style="color: #94A3B8;">Tidak diperiksa</td>
-                  <td>Aktif</td>
-                  <td><span class="adm-badge adm-badge-green">Berlaku</span></td>
-                  <td>
-                    <button class="adm-btn-action-edit" onclick="openAdmModal('modalAturanAI')">Edit</button>
-                    <button class="adm-btn-action-delete" onclick="showToast('Aturan dihapus')">Hapus</button>
-                  </td>
-                </tr>
+              <tbody id="tabelAturanApd">
+                <tr><td colspan="8">Memuat aturan APD...</td></tr>
               </tbody>
             </table>
           </div>
@@ -265,47 +183,69 @@
     <div class="adm-modal-content">
       <div class="adm-modal-head">
         <div>
-          <div class="adm-eyebrow">Perbarui Data</div>
-          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;">Jadwal Akademik</h3>
+          <div class="adm-eyebrow" id="jadwalFormEyebrow">Tambah Data</div>
+          <h3 id="jadwalFormTitle" style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;">Jadwal Akademik</h3>
         </div>
         <button class="adm-modal-close" onclick="closeAdmModal('modalEditJadwal')">Tutup</button>
       </div>
-      <form onsubmit="event.preventDefault(); closeAdmModal('modalEditJadwal'); showToast('Data jadwal berhasil disimpan!');">
+      <form id="formJadwalAkademik">
         <div class="adm-modal-body">
           <div class="adm-form-grid-2">
             <div class="adm-form-group">
-              <label class="adm-form-label">Hari</label>
-              <input type="text" placeholder="Contoh: Rabu" class="adm-form-input" required>
+              <label class="adm-form-label" for="jadwalTanggal">Tanggal</label>
+              <input type="date" id="jadwalTanggal" class="adm-form-input" required>
             </div>
             <div class="adm-form-group">
-              <label class="adm-form-label">Jam</label>
-              <input type="text" placeholder="Contoh: 07.30-11.30" class="adm-form-input" required>
+              <label class="adm-form-label" for="jadwalLab">Laboratorium</label>
+              <select id="jadwalLab" class="adm-form-input" required>
+                <option value="Manufaktur">Manufaktur</option>
+                <option value="Foundry">Foundry</option>
+                <option value="Automation">Automation</option>
+                <option value="Design">Design</option>
+              </select>
             </div>
           </div>
           <div class="adm-form-grid-2">
             <div class="adm-form-group">
-              <label class="adm-form-label">Kelas</label>
-              <input type="text" placeholder="Contoh: 2MEA" class="adm-form-input" required>
+              <label class="adm-form-label" for="jadwalJamMulai">Jam mulai</label>
+              <input type="time" id="jadwalJamMulai" class="adm-form-input" required>
             </div>
             <div class="adm-form-group">
-              <label class="adm-form-label">Mata kuliah</label>
-              <input type="text" placeholder="Nama mata kuliah" class="adm-form-input" required>
+              <label class="adm-form-label" for="jadwalJamSelesai">Jam selesai</label>
+              <input type="time" id="jadwalJamSelesai" class="adm-form-input" required>
             </div>
           </div>
           <div class="adm-form-grid-2">
             <div class="adm-form-group">
-              <label class="adm-form-label">Dosen</label>
-              <input type="text" placeholder="Nama dosen pengampu" class="adm-form-input" required>
+              <label class="adm-form-label" for="jadwalKelas">Kelas</label>
+              <input type="text" id="jadwalKelas" placeholder="Contoh: 2MEA" class="adm-form-input" maxlength="30" required>
             </div>
             <div class="adm-form-group">
-              <label class="adm-form-label">Ruang</label>
-              <input type="text" placeholder="Contoh: Lab. CNC" class="adm-form-input" required>
+              <label class="adm-form-label" for="jadwalMataKuliah">Mata kuliah</label>
+              <input type="text" id="jadwalMataKuliah" placeholder="Nama mata kuliah" class="adm-form-input" maxlength="150" required>
             </div>
+          </div>
+          <div class="adm-form-grid-2">
+            <div class="adm-form-group">
+              <label class="adm-form-label" for="jadwalDosen">Dosen</label>
+              <input type="text" id="jadwalDosen" placeholder="Nama dosen pengampu" class="adm-form-input" maxlength="150" required>
+            </div>
+            <div class="adm-form-group">
+              <label class="adm-form-label" for="jadwalRuang">Ruang</label>
+              <input type="text" id="jadwalRuang" placeholder="Contoh: Lab. CNC" class="adm-form-input" maxlength="100" required>
+            </div>
+          </div>
+          <div class="adm-form-group">
+            <label class="adm-form-label" for="jadwalAktif">Status sesi</label>
+            <select id="jadwalAktif" class="adm-form-input" style="width: 100%;">
+              <option value="1">Aktif</option>
+              <option value="0">Nonaktif</option>
+            </select>
           </div>
         </div>
         <div class="adm-modal-foot">
           <button type="button" class="adm-btn-foot-cancel" onclick="closeAdmModal('modalEditJadwal')">Batal</button>
-          <button type="submit" class="adm-btn-foot-submit">Simpan perubahan</button>
+          <button type="submit" id="btnSubmitJadwal" class="adm-btn-foot-submit">Simpan Jadwal</button>
         </div>
       </form>
     </div>
@@ -316,22 +256,21 @@
     <div class="adm-modal-content">
       <div class="adm-modal-head">
         <div>
-          <div class="adm-eyebrow">Tambah Data</div>
-          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;">Aturan AI Inspection</h3>
+          <div class="adm-eyebrow" id="aturanFormEyebrow">Ubah Data</div>
+          <h3 id="aturanFormTitle" style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;">Aturan APD</h3>
         </div>
         <button class="adm-modal-close" onclick="closeAdmModal('modalAturanAI')">Tutup</button>
       </div>
-      <form onsubmit="event.preventDefault(); closeAdmModal('modalAturanAI'); showToast('Aturan AI Inspection berhasil disimpan!');">
+      <form id="formAturanAI">
         <div class="adm-modal-body">
-          <div class="adm-form-grid-2">
-            <div class="adm-form-group">
-              <label class="adm-form-label">Kelas</label>
-              <input type="text" placeholder="Contoh: 2MEA" class="adm-form-input" required>
-            </div>
-            <div class="adm-form-group">
-              <label class="adm-form-label">Mata kuliah</label>
-              <input type="text" placeholder="Nama mata kuliah" class="adm-form-input" required>
-            </div>
+          <div class="adm-form-group">
+            <label class="adm-form-label" for="aturanLab">Laboratorium</label>
+            <select id="aturanLab" class="adm-form-input" style="width: 100%;" disabled>
+              <option value="Manufaktur">Manufaktur</option>
+              <option value="Foundry">Foundry</option>
+              <option value="Automation">Automation</option>
+              <option value="Design">Design</option>
+            </select>
           </div>
 
           <!-- Wajah: Selalu aktif banner -->
@@ -350,7 +289,7 @@
               <div class="adm-toggle-desc">Diperiksa pada sesi ini</div>
             </div>
             <label class="adm-switch">
-              <input type="checkbox" checked>
+              <input type="checkbox" id="aturanHelm">
               <span class="adm-slider"></span>
             </label>
           </div>
@@ -361,7 +300,7 @@
               <div class="adm-toggle-desc">Diperiksa pada sesi ini</div>
             </div>
             <label class="adm-switch">
-              <input type="checkbox" checked>
+              <input type="checkbox" id="aturanBaju">
               <span class="adm-slider"></span>
             </label>
           </div>
@@ -369,10 +308,10 @@
           <div class="adm-toggle-item-row">
             <div>
               <div class="adm-toggle-label">Celana jeans</div>
-              <div class="adm-toggle-desc">Diperiksa pada sesi ini</div>
+              <div class="adm-toggle-desc">Dinilai manual oleh PLP, bukan prediksi CNN.</div>
             </div>
             <label class="adm-switch">
-              <input type="checkbox" checked>
+              <input type="checkbox" id="aturanJeans">
               <span class="adm-slider"></span>
             </label>
           </div>
@@ -383,23 +322,23 @@
               <div class="adm-toggle-desc">Diperiksa pada sesi ini</div>
             </div>
             <label class="adm-switch">
-              <input type="checkbox" checked>
+              <input type="checkbox" id="aturanSepatu">
               <span class="adm-slider"></span>
             </label>
           </div>
 
           <div style="margin-top: 14px;">
-            <label class="adm-form-label">Status aturan</label>
-            <select class="adm-form-input" style="width: 100%;">
-              <option>Berlaku</option>
-              <option>Nonaktif</option>
+            <label class="adm-form-label" for="aturanAktif">Status aturan</label>
+            <select id="aturanAktif" class="adm-form-input" style="width: 100%;">
+              <option value="1">Berlaku</option>
+              <option value="0">Nonaktif</option>
             </select>
           </div>
         </div>
 
         <div class="adm-modal-foot">
           <button type="button" class="adm-btn-foot-cancel" onclick="closeAdmModal('modalAturanAI')">Batal</button>
-          <button type="submit" class="adm-btn-foot-submit">Tambahkan data</button>
+          <button type="submit" id="btnSubmitAturan" class="adm-btn-foot-submit">Simpan aturan</button>
         </div>
       </form>
     </div>
@@ -411,12 +350,11 @@
     function updateTopActionBtn(text) {
       currentTopAction = text;
       document.getElementById('btnActionTop').innerText = text;
+      document.getElementById('btnActionTop').hidden = !academicCanEdit || text === 'Kelola aturan';
     }
     function handleTopActionClick() {
       if (currentTopAction === 'Tambah jadwal') {
-        openAdmModal('modalEditJadwal');
-      } else {
-        openAdmModal('modalAturanAI');
+        openAcademicSessionForm();
       }
     }
   </script>

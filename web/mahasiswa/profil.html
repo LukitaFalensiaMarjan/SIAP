@@ -87,41 +87,15 @@
 
       <!-- Profile Pill -->
       <a href="profil.html" class="mhs-profile-pill">
-        <div class="mhs-avatar-circle">MB</div>
+        <div class="mhs-avatar-circle">--</div>
         <div class="mhs-user-meta">
-          <span class="mhs-user-name">Muhammad Basit Rozak Akbar S.P</span>
+          <span class="mhs-user-name">Memuat profil...</span>
           <span class="mhs-user-sub">Mahasiswa · 3AEC1</span>
         </div>
       </a>
 
       <!-- Notification Dropdown Panel -->
-      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--student-border);">
-          <div style="font-size: 13px; font-weight: 800; color: var(--student-text-main);">Pusat Pemberitahuan</div>
-          <button onclick="markAllNotificationsRead()" style="background: none; border: none; font-size: 11px; font-weight: 700; color: var(--student-blue); cursor: pointer;">Tandai Dibaca</button>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Absensi berhasil dicatat</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Kehadiran Praktik Proses Manufaktur tercatat pukul 07.27 WIB.</p>
-            <span style="font-size: 10px; color: #94A3B8;">18 Nov 2026 · 07.27</span>
-          </div>
-          <div style="background: #F8FAFC; padding: 10px; border-radius: 8px; border: 1px solid #E2E8F0; cursor: pointer;" onclick="window.location.href='notifikasi.html'">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-              <span style="font-size: 12px; font-weight: 700; color: #0F172A;">Hasil pemeriksaan sedang ditinjau</span>
-              <span class="mhs-badge mhs-badge-blue" style="font-size: 9.5px;">Baru</span>
-            </div>
-            <p style="font-size: 11px; color: #64748B; margin: 0 0 4px;">Satu parameter sesi CNC Dasar menunggu validasi admin.</p>
-            <span style="font-size: 10px; color: #94A3B8;">11 Nov 2026 · 07.31</span>
-          </div>
-        </div>
-        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--student-border); text-align: center;">
-          <a href="notifikasi.html" style="font-size: 12px; font-weight: 700; color: var(--student-blue); text-decoration: none;">Lihat Seluruh Notifikasi &rarr;</a>
-        </div>
-      </div>
+      <div class="mhs-notif-dropdown" id="mhsNotifDropdown" onclick="event.stopPropagation()"><div style="padding:16px;color:#64748B;font-size:12px;">Notifikasi belum tersedia karena data notifikasi belum disimpan di database.</div></div>
     </header>
 
     <main class="mhs-container">
@@ -141,15 +115,15 @@
         <!-- Top Section with Avatar & Name -->
         <div class="mhs-profile-top-section">
           <div style="display: flex; align-items: center; gap: 18px;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: #E2E8F0; color: #1E293B; font-weight: 800; font-size: 20px; display: flex; align-items: center; justify-content: center;">
-              MB
+            <div id="studentProfileAvatar" style="width: 60px; height: 60px; border-radius: 50%; background: #E2E8F0; color: #1E293B; font-weight: 800; font-size: 20px; display: flex; align-items: center; justify-content: center;">
+              —
             </div>
             <div>
-              <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 2px;">Muhammad Basit Rozak Akbar S.P</div>
-              <div style="font-size: 12.5px; color: #64748B;">Mahasiswa aktif · Otomasi & Mekatronika</div>
+              <div id="studentProfileName" style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 2px;">Memuat profil...</div>
+              <div id="studentProfileRole" style="font-size: 12.5px; color: #64748B;">Mahasiswa</div>
             </div>
           </div>
-          <span class="mhs-badge mhs-badge-green" style="font-size: 12px; padding: 4px 12px;">Aktif</span>
+          <span class="mhs-badge mhs-badge-blue" style="font-size: 12px; padding: 4px 12px;">Data tersimpan</span>
         </div>
 
         <!-- 2-Column Fields Grid -->
@@ -157,48 +131,43 @@
           
           <div class="mhs-profile-field-group">
             <span class="mhs-profile-field-lbl">Nomor Induk Mahasiswa</span>
-            <div class="mhs-profile-field-val" onclick="copyText('224443012', 'NIM')" style="cursor: pointer;" title="Klik untuk salin">
-              <span style="font-size: 16px; font-weight: 700;">224443012</span>
+            <div class="mhs-profile-field-val" id="studentProfileNim" style="cursor: pointer;" title="Klik untuk salin">
+              <span style="font-size: 16px; font-weight: 700;">—</span>
             </div>
           </div>
 
           <div class="mhs-profile-field-group">
             <span class="mhs-profile-field-lbl">Kelas</span>
-            <div class="mhs-profile-field-val">3AEC1</div>
+            <div class="mhs-profile-field-val" id="studentProfileClass">—</div>
           </div>
 
           <div class="mhs-profile-field-group">
             <span class="mhs-profile-field-lbl">Jurusan</span>
-            <div class="mhs-profile-field-val">Manufaktur</div>
+            <div class="mhs-profile-field-val">Belum tersedia pada data mahasiswa</div>
           </div>
 
           <div class="mhs-profile-field-group">
             <span class="mhs-profile-field-lbl">Program Studi</span>
-            <div class="mhs-profile-field-val">Teknik Otomasi Manufaktur dan Mekatronika</div>
+            <div class="mhs-profile-field-val">Belum tersedia pada data mahasiswa</div>
           </div>
 
           <div class="mhs-profile-field-group">
             <span class="mhs-profile-field-lbl">Status Pendaftaran Wajah</span>
             <div class="mhs-profile-field-val">
-              <span class="mhs-badge mhs-badge-green">Terdaftar</span>
-              <span onclick="openMhsModal('modalBiometrikInfo')" style="font-size: 11.5px; color: #0284C7; font-weight: 600; cursor: pointer; text-decoration: underline; margin-left: 6px;">
-                Lihat Sampel
-              </span>
+              <span class="mhs-badge mhs-badge-gray">Belum tersedia</span>
             </div>
           </div>
 
           <div class="mhs-profile-field-group">
             <span class="mhs-profile-field-lbl">Email</span>
-            <div class="mhs-profile-field-val" style="font-weight: 600; color: #334155;">muhammad.basit@polman.ac.id</div>
+            <div class="mhs-profile-field-val" style="font-weight: 600; color: #334155;">Tidak tersedia pada data profil</div>
           </div>
 
         </div>
 
         <!-- Bottom Navy Action Bar (No icons) -->
         <div class="mhs-profile-bottom-bar">
-          <button class="mhs-btn-profile-secondary" onclick="openMhsModal('modalGantiPassword')">
-            Ubah kata sandi
-          </button>
+          <span class="mhs-btn-profile-secondary" style="opacity: .7; cursor: default;">Ubah kata sandi belum tersedia</span>
           <a href="../login.html" class="mhs-btn-profile-danger" style="text-decoration: none;">
             <span>Keluar dari akun</span>
           </a>
@@ -207,51 +176,6 @@
       </div>
 
     </main>
-  </div>
-
-  <!-- Modal Ubah Kata Sandi -->
-  <div class="mhs-modal-backdrop" id="modalGantiPassword" onclick="if(event.target===this)closeMhsModal('modalGantiPassword')">
-    <div class="mhs-modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0F172A;">Ubah Kata Sandi</h3>
-        <button onclick="closeMhsModal('modalGantiPassword')" style="background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; color: #94A3B8;">Tutup</button>
-      </div>
-      <form onsubmit="event.preventDefault(); closeMhsModal('modalGantiPassword'); showToast('Kata sandi berhasil diperbarui!');">
-        <div style="margin-bottom: 12px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">Kata Sandi Saat Ini</label>
-          <input type="password" required style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 13px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 12px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">Kata Sandi Baru</label>
-          <input type="password" required style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 13px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; margin-bottom: 4px;">Konfirmasi Kata Sandi Baru</label>
-          <input type="password" required style="width: 100%; height: 38px; border-radius: 8px; border: 1px solid #CBD5E1; padding: 0 10px; font-size: 13px; box-sizing: border-box;">
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button type="button" onclick="closeMhsModal('modalGantiPassword')" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #CBD5E1; background: #FFF; font-weight: 700; font-size: 12.5px; cursor: pointer;">Batal</button>
-          <button type="submit" style="padding: 8px 16px; border-radius: 8px; background: #0C213E; color: #FFF; border: none; font-weight: 700; font-size: 12.5px; cursor: pointer;">Simpan Perubahan</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal Biometrik Info (No icons) -->
-  <div class="mhs-modal-backdrop" id="modalBiometrikInfo" onclick="if(event.target===this)closeMhsModal('modalBiometrikInfo')">
-    <div class="mhs-modal-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #0F172A;">Status Biometrik Wajah</h3>
-        <button onclick="closeMhsModal('modalBiometrikInfo')" style="background: none; border: none; font-size: 14px; font-weight: 700; cursor: pointer; color: #94A3B8;">Tutup</button>
-      </div>
-      <div style="text-align: center; padding: 16px 0;">
-        <div style="font-size: 14px; font-weight: 800; color: #0F172A;">Wajah Pasif Terverifikasi</div>
-        <div style="font-size: 12px; color: #64748B; margin-top: 6px;">500 vektor embedding terenkripsi telah tersimpan di server aman POLMAN.</div>
-      </div>
-      <div style="display: flex; justify-content: flex-end;">
-        <button onclick="closeMhsModal('modalBiometrikInfo')" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #CBD5E1; background: #FFF; font-weight: 700; font-size: 12.5px; cursor: pointer;">Tutup</button>
-      </div>
-    </div>
   </div>
 
   <script src="../assets/js/student.js"></script>
