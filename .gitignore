@@ -6,9 +6,21 @@ __pycache__/
 .venv/
 siap.db
 
-# Model file besar (opsional: uncomment jika tidak mau push)
-# models/*.keras
+# Model file besar Keras (hanya kirim model .tflite dan metadata .json)
+models/*.keras
 
-# Dataset (gambar terlalu besar untuk GitHub)
-# dataset_area/
-# data_mentah/
+# Dataset & Citra mentah (terlalu besar untuk GitHub)
+dataset_area/
+data_mentah/
+dataset_wajah/
+laporan/
+
+# Temporary test images / debug
+test_dynamic_*.jpg
+crop_cam.jpg
+exact_cam.jpg
+green_mask.png
+person_head.jpg
+video_crop_img4.jpg
+cam4.jpg
+viewport_area.jpg

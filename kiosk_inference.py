@@ -51,13 +51,13 @@ MODEL_LOCK = threading.RLock()
 
 # Batas Geometris Ketat Garis Panduan (Strict Guide Zone)
 # Sumbu tengah frame: 0.50
-# Koridor Siluet Kepala & Tubuh: Horizontal 0.39 s.d. 0.61 (menolak siapapun yang berdiri di luar garis panduan)
-# Vertikal: 0.04 s.d. 0.30 (hanya mendeteksi kepala mahasiswa yang berdiri tepat di dalam siluet kepala)
-GUIDE_FACE_MIN_X = 0.39
-GUIDE_FACE_MAX_X = 0.61
+# Koridor Siluet Kepala & Tubuh: Horizontal 0.30 s.d. 0.70 (presisi dengan siluet visual overlay)
+# Vertikal: 0.04 s.d. 0.42 (mencakup kepala posisi berdiri dari jarak 1.5 - 2.5m)
+GUIDE_FACE_MIN_X = 0.30
+GUIDE_FACE_MAX_X = 0.70
 GUIDE_FACE_MIN_Y = 0.04
-GUIDE_FACE_MAX_Y = 0.30
-GUIDE_FACE_MAX_HEIGHT_RATIO = 0.25
+GUIDE_FACE_MAX_Y = 0.42
+GUIDE_FACE_MAX_HEIGHT_RATIO = 0.30
 
 
 @dataclass(frozen=True)
@@ -211,6 +211,7 @@ def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | 
     # 2. Pengguna yang terlalu dekat (duduk dekat webcam) tidak boleh dideteksi
     # 3. Pembatasan multi-person: tidak boleh lebih dari 1 orang di area presensi
     valid_candidates = []
+    too_close_count = 0
     outside_count = 0
 
     for rect in faces:
@@ -231,13 +232,18 @@ def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | 
 
         if in_x and in_y and not_too_huge:
             center_dist = abs(fcx - 0.50)
-            score = area * max(0.12, 1.0 - 2.0 * (center_dist ** 1.1))
+            score = area / (1.0 + 4.0 * (center_dist ** 1.3))
             valid_candidates.append(([x0, y0, x1, y1], score))
         else:
-            outside_count += 1
+            if not not_too_huge:
+                too_close_count += 1
+            else:
+                outside_count += 1
 
     # Jika tidak ada satupun wajah di dalam koridor garis siluet:
     if not valid_candidates:
+        if too_close_count > 0:
+            return None, None, face_count, "too_close"
         return None, None, face_count, "outside"
 
     # PILIH HANYA 1 ORANG YANG PALING UTAMA DI DALAM GARIS SILUET!
