@@ -70,12 +70,15 @@ def apd_rule(conn, lab):
 
 
 def attendance_status(values, required):
+    has_unresolved = False
     for item in required:
         value = values.get(item)
-        if item == "jeans" and value is None:
-            return "menunggu_validasi"
-        if value not in (True, 1):
+        if value in (0, False):
             return "kurang"
+        if value is None:
+            has_unresolved = True
+    if has_unresolved:
+        return "menunggu_validasi"
     return "lengkap"
 
 
@@ -626,14 +629,22 @@ def kiosk_identity(data):
         return None, (jsonify({"error": "Data identitas mahasiswa tidak valid"}), 400)
 
     nim = str(data.get("nim", "")).strip()
-    if not nim:
-        return None, (jsonify({"error": "NIM wajib diisi"}), 400)
+    nama = str(data.get("nama", "")).strip()
+    if not nim and not nama:
+        return None, (jsonify({"error": "NIM atau Nama wajib diisi"}), 400)
 
     conn = get_db()
-    row = conn.execute(
-        "SELECT nim, nama, kelas FROM mahasiswa WHERE nim = ?",
-        (nim,),
-    ).fetchone()
+    row = None
+    if nim:
+        row = conn.execute(
+            "SELECT nim, nama, kelas FROM mahasiswa WHERE nim = ?",
+            (nim,),
+        ).fetchone()
+    elif nama:
+        row = conn.execute(
+            "SELECT nim, nama, kelas FROM mahasiswa WHERE LOWER(nama) LIKE ?",
+            (f"%{nama.lower()}%",),
+        ).fetchone()
 
     if not row:
         conn.close()
@@ -641,12 +652,12 @@ def kiosk_identity(data):
 
     student = dict(row)
 
-    # 1. Autentikasi dengan NIM dan Password
+    # 1. Autentikasi dengan kata sandi jika disertakan (opsional untuk kiosk)
     password = data.get("password")
-    if password is not None:
+    if password is not None and str(password).strip():
         user = conn.execute(
             "SELECT password_hash FROM pengguna WHERE identifier = ?",
-            (nim,),
+            (student["nim"],),
         ).fetchone()
         conn.close()
         if not user or not check_password_hash(user["password_hash"], str(password)):
@@ -654,35 +665,34 @@ def kiosk_identity(data):
         return student, None
 
     conn.close()
-
-    # 2. Dukungan data identitas lengkap (nama & kelas)
-    if "nama" in data and "kelas" in data:
-        normalized_name = " ".join(str(data["nama"]).casefold().split())
-        normalized_class = " ".join(str(data["kelas"]).casefold().split())
-        if (
-            normalized_name != " ".join(student["nama"].casefold().split())
-            or normalized_class != " ".join(student["kelas"].casefold().split())
-        ):
-            return None, (
-                jsonify({"error": "Nama atau kelas tidak sesuai dengan NIM yang dimasukkan"}),
-                403,
-            )
-        return student, None
-
-    return None, (jsonify({"error": "Kata sandi atau identitas wajib diisi"}), 400)
+    # 2. Mode Kiosk Terminal: identitas valid langsung tanpa mewajibkan kata sandi
+    return student, None
 
 
 def kiosk_session(student, session_id):
-    if isinstance(session_id, bool) or not isinstance(session_id, int):
-        return None, None, (jsonify({"error": "Sesi praktikum tidak valid"}), 400)
+    today = date.today().isoformat()
     conn = get_db()
-    row = conn.execute(
-        "SELECT * FROM sesi WHERE id = ? AND aktif = 1 AND tanggal = ?",
-        (session_id, date.today().isoformat()),
-    ).fetchone()
+    row = None
+    if session_id is not None and not isinstance(session_id, bool):
+        try:
+            s_id = int(session_id)
+            row = conn.execute(
+                "SELECT * FROM sesi WHERE id = ? AND aktif = 1 AND tanggal = ?",
+                (s_id, today),
+            ).fetchone()
+        except (ValueError, TypeError):
+            row = None
+
+    if not row:
+        # Otomatis pilih sesi aktif untuk kelas mahasiswa pada hari ini
+        row = conn.execute(
+            "SELECT * FROM sesi WHERE aktif = 1 AND kelas = ? AND tanggal = ? ORDER BY jam_mulai DESC",
+            (student["kelas"], today),
+        ).fetchone()
+
     if not row:
         conn.close()
-        return None, None, (jsonify({"error": "Sesi praktikum tidak aktif"}), 404)
+        return None, None, (jsonify({"error": "Tidak ada sesi praktikum aktif hari ini"}), 404)
     if row["kelas"] != student["kelas"]:
         conn.close()
         return None, None, (jsonify({"error": "Sesi ini bukan untuk kelas Anda"}), 403)
@@ -693,18 +703,41 @@ def kiosk_session(student, session_id):
     return dict(row), rule, None
 
 
-@app.route("/api/kiosk/context", methods=["POST"])
+@app.route("/api/kiosk/context", methods=["GET", "POST"])
 def kiosk_context():
-    student, error = kiosk_identity(request.get_json(silent=True))
-    if error:
-        return error
+    data = request.get_json(silent=True) if request.method == "POST" else {}
+    data = data or {}
 
     conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM sesi WHERE aktif = 1 AND kelas = ? AND tanggal = ? "
-        "ORDER BY tanggal DESC, jam_mulai DESC",
-        (student["kelas"], date.today().isoformat()),
+    today = date.today().isoformat()
+
+    # Daftar mahasiswa kelas praktikum 3AEC1 untuk pilihan 1-klik di terminal kiosk
+    student_rows = conn.execute(
+        "SELECT nim, nama, kelas FROM mahasiswa WHERE kelas = '3AEC1' ORDER BY nama"
     ).fetchall()
+    all_students = [dict(s) for s in student_rows]
+
+    student = None
+    if data.get("nim") or data.get("nama"):
+        student, error = kiosk_identity(data)
+        if error:
+            conn.close()
+            return error
+
+    # Ambil sesi aktif hari ini
+    if student:
+        rows = conn.execute(
+            "SELECT * FROM sesi WHERE aktif = 1 AND kelas = ? AND tanggal = ? "
+            "ORDER BY tanggal DESC, jam_mulai DESC",
+            (student["kelas"], today),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM sesi WHERE aktif = 1 AND tanggal = ? "
+            "ORDER BY tanggal DESC, jam_mulai DESC",
+            (today,),
+        ).fetchall()
+
     sessions = []
     for row in rows:
         rule = apd_rule(conn, row["lab"])
@@ -713,7 +746,12 @@ def kiosk_context():
             item["wajib"] = rule["wajib"]
             sessions.append(item)
     conn.close()
-    return jsonify({"student": student, "sessions": sessions})
+
+    return jsonify({
+        "student": student,
+        "students": all_students,
+        "sessions": sessions
+    })
 
 
 @app.route("/api/student/overview")
@@ -780,13 +818,20 @@ def kiosk_scan():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "Format permintaan tidak valid"}), 400
-    student, error = kiosk_identity(data)
-    if error:
-        return error
-    phase = data.get("phase")
-    if phase not in ("wajah", "apd", "live_apd"):
+
+    phase = data.get("phase", "unified")
+    if phase not in ("wajah", "apd", "live_apd", "unified"):
         return jsonify({"error": "Tahap pemindaian tidak valid"}), 400
+
+    student = None
+    if data.get("nim") or data.get("nama"):
+        student, error = kiosk_identity(data)
+        if error and phase not in ("live_apd", "unified"):
+            return error
+
     if phase == "wajah":
+        if not student:
+            return jsonify({"error": "Identitas mahasiswa wajib diisi"}), 400
         crop_mode = data.get("crop_mode", "hog")
         if crop_mode not in FACE_CROP_MODES:
             return jsonify({"error": "Mode deteksi wajah tidak valid"}), 400
@@ -799,33 +844,88 @@ def kiosk_scan():
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             return jsonify({"error": f"Model wajah tidak dapat dijalankan: {exc}"}), 503
 
-    session_row, rule, error = kiosk_session(student, data.get("sesi_id"))
-    if error:
-        return error
+    # Cari sesi aktif hari ini
+    today = date.today().isoformat()
+    conn = get_db()
+    session_row = None
+    rule = None
+    s_id = data.get("sesi_id")
+    if s_id is not None and not isinstance(s_id, bool):
+        try:
+            session_row = conn.execute(
+                "SELECT * FROM sesi WHERE id = ? AND aktif = 1 AND tanggal = ?",
+                (int(s_id), today),
+            ).fetchone()
+        except (ValueError, TypeError):
+            session_row = None
 
-    # Pemindaian Real-Time: Deteksi APD Dinamis + Tetap Mendeteksi Wajah Mahasiswa
-    if (phase in ("live_apd", "apd")) and data.get("image"):
+    if not session_row:
+        if student:
+            session_row = conn.execute(
+                "SELECT * FROM sesi WHERE aktif = 1 AND kelas = ? AND tanggal = ? ORDER BY jam_mulai DESC",
+                (student["kelas"], today),
+            ).fetchone()
+        else:
+            session_row = conn.execute(
+                "SELECT * FROM sesi WHERE aktif = 1 AND tanggal = ? ORDER BY jam_mulai DESC",
+                (today,),
+            ).fetchone()
+
+    if session_row:
+        rule = apd_rule(conn, session_row["lab"])
+    conn.close()
+
+    if not session_row or not rule or not rule["aktif"]:
+        return jsonify({"error": "Tidak ada sesi praktikum aktif untuk hari ini"}), 404
+
+    # Pemindaian Real-Time Terpadu: Deteksi Wajah & APD Sekaligus dalam 1 Frame
+    if (phase in ("live_apd", "apd", "unified")) and data.get("image"):
         crop_mode = data.get("crop_mode", "hog")
         try:
             frame = decode_frame(data.get("image"))
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
         try:
-            face_result = infer_face(frame, student["nama"], crop_mode)
+            student_name = student["nama"] if student else ""
+            face_result = infer_face(frame, student_name, crop_mode)
+
+            # Jika belum memilih mahasiswa secara manual, auto-identifikasi dari wajah!
+            if not student and face_result and face_result.get("detected") and face_result.get("label"):
+                label = face_result["label"]
+                conn = get_db()
+                found = conn.execute(
+                    "SELECT nim, nama, kelas FROM mahasiswa WHERE LOWER(nama) LIKE ?",
+                    (f"%{label.lower()}%",),
+                ).fetchone()
+                conn.close()
+                if found:
+                    student = dict(found)
+                    face_result["matched"] = True
+
             prev_ema = data.get("previous_ema") or {}
             prev_det = data.get("previous_detected") or {}
+            # Hanya jalankan deteksi APD jika ada wajah valid di dalam siluet panduan (bukan di luar garis)
+            face_inside = bool(face_result and face_result.get("detected") and face_result.get("box"))
+            face_box = face_result.get("box") if face_inside else None
             apd_result = infer_single_frame_apd(
-                frame, set(rule["wajib"]), prev_ema, prev_det
+                frame,
+                set(rule["wajib"]),
+                prev_ema,
+                prev_det,
+                face_box=face_box,
+                face_detected_inside=face_inside,
             )
             for item, res in apd_result.items():
                 res["wajib"] = item in rule["wajib"]
-                res["validasi_manual"] = item == "jeans" and item in rule["wajib"]
+                res["validasi_manual"] = False
             return jsonify(
                 {
                     "lab": session_row["lab"],
                     "wajib": rule["wajib"],
                     "face": face_result,
                     "apd": apd_result,
+                    "student": student,
+                    "sesi_id": session_row["id"],
                 }
             )
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
@@ -849,6 +949,8 @@ def kiosk_scan():
             "lab": session_row["lab"],
             "wajib": rule["wajib"],
             "apd": results,
+            "student": student,
+            "sesi_id": session_row["id"],
         }
     )
 
@@ -867,12 +969,18 @@ def kiosk_attendance():
     face_crop_mode = data.get("face_crop_mode", "hog")
     if face_crop_mode not in FACE_CROP_MODES:
         return jsonify({"error": "Mode deteksi wajah tidak valid"}), 400
+
+    raw_images = data.get("images") or []
+    raw_face_images = data.get("face_images") or raw_images[:FACE_SCAN_FRAME_COUNT]
+    if len(raw_face_images) < FACE_SCAN_FRAME_COUNT and raw_images:
+        raw_face_images = (raw_face_images * FACE_SCAN_FRAME_COUNT)[:FACE_SCAN_FRAME_COUNT]
+
     try:
         frames = decode_frame_batch(
-            data.get("images"), APD_SCAN_FRAME_COUNT, "Pemindaian APD", 12_000_000
+            raw_images, APD_SCAN_FRAME_COUNT, "Pemindaian APD", 12_000_000
         )
         face_frames = decode_frame_batch(
-            data.get("face_images"), FACE_SCAN_FRAME_COUNT, "Verifikasi wajah", 6_000_000
+            raw_face_images, FACE_SCAN_FRAME_COUNT, "Verifikasi wajah", 6_000_000
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -897,9 +1005,15 @@ def kiosk_attendance():
         return jsonify({"error": f"Model tidak dapat dijalankan: {exc}"}), 503
 
     values = {item: None for item in ("helm", "baju", "jeans", "sepatu")}
-    for item in ("helm", "baju", "sepatu"):
+    for item in ("helm", "baju", "jeans", "sepatu"):
         if item in rule["wajib"]:
-            values[item] = int(apd[item]["worn"])
+            p = float(apd[item].get("probability", 0.0))
+            if p >= 0.85:
+                values[item] = 1
+            elif p >= 0.75:
+                values[item] = None  # Verifikasi Admin (75% - 84%)
+            else:
+                values[item] = 0     # Kurang (< 75%)
     status = attendance_status(values, rule["wajib"])
     confidence = {
         item: apd[item]["probability"] for item in ("helm", "baju", "jeans", "sepatu")
@@ -919,7 +1033,7 @@ def kiosk_attendance():
                 datetime.now().isoformat(timespec="seconds"),
                 values["helm"],
                 values["baju"],
-                None,
+                values["jeans"],
                 values["sepatu"],
                 status,
                 json.dumps(confidence),
@@ -1979,7 +2093,8 @@ def init_db():
             ],
         )
 
-    if conn.execute("SELECT COUNT(*) FROM sesi").fetchone()[0] == 0:
+    today_iso = date.today().isoformat()
+    if conn.execute("SELECT COUNT(*) FROM sesi WHERE tanggal = ? AND kelas = '3AEC1'", (today_iso,)).fetchone()[0] == 0:
         admin = conn.execute(
             "SELECT id, nama FROM pengguna WHERE identifier = 'dosen01'"
         ).fetchone()
@@ -1988,7 +2103,7 @@ def init_db():
             "(lab, mata_kuliah, kelas, tanggal, jam_mulai, jam_selesai, dosen, ruang, aktif, dibuat_oleh) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
             ("Manufaktur", "Praktik Proses Manufaktur", "3AEC1",
-             date.today().isoformat(), "07:00", "10:00",
+             today_iso, "07:00", "17:00",
              admin["nama"], "Lab. CNC", admin["id"]),
         )
 

@@ -5,7 +5,7 @@
     96,
     96
   ],
-  "threshold": 0.44,
+  "threshold": 0.5,
   "path_model": "models/model_helm.keras",
   "path_tflite": "models\\model_helm.tflite",
   "label": {
