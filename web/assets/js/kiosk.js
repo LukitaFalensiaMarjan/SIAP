@@ -87,37 +87,148 @@ async function initKiosk() {
   }
 }
 
-async function loadKioskContext(targetNim = null) {
+async function loadKioskContext(targetNim = null, targetKelas = null) {
   try {
-    const payload = targetNim ? { nim: targetNim } : {};
+    const payload = {};
+    if (targetNim) payload.nim = targetNim;
+    if (targetKelas) payload.kelas = targetKelas;
+
     const res = await fetch('/api/kiosk/context', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const result = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(result.error || 'Gagal memuat konteks kiosk.');
+    if (!res.ok) throw new Error(result.error || 'Data mahasiswa atau jadwal tidak ditemukan.');
 
     kioskState.students = result.students || [];
     kioskState.sessions = result.sessions || [];
 
-    // Render daftar tombol mahasiswa 1-klik
-    renderStudentSelector(kioskState.students);
-
-    // Jika target mahasiswa dipilih atau default ke mahasiswa pertama
+    // Jika data mahasiswa ditemukan dan cocok
     if (result.student) {
       setActiveStudent(result.student);
-    } else if (kioskState.students.length > 0 && !kioskState.student) {
-      setActiveStudent(kioskState.students[0]);
+      showStudentProfileSection(result.student);
+    } else {
+      kioskState.student = null;
+      showStudentLoginSection();
     }
 
     // Tampilkan daftar sesi aktif
     populateKioskSessions(kioskState.sessions);
   } catch (err) {
     console.error('Error loadKioskContext:', err);
-    setKioskStatus('Koneksi Server', err.message, true);
+    throw err;
   }
 }
+
+function showStudentLoginSection() {
+  const loginBox = document.getElementById('kioskLoginFormBox');
+  const profileCard = document.getElementById('kioskStudentProfileCard');
+  const authPill = document.getElementById('kioskAuthStatusPill');
+  const authTitle = document.getElementById('kioskAuthTitle');
+  const actionBtn = document.getElementById('btnKioskAction');
+
+  if (loginBox) loginBox.style.display = 'block';
+  if (profileCard) profileCard.style.display = 'none';
+  if (authPill) {
+    authPill.textContent = 'Siap Input';
+    authPill.style.background = '#F1F5F9';
+    authPill.style.color = '#64748B';
+  }
+  if (authTitle) authTitle.textContent = 'Input Presensi';
+  if (actionBtn) {
+    actionBtn.disabled = true;
+    actionBtn.textContent = 'Masukkan NIM & Kelas Terlebih Dahulu';
+  }
+}
+
+function showStudentProfileSection(student) {
+  const loginBox = document.getElementById('kioskLoginFormBox');
+  const profileCard = document.getElementById('kioskStudentProfileCard');
+  const authPill = document.getElementById('kioskAuthStatusPill');
+  const authTitle = document.getElementById('kioskAuthTitle');
+  const actionBtn = document.getElementById('btnKioskAction');
+
+  if (loginBox) loginBox.style.display = 'none';
+  if (profileCard) profileCard.style.display = 'block';
+  if (authPill) {
+    authPill.textContent = 'Terkonfirmasi';
+    authPill.style.background = '#DCFCE7';
+    authPill.style.color = '#15803D';
+  }
+  if (authTitle) authTitle.textContent = 'Profil Mahasiswa';
+  if (actionBtn) {
+    actionBtn.disabled = !kioskState.sessionId || kioskState.busy;
+    actionBtn.textContent = 'Mulai Pemeriksaan Wajah & APD';
+  }
+}
+
+async function handleKioskStudentLogin(event) {
+  event.preventDefault();
+  const nimInput = document.getElementById('kioskInputNim');
+  const kelasInput = document.getElementById('kioskInputKelas');
+  const errEl = document.getElementById('kioskLoginError');
+  const btn = document.getElementById('btnKioskStudentLogin');
+
+  const nim = nimInput ? nimInput.value.trim() : '';
+  const kelas = kelasInput ? kelasInput.value.trim().toUpperCase() : '';
+
+  if (!nim || !kelas) {
+    if (errEl) {
+      errEl.textContent = 'NIM dan Kelas wajib diisi.';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+
+  if (errEl) errEl.style.display = 'none';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Memverifikasi data...';
+  }
+
+  try {
+    await loadKioskContext(nim, kelas);
+    setKioskStatus('Identitas Terverifikasi', 'Posisikan tubuh dalam siluet lalu tekan tombol periksa.', false);
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err.message || 'Data mahasiswa tidak ditemukan.';
+      errEl.style.display = 'block';
+    }
+    setKioskStatus('Gagal Verifikasi', err.message, true);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Cari & Konfirmasi Mahasiswa →';
+    }
+  }
+}
+window.handleKioskStudentLogin = handleKioskStudentLogin;
+
+function resetKioskSessionForNextQueue() {
+  kioskState.student = null;
+  kioskState.sessionId = null;
+  kioskState.session = null;
+  kioskState.inspectionDone = false;
+  kioskState.apdImages = null;
+  kioskState.faceImages = [];
+
+  const nimInput = document.getElementById('kioskInputNim');
+  const kelasInput = document.getElementById('kioskInputKelas');
+  const errEl = document.getElementById('kioskLoginError');
+  if (nimInput) {
+    nimInput.value = '';
+    nimInput.focus();
+  }
+  if (kelasInput) kelasInput.value = '';
+  if (errEl) errEl.style.display = 'none';
+
+  showStudentLoginSection();
+  populateKioskSessions([]);
+  drawDetectionBoxes([]);
+  setKioskStatus('Kamera Siap', 'Silakan mahasiswa berikutnya memasukkan NIM dan Kelas.', false);
+}
+window.resetKioskSessionForNextQueue = resetKioskSessionForNextQueue;
 
 function renderStudentSelector(students) {
   const container = document.getElementById('studentCardsContainer');
@@ -175,46 +286,152 @@ function setActiveStudent(student) {
   }
 }
 
+function updateSessionApdChecklist(wajibList) {
+  const reqs = new Set(wajibList || ['helm', 'baju', 'jeans', 'sepatu']);
+  const map = {
+    helm: document.getElementById('badgeHelmReq'),
+    baju: document.getElementById('badgeBajuReq'),
+    jeans: document.getElementById('badgeJeansReq'),
+    sepatu: document.getElementById('badgeSepatuReq'),
+  };
+
+  Object.entries(map).forEach(([key, el]) => {
+    if (!el) return;
+    const isWajib = reqs.has(key);
+    const span = el.querySelector('.badge-status');
+    if (span) {
+      if (isWajib) {
+        span.textContent = 'WAJIB';
+        span.style.color = '#16A34A';
+        span.style.background = '#DCFCE7';
+        span.style.padding = '2px 6px';
+        span.style.borderRadius = '4px';
+      } else {
+        span.textContent = 'OPSIONAL';
+        span.style.color = '#64748B';
+        span.style.background = '#F1F5F9';
+        span.style.padding = '2px 6px';
+        span.style.borderRadius = '4px';
+      }
+    }
+  });
+}
+
+function showNoSessionPopup(student) {
+  const overlay = document.getElementById('noSessionOverlay');
+  if (!overlay) return;
+  const nameEl = document.getElementById('noSessionStudentName');
+  const nimEl = document.getElementById('noSessionStudentNim');
+  const kelasEl = document.getElementById('noSessionStudentKelas');
+  if (nameEl) nameEl.textContent = student ? student.nama : '—';
+  if (nimEl) nimEl.textContent = student ? student.nim : '—';
+  if (kelasEl) kelasEl.textContent = student ? student.kelas : '—';
+  overlay.style.display = 'flex';
+}
+
+function dismissNoSessionPopup() {
+  const overlay = document.getElementById('noSessionOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+window.dismissNoSessionPopup = dismissNoSessionPopup;
+
+function dismissSuccessPopup() {
+  const overlay = document.getElementById('successOverlay');
+  if (overlay) overlay.style.display = 'none';
+  resetKioskSessionForNextQueue();
+}
+window.dismissSuccessPopup = dismissSuccessPopup;
+
 function populateKioskSessions(sessions) {
   const select = document.getElementById('kioskSession');
   const message = document.getElementById('kioskSessionMessage');
-  if (!select) return;
+  const cardTitle = document.getElementById('kioskSessionTitle');
+  const cardSub = document.getElementById('kioskSessionSubtitle');
+  const cardBadge = document.getElementById('kioskSessionBadge');
+  const actionBtn = document.getElementById('btnKioskAction');
 
-  select.replaceChildren();
+  if (select) select.replaceChildren();
+
   if (!sessions || sessions.length === 0) {
-    select.add(new Option('Tidak ada sesi praktikum aktif hari ini', ''));
-    select.disabled = true;
+    if (select) {
+      select.add(new Option('Tidak ada sesi praktikum aktif hari ini', ''));
+      select.disabled = true;
+    }
     kioskState.sessionId = null;
-    if (message) message.textContent = 'Sesi praktikum belum dijadwalkan untuk hari ini.';
-    document.getElementById('btnKioskAction').disabled = true;
+    kioskState.session = null;
+    if (message) message.textContent = 'Tidak ada sesi praktikum aktif untuk kelas ini.';
+    if (cardTitle) cardTitle.textContent = 'Tidak Ada Sesi Praktikum Hari Ini';
+    if (cardSub) cardSub.textContent = kioskState.student ? `Kelas ${kioskState.student.kelas} tidak memiliki jadwal aktif hari ini.` : 'Jadwal praktikum kosong.';
+    if (cardBadge) {
+      cardBadge.textContent = 'Tidak Ada Sesi';
+      cardBadge.style.background = '#FEE2E2';
+      cardBadge.style.color = '#B91C1C';
+    }
+    if (actionBtn) actionBtn.disabled = true;
+
+    // Tampilkan popup informasi jika mahasiswa aktif terpilih
+    if (kioskState.student) {
+      showNoSessionPopup(kioskState.student);
+    }
+    updateSessionApdChecklist([]);
     return;
   }
 
+  // Tutup overlay no-session jika sebelumnya sempat terbuka
+  dismissNoSessionPopup();
+
   sessions.forEach(item => {
     const label = `${item.mata_kuliah} · ${item.lab} (${item.jam_mulai}–${item.jam_selesai})`;
-    select.add(new Option(label, String(item.id)));
+    if (select) select.add(new Option(label, String(item.id)));
   });
 
   // Otomatis pilih sesi aktif yang pertama
-  select.value = String(sessions[0].id);
-  kioskState.sessionId = sessions[0].id;
-  select.disabled = false;
+  const activeSession = sessions[0];
+  if (select) {
+    select.value = String(activeSession.id);
+    select.disabled = false;
+  }
+  kioskState.sessionId = activeSession.id;
+  kioskState.session = activeSession;
 
-  if (message) {
-    message.textContent = `Sesi aktif terpilih: ${sessions[0].mata_kuliah} (${sessions[0].lab})`;
+  if (cardTitle) {
+    cardTitle.textContent = `${activeSession.mata_kuliah}`;
+  }
+  if (cardSub) {
+    cardSub.textContent = `Lab: ${activeSession.lab} | Ruang: ${activeSession.ruang || '—'} | Pukul ${activeSession.jam_mulai}–${activeSession.jam_selesai} WIB`;
+  }
+  if (cardBadge) {
+    cardBadge.textContent = `Aktif (${activeSession.kelas})`;
+    cardBadge.style.background = '#DCFCE7';
+    cardBadge.style.color = '#15803D';
   }
 
-  const actionBtn = document.getElementById('btnKioskAction');
+  if (message) {
+    message.textContent = `Sesi aktif terpilih otomatis: ${activeSession.mata_kuliah} (${activeSession.lab})`;
+  }
+
+  // Update daftar APD Wajib sesuai mata kuliah sesi ini
+  updateSessionApdChecklist(activeSession.wajib);
+
   if (actionBtn && !kioskState.inspectionDone) {
     actionBtn.disabled = !kioskState.student || kioskState.busy;
   }
 
-  select.onchange = () => {
-    kioskState.sessionId = select.value ? Number(select.value) : null;
-    if (actionBtn && !kioskState.inspectionDone) {
-      actionBtn.disabled = !kioskState.student || !kioskState.sessionId || kioskState.busy;
-    }
-  };
+  if (select) {
+    select.onchange = () => {
+      kioskState.sessionId = select.value ? Number(select.value) : null;
+      const cur = sessions.find(s => s.id === kioskState.sessionId);
+      if (cur) {
+        kioskState.session = cur;
+        if (cardTitle) cardTitle.textContent = cur.mata_kuliah;
+        if (cardSub) cardSub.textContent = `Lab: ${cur.lab} | Ruang: ${cur.ruang || '—'} | Pukul ${cur.jam_mulai}–${cur.jam_selesai} WIB`;
+        updateSessionApdChecklist(cur.wajib);
+      }
+      if (actionBtn && !kioskState.inspectionDone) {
+        actionBtn.disabled = !kioskState.student || !kioskState.sessionId || kioskState.busy;
+      }
+    };
+  }
 }
 
 function setKioskStatus(title, detail, isError) {
@@ -782,22 +999,111 @@ async function finishKioskAttendance() {
 
     const attendance = result.attendance;
     const time = new Date(attendance.waktu.replace(' ', 'T'));
+    
+    // 1. Data Mahasiswa & Sesi di Popup
+    const nameEl = document.getElementById('successStudentName');
+    if (nameEl) nameEl.textContent = kioskState.student.nama;
+    const nimKelasEl = document.getElementById('successStudentNimKelas');
+    if (nimKelasEl) nimKelasEl.textContent = `NIM: ${kioskState.student.nim} · Kelas: ${kioskState.student.kelas}`;
+
+    const sessEl = document.getElementById('successSession');
+    if (sessEl) sessEl.textContent = `${attendance.mata_kuliah} (${attendance.lab || 'Lab'})`;
+
     const successTimeEl = document.getElementById('successTime');
     if (successTimeEl) {
       successTimeEl.textContent = Number.isNaN(time.getTime())
         ? attendance.waktu
-        : new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(time);
+        : new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'medium' }).format(time);
     }
-    const statusEl = document.getElementById('successApdStatus');
-    if (statusEl) {
-      statusEl.textContent = {
-        lengkap: 'Lengkap (Memenuhi Syarat K3)',
-        kurang: 'Tidak Lengkap (Perlu Tindak Lanjut)',
-        menunggu_validasi: 'Menunggu Validasi Jeans oleh PLP'
-      }[attendance.status] || attendance.status;
+
+    // 2. Status Keterlambatan
+    const lateBadge = document.getElementById('successLateBadge');
+    if (lateBadge) {
+      if (attendance.terlambat_menit && attendance.terlambat_menit > 0) {
+        lateBadge.textContent = `Terlambat ${attendance.terlambat_menit} Menit (Denda ${attendance.kompensasi_menit || 0} Menit)`;
+        lateBadge.style.background = '#FEE2E2';
+        lateBadge.style.color = '#B91C1C';
+      } else {
+        lateBadge.textContent = 'Tepat Waktu';
+        lateBadge.style.background = '#DCFCE7';
+        lateBadge.style.color = '#15803D';
+      }
     }
-    const sessEl = document.getElementById('successSession');
-    if (sessEl) sessEl.textContent = attendance.mata_kuliah || 'Praktik Manufaktur';
+
+    // 3. Status Keseluruhan APD & Rincian per Atribut
+    const overallBadge = document.getElementById('successApdOverallBadge');
+    if (overallBadge) {
+      if (attendance.status === 'lengkap') {
+        overallBadge.textContent = 'LENGKAP';
+        overallBadge.style.background = '#059669';
+      } else if (attendance.status === 'menunggu_validasi') {
+        overallBadge.textContent = 'MENUNGGU VALIDASI';
+        overallBadge.style.background = '#D97706';
+      } else {
+        overallBadge.textContent = 'TIDAK LENGKAP';
+        overallBadge.style.background = '#DC2626';
+      }
+    }
+
+    const itemsContainer = document.getElementById('successApdItemsList');
+    const notesContainer = document.getElementById('successApdNotes');
+    const incompleteList = [];
+
+    if (itemsContainer) {
+      itemsContainer.innerHTML = '';
+      const apdConfig = [
+        { key: 'helm', name: 'Helm K3', icon: '🪖' },
+        { key: 'baju', name: 'Baju Praktik', icon: '👔' },
+        { key: 'jeans', name: 'Celana Jeans', icon: '👖' },
+        { key: 'sepatu', name: 'Sepatu Safety', icon: '👞' },
+      ];
+
+      const wajibList = new Set(result.wajib || []);
+
+      apdConfig.forEach(item => {
+        const isWajib = wajibList.has(item.key);
+        const val = attendance[item.key];
+        
+        let statusText = '';
+        let statusColor = '';
+        let bgColor = 'rgba(255,255,255,0.05)';
+
+        if (!isWajib) {
+          statusText = 'Tidak Wajib';
+          statusColor = '#94A3B8';
+        } else if (val === 1 || val === true) {
+          statusText = 'Terpakai';
+          statusColor = '#34D399';
+          bgColor = 'rgba(16, 185, 129, 0.12)';
+        } else if (val === 0 || val === false) {
+          statusText = 'Tidak Terpakai';
+          statusColor = '#F87171';
+          bgColor = 'rgba(239, 68, 68, 0.15)';
+          incompleteList.push(item.name);
+        } else {
+          statusText = 'Perlu Validasi';
+          statusColor = '#FBBF24';
+          bgColor = 'rgba(245, 158, 11, 0.15)';
+        }
+
+        const div = document.createElement('div');
+        div.style.cssText = `background: ${bgColor}; padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);`;
+        div.innerHTML = `
+          <span>${item.icon} ${item.name}</span>
+          <span style="font-weight: 800; font-size: 10px; color: ${statusColor};">${statusText}</span>
+        `;
+        itemsContainer.appendChild(div);
+      });
+    }
+
+    if (notesContainer) {
+      if (incompleteList.length > 0) {
+        notesContainer.textContent = `Perhatian: ${incompleteList.join(', ')} wajib digunakan selama kegiatan praktikum.`;
+        notesContainer.style.display = 'block';
+      } else {
+        notesContainer.style.display = 'none';
+      }
+    }
 
     const overlay = document.getElementById('successOverlay');
     if (overlay) overlay.style.display = 'flex';
@@ -1147,3 +1453,57 @@ function drawStandingHumanSilhouette(ctx, cw, ch, options) {
 
   ctx.restore();
 }
+
+// ── KIOSK MONITORING HEARTBEAT & LIVE SNAPSHOT STREAM ──
+function initKioskHeartbeat() {
+  async function sendHeartbeat() {
+    const video = document.getElementById('kioskVideo');
+    let snapshotBase64 = null;
+    let cameraStatus = 'standby';
+
+    if (video && video.videoWidth > 0 && !video.paused && !video.ended) {
+      cameraStatus = 'aktif';
+      try {
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = 360;
+        offCanvas.height = 270;
+        const offCtx = offCanvas.getContext('2d');
+        offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
+        snapshotBase64 = offCanvas.toDataURL('image/jpeg', 0.55);
+      } catch (e) {
+        // canvas cors / drawing error ignored
+      }
+    }
+
+    let aktivitas = 'Siaga mendeteksi';
+    if (kioskState.activeStudent) {
+      aktivitas = `Presensi: ${kioskState.activeStudent.nama}`;
+    }
+
+    try {
+      const res = await fetch('/api/kiosk/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kode: 'KSK-AE-01',
+          nama: 'PC Kiosk Jurusan AE',
+          lokasi: 'Laboratorium AE',
+          status_kamera: cameraStatus,
+          aktivitas: aktivitas,
+          frame_snapshot: snapshotBase64
+        })
+      });
+      if (res.ok) {
+        // Heartbeat terkirim sukses
+      }
+    } catch (err) {
+      console.warn('Heartbeat kiosk gagal dikirim:', err);
+    }
+  }
+
+  // Kirim heartbeat pertama segera dan ulangi tiap 3 detik
+  setTimeout(sendHeartbeat, 500);
+  setInterval(sendHeartbeat, 3000);
+}
+
+document.addEventListener('DOMContentLoaded', initKioskHeartbeat);

@@ -222,7 +222,7 @@
         <img src="../assets/img/logo-polman.png" alt="POLMAN" style="height: 34px; width: auto; object-fit: contain;">
         <div>
           <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.8px; color: #64748B; text-transform: uppercase;">POLITEKNIK MANUFAKTUR BANDUNG</div>
-          <div style="font-size: 15px; font-weight: 800; color: #0B1E38; letter-spacing: -0.3px;">POLMAN SMART ATTENDANCE</div>
+          <div style="font-size: 15px; font-weight: 800; color: #0B1E38; letter-spacing: -0.3px;">LAYAR KIOSK JURUSAN AE</div>
         </div>
       </div>
     </div>
@@ -230,16 +230,17 @@
     <!-- Right: Header Info & Keluar -->
     <div style="display: flex; align-items: center; gap: 16px;">
       <div style="text-align: right;">
-        <div style="font-size: 13.5px; font-weight: 800; color: #0F172A;" id="stepMainTitle">Pemeriksaan Terpadu K3</div>
-        <div style="font-size: 11px; color: #64748B;" id="stepSubTitle">Verifikasi Wajah &amp; APD Sekaligus (5 Detik)</div>
+        <div style="font-size: 13.5px; font-weight: 800; color: #0F172A;" id="stepMainTitle">Terminal Kiosk Jurusan AE</div>
+        <div style="font-size: 11px; color: #64748B;" id="stepSubTitle">Verifikasi Wajah &amp; Inspeksi APD Real-Time</div>
       </div>
-      <span class="kiosk-step-pill" id="stepPillBadge" style="background: #E0F2FE; color: #0369A1; font-weight: 800;">Kiosk Mandiri</span>
-      <a href="../index.html" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Kembali ke Beranda">
+      <span class="kiosk-step-pill" id="stepPillBadge" style="background: #E0F2FE; color: #0369A1; font-weight: 800;">PC Kiosk</span>
+      <a href="../login.html" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Keluar dari Kiosk">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
         </svg>
-        <span>Ke Beranda</span>
+        <span>Keluar Kiosk</span>
       </a>
     </div>
   </header>
@@ -249,9 +250,9 @@
     
     <!-- Title Row -->
     <div class="kiosk-page-title-wrap">
-      <div class="kiosk-eyebrow" id="kioskEyebrow">TERMINAL ABSENSI KIOSK MANDIRI</div>
-      <h1 class="kiosk-page-title" id="kioskPageTitle">Pemeriksaan Wajah &amp; Kelengkapan APD K3</h1>
-      <p class="kiosk-page-desc" id="kioskPageDesc"><strong>Panduan Posisi:</strong> Berdirilah sekitar 1,5–2 meter dari kamera agar seluruh tubuh dari kepala hingga kaki berada pas di dalam garis siluet manusia. Area di luar siluet tidak akan dideteksi dan sistem membatasi maksimal 1 orang.</p>
+      <div class="kiosk-eyebrow" id="kioskEyebrow">TERMINAL KIOSK ABSENSI JURUSAN AE</div>
+      <h1 class="kiosk-page-title" id="kioskPageTitle">Presensi Mahasiswa &amp; Inspeksi APD K3</h1>
+      <p class="kiosk-page-desc" id="kioskPageDesc">Masukkan <strong>NIM</strong> dan <strong>Kelas</strong> Anda untuk memulai. Berdirilah sekitar 1,5–2 meter dari kamera di dalam koridor siluet manusia untuk verifikasi wajah dan inspeksi APD otomatis.</p>
     </div>
 
     <!-- 2-Column Responsive Layout -->
@@ -264,92 +265,95 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
               <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">IDENTITAS MAHASISWA</div>
-              <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Pilih Mahasiswa</h3>
+              <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;" id="kioskAuthTitle">Input Presensi</h3>
             </div>
-            <span style="font-size: 11px; font-weight: 700; color: #0284C7; background: #E0F2FE; padding: 3px 8px; border-radius: 6px;">1-Klik Aktif</span>
+            <span id="kioskAuthStatusPill" style="font-size: 11px; font-weight: 700; color: #64748B; background: #F1F5F9; padding: 3px 8px; border-radius: 6px;">Siap Input</span>
           </div>
 
-          <!-- Quick Select Mahasiswa (Tanpa Perlu Login / Kata Sandi) -->
-          <div style="margin-bottom: 16px;">
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 8px;">
-              PILIH MAHASISWA YANG AKAN PRESENSI
+          <!-- Form Input NIM & Kelas Mahasiswa -->
+          <div id="kioskLoginFormBox" style="background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #475569; margin-bottom: 10px;">
+              MASUKKAN DATA MAHASISWA
             </div>
-            <div id="studentCardsContainer" style="display: grid; gap: 8px;">
-              <!-- Tombol Mahasiswa akan di-render dinamis oleh kiosk.js -->
-              <button type="button" class="kiosk-student-card-btn selected" onclick="selectStudent('224443012')">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <div class="kiosk-mhs-avatar active">M</div>
-                  <div>
-                    <div style="font-weight: 800; font-size: 12.5px; color: #0369A1;">Muhammad Basit</div>
-                    <div style="font-size: 10.5px; color: #64748B;">NIM: 224443012 · Kelas: 3AEC1</div>
-                  </div>
-                </div>
-                <span class="kiosk-mhs-badge active">Aktif</span>
-              </button>
-              <button type="button" class="kiosk-student-card-btn" onclick="selectStudent('224443009')">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <div class="kiosk-mhs-avatar">L</div>
-                  <div>
-                    <div style="font-weight: 800; font-size: 12.5px; color: #0F172A;">Lukita Falensia Marjan</div>
-                    <div style="font-size: 10.5px; color: #64748B;">NIM: 224443009 · Kelas: 3AEC1</div>
-                  </div>
-                </div>
-                <span class="kiosk-mhs-badge">Pilih</span>
-              </button>
-              <button type="button" class="kiosk-student-card-btn" onclick="selectStudent('224443003')">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <div class="kiosk-mhs-avatar">B</div>
-                  <div>
-                    <div style="font-weight: 800; font-size: 12.5px; color: #0F172A;">Bintang Shobri Al Chakim</div>
-                    <div style="font-size: 10.5px; color: #64748B;">NIM: 224443003 · Kelas: 3AEC1</div>
-                  </div>
-                </div>
-                <span class="kiosk-mhs-badge">Pilih</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Kartu Profil Mahasiswa Terpilih -->
-          <div id="kioskStudentProfileCard" style="background: #F0FDF4; border: 1.5px solid #86EFAC; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #166534;">IDENTITAS TERVERIFIKASI</div>
-                <div style="font-weight: 800; font-size: 14px; color: #14532D; margin-top: 1px;" id="kioskProfileName">Muhammad Basit</div>
-                <div style="font-size: 11px; color: #15803D; margin-top: 2px;" id="kioskProfileDetail">NIM: 224443012 · Kelas: 3AEC1</div>
+            <form id="kioskStudentLoginForm" onsubmit="handleKioskStudentLogin(event)">
+              <div style="margin-bottom: 10px;">
+                <label for="kioskInputNim" style="display: block; font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 4px;">NIM Mahasiswa</label>
+                <input type="text" id="kioskInputNim" placeholder="Contoh: 224443003" required autofocus style="width: 100%; padding: 9px 12px; border: 1.5px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-family: inherit;">
               </div>
-              <span class="kiosk-active-pill" id="kioskStudentStatus" style="background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background: #16A34A; display: inline-block;"></span>
-                Mahasiswa: Basit
-              </span>
+              <div style="margin-bottom: 12px;">
+                <label for="kioskInputKelas" style="display: block; font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 4px;">Kelas Praktikum</label>
+                <input type="text" id="kioskInputKelas" placeholder="Contoh: 3AEC1" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-family: inherit; text-transform: uppercase;">
+              </div>
+              <div id="kioskLoginError" style="display: none; font-size: 11px; color: #DC2626; margin-bottom: 10px; font-weight: 600;"></div>
+              <button type="submit" id="btnKioskStudentLogin" style="width: 100%; height: 40px; border-radius: 6px; background: #0284C7; color: #FFF; border: none; font-weight: 800; font-size: 12.5px; cursor: pointer; transition: background 0.15s ease;">
+                Cari &amp; Konfirmasi Mahasiswa &rarr;
+              </button>
+            </form>
+          </div>
+
+          <!-- Kartu Profil Mahasiswa Terverifikasi (Tampil setelah NIM & Kelas cocok) -->
+          <div id="kioskStudentProfileCard" style="display: none; background: #F0FDF4; border: 1.5px solid #86EFAC; border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #166534;">MAHASISWA TERKONFIRMASI</div>
+                <div style="font-weight: 800; font-size: 15px; color: #14532D; margin-top: 2px;" id="kioskProfileName">—</div>
+                <div style="font-size: 11.5px; color: #15803D; margin-top: 2px;" id="kioskProfileDetail">NIM: — · Kelas: —</div>
+                <div style="font-size: 10.5px; color: #166534; margin-top: 3px; font-weight: 600;">Jurusan Teknik Otomasi &amp; Mekatronika (AE)</div>
+              </div>
+              <button type="button" onclick="resetKioskSessionForNextQueue()" style="background: #DCFCE7; border: 1px solid #86EFAC; color: #15803D; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;" title="Ganti mahasiswa">
+                Ganti
+              </button>
             </div>
           </div>
 
-          <!-- Sesi Praktikum Hari Ini (Otomatis Terpilih) -->
+          <!-- Sesi Praktikum Hari Ini (Otomatis Terpilih Sesuai Kelas Mahasiswa) -->
           <div style="margin-bottom: 16px;">
-            <label for="kioskSession" style="display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 6px;">Sesi Praktikum Hari Ini</label>
-            <select id="kioskSession" style="width: 100%; padding: 10px 12px; border: 1.5px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit; font-size: 12.5px;">
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 6px;">
+              SESI PRAKTIKUM HARI INI (OTOMATIS)
+            </div>
+            <!-- Select disembunyikan karena otomatis mengikuti kelas mahasiswa -->
+            <select id="kioskSession" style="display: none;">
               <option value="">Memuat sesi praktikum...</option>
             </select>
+            
+            <div id="kioskSessionCard" style="background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 10px; padding: 12px 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div>
+                  <div id="kioskSessionTitle" style="font-size: 13.5px; font-weight: 800; color: #0F172A;">Memuat sesi praktikum...</div>
+                  <div id="kioskSessionSubtitle" style="font-size: 11px; color: #64748B; margin-top: 3px;">Mencari jadwal kelas hari ini...</div>
+                </div>
+                <span id="kioskSessionBadge" style="font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: #E2E8F0; color: #475569; white-space: nowrap;">
+                  Cek Jadwal
+                </span>
+              </div>
+            </div>
             <div id="kioskSessionMessage" role="status" style="font-size: 11px; color: #0284C7; font-weight: 600; margin-top: 6px;">Sesi praktikum otomatis aktif.</div>
           </div>
 
-          <!-- Ringkasan APD Wajib Praktikum -->
+          <!-- Ringkasan APD Wajib Praktikum untuk Sesi Ini -->
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #475569; margin-bottom: 8px;">
-              STANDAR KELENGKAPAN K3 (LAB MANUFAKTUR)
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #475569;">
+                STANDAR APD SESI INI
+              </div>
+              <span id="apdMatkulNotice" style="font-size: 9.5px; font-weight: 700; color: #0284C7;">Sesuai Mata Kuliah</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; color: #334155;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="color: #F59E0B;">🪖</span> <strong>Helm K3</strong>
+            <div id="sessionApdBadges" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; color: #334155;">
+              <div id="badgeHelmReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>🪖</span> <strong>Helm K3</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="color: #10B981;">👔</span> <strong>Baju / Kemeja</strong>
+              <div id="badgeBajuReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>👔</span> <strong>Baju Praktik</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="color: #0284C7;">👖</span> <strong>Celana Jeans</strong>
+              <div id="badgeJeansReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>👖</span> <strong>Celana Jeans</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="color: #EC4899;">👞</span> <strong>Sepatu Safety</strong>
+              <div id="badgeSepatuReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>👞</span> <strong>Sepatu Safety</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
             </div>
           </div>
@@ -432,34 +436,88 @@
             </div>
           </div>
 
-          <!-- Success Celebration Overlay -->
-          <div class="kiosk-success-overlay" id="successOverlay">
-            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); border: 2px solid #34D399; display: flex; align-items: center; justify-content: center; color: #34D399; font-size: 24px; font-weight: 800; margin-bottom: 14px;">
+          <!-- Success Celebration Overlay / Popup Hasil Absensi Lengkap -->
+          <div class="kiosk-success-overlay" id="successOverlay" style="overflow-y: auto; max-height: 100%;">
+            <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); border: 2px solid #34D399; display: flex; align-items: center; justify-content: center; color: #34D399; font-size: 24px; font-weight: 800; margin-bottom: 10px;">
               ✓
             </div>
-            <h2 style="font-size: 22px; font-weight: 800; color: #FFFFFF; margin: 0 0 6px;">Absensi Berhasil Dicatat!</h2>
-            <p style="font-size: 13px; color: #94A3B8; max-width: 420px; margin: 0 0 20px;">
-              Kehadiran dan hasil verifikasi K3 Anda telah tersimpan dengan aman ke basis data.
+            <h2 style="font-size: 20px; font-weight: 800; color: #FFFFFF; margin: 0 0 4px;">Presensi Berhasil Dicatat!</h2>
+            <p style="font-size: 12px; color: #94A3B8; max-width: 440px; margin: 0 0 16px;">
+              Data kehadiran, verifikasi biometrik, dan kelengkapan atribut APD telah tersimpan ke sistem.
             </p>
             
-            <div style="background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 20px; width: 100%; max-width: 380px; margin-bottom: 24px; text-align: left; font-size: 12px; color: #E2E8F0;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">Waktu Presensi:</span>
+            <!-- Box Rincian Data Mahasiswa & Sesi -->
+            <div style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px 18px; width: 100%; max-width: 440px; margin-bottom: 12px; text-align: left; font-size: 12px; color: #E2E8F0;">
+              
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Nama Mahasiswa:</span>
+                <strong style="color: #38BDF8; font-size: 13px;" id="successStudentName">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">NIM / Kelas:</span>
+                <strong style="color: #FFF;" id="successStudentNimKelas">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Sesi Praktikum:</span>
+                <strong style="color: #FFF; text-align: right;" id="successSession">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Jam Presensi:</span>
                 <strong style="color: #FFF;" id="successTime">—</strong>
               </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 2px;">
+                <span style="color: #94A3B8;">Status Kedatangan:</span>
+                <span id="successLateBadge" style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #DCFCE7; color: #15803D;">Tepat Waktu</span>
+              </div>
+            </div>
+
+            <!-- Box Rincian Kelengkapan Atribut APD -->
+            <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 16px; width: 100%; max-width: 440px; margin-bottom: 18px; text-align: left; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 800; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Rincian Atribut APD Praktikum</span>
+                <span id="successApdOverallBadge" style="font-weight: 800; font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: #059669; color: #FFF;">LENGKAP</span>
+              </div>
+              <div id="successApdItemsList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <!-- Di-generate dinamis oleh kiosk.js -->
+              </div>
+              <div id="successApdNotes" style="margin-top: 8px; font-size: 10.5px; color: #F87171; display: none;"></div>
+            </div>
+
+            <div style="width: 100%; max-width: 440px;">
+              <button onclick="dismissSuccessPopup()" style="width: 100%; height: 44px; border-radius: 8px; background: #0284C7; color: #FFF; border: none; font-weight: 800; font-size: 13.5px; cursor: pointer; transition: background 0.15s ease;">
+                Selesai — Mahasiswa Berikutnya
+              </button>
+            </div>
+          </div>
+
+          <!-- Popup Pemberitahuan: Tidak Ada Sesi Praktikum Hari Ini -->
+          <div class="kiosk-success-overlay" id="noSessionOverlay">
+            <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(239, 68, 68, 0.18); border: 2px solid #EF4444; display: flex; align-items: center; justify-content: center; color: #EF4444; font-size: 24px; font-weight: 800; margin-bottom: 12px;">
+              !
+            </div>
+            <h2 style="font-size: 19px; font-weight: 800; color: #FFFFFF; margin: 0 0 6px;">Tidak Ada Sesi Praktikum Aktif</h2>
+            <p style="font-size: 12.5px; color: #CBD5E1; max-width: 400px; margin: 0 0 16px;">
+              Sistem tidak menemukan jadwal sesi praktikum yang sedang aktif hari ini untuk kelas mahasiswa ini.
+            </p>
+            
+            <div style="background: rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 18px; width: 100%; max-width: 380px; margin-bottom: 20px; text-align: left; font-size: 12px; color: #E2E8F0;">
               <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">Status APD:</span>
-                <span style="color: #34D399; font-weight: 700;" id="successApdStatus">—</span>
+                <span style="color: #94A3B8;">Nama:</span>
+                <strong style="color: #38BDF8;" id="noSessionStudentName">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">NIM:</span>
+                <strong style="color: #FFF;" id="noSessionStudentNim">—</strong>
               </div>
               <div style="display: flex; justify-content: space-between;">
-                <span style="color: #94A3B8;">Sesi Praktikum:</span>
-                <strong style="color: #FFF;" id="successSession">—</strong>
+                <span style="color: #94A3B8;">Kelas:</span>
+                <strong style="color: #FFF;" id="noSessionStudentKelas">—</strong>
               </div>
             </div>
 
             <div style="width: 100%; max-width: 380px;">
-              <button onclick="window.location.reload()" style="width: 100%; height: 44px; border-radius: 8px; background: #143E6B; color: #FFF; border: none; font-weight: 700; font-size: 13px; cursor: pointer;">
-                Selesai — Mahasiswa Berikutnya
+              <button onclick="dismissNoSessionPopup()" style="width: 100%; height: 42px; border-radius: 8px; background: #334155; color: #FFF; border: 1px solid #475569; font-weight: 700; font-size: 13px; cursor: pointer;">
+                Mengerti — Pilih Mahasiswa Lain
               </button>
             </div>
           </div>

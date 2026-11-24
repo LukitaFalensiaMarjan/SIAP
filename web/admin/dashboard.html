@@ -154,15 +154,40 @@
         </div>
       </div>
 
-      <div class="adm-card-white" style="padding: 22px;">
+      <!-- Live Monitoring Kiosk (Terintegrasi Real-Time) -->
+      <div class="adm-card-white" style="padding: 22px; margin-bottom: 24px;" id="kioskMonitoringCard">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <div>
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">Status Perangkat</div>
-            <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;">Monitoring kiosk</h2>
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">Live Monitoring Kiosk</div>
+            <h2 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;" id="kioskMonitoringTitle">Aktivitas scanning saat ini</h2>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="adm-badge adm-badge-gray" id="kioskStatusBadge" style="font-size: 10.5px;">Memeriksa status perangkat...</span>
           </div>
         </div>
-        <div style="padding: 18px; border: 1px solid var(--admin-border); border-radius: 10px; color: #64748B; font-size: 13px;">
-          Status online, kamera, dan aktivitas langsung belum tersedia karena belum ada data registrasi atau heartbeat perangkat kiosk.
+
+        <!-- Live Visual Stage -->
+        <div class="kiosk-live-screen" style="position: relative; overflow: hidden; background: #0B132B; border-radius: 12px; height: 380px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; top: 14px; left: 16px; z-index: 10; background: rgba(15,23,42,0.85); color: #FFF; font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: 700;" id="kioskDeviceLabel">
+            KSK-AE-01 · PC Kiosk Jurusan AE
+          </div>
+
+          <!-- Video / Snapshot Feed -->
+          <img id="kioskLiveFeedImg" src="../assets/img/maskot-k3.png" alt="Live Feed Kiosk" class="kiosk-mascot-feed" style="max-height: 100%; width: 100%; object-fit: contain;">
+
+          <div style="position: absolute; bottom: 16px; left: 16px; z-index: 10; background: rgba(15,23,42,0.85); color: #94A3B8; font-size: 11px; padding: 4px 10px; border-radius: 6px;" id="kioskActivityText">
+            Menunggu sinyal heartbeat terminal kiosk...
+          </div>
+
+          <div style="position: absolute; bottom: 16px; right: 16px; z-index: 10;">
+            <a href="perangkat.html" class="adm-btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+              Kelola Perangkat &rarr;
+            </a>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px; font-size: 11.5px; color: #64748B;">
+          Live feed dari webcam terminal kiosk dipantau secara langsung oleh admin untuk validasi presensi dan keselamatan lab.
         </div>
       </div>
 

@@ -27,51 +27,77 @@ document.addEventListener('DOMContentLoaded', initSiapAdminSession);
 
 function renderUnavailableAdminPage() {
   const path = window.location.pathname;
-  const container = document.querySelector('.adm-container');
-  if (!container || !path.endsWith('/perangkat.html')) return;
+  if (!path.endsWith('/perangkat.html')) return;
+  loadKioskDevicesAdmin();
+}
 
-  container.replaceChildren();
+async function loadKioskDevicesAdmin() {
+  const table = document.getElementById('tableKiosk');
+  if (!table) return;
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
 
-  const header = document.createElement('div');
-  header.className = 'adm-page-header';
-  const titleGroup = document.createElement('div');
-  const eyebrow = document.createElement('div');
-  eyebrow.className = 'adm-eyebrow';
-  eyebrow.textContent = 'Konfigurasi Operasional';
-  const heading = document.createElement('h1');
-  heading.className = 'adm-page-title';
-  heading.textContent = 'Sistem & Perangkat';
-  const description = document.createElement('p');
-  description.className = 'adm-page-desc';
-  description.textContent = 'Status perangkat dan pengaturan sistem belum memiliki penyimpanan di database.';
-  titleGroup.append(eyebrow, heading, description);
-  header.appendChild(titleGroup);
-  container.appendChild(header);
+  try {
+    const res = await fetch('/api/kiosk/devices');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Gagal memuat perangkat.');
 
-  const card = document.createElement('section');
-  card.className = 'adm-card-white';
-  card.style.cssText = 'padding:24px;';
-  const messageTitle = document.createElement('h2');
-  messageTitle.style.cssText = 'font-size:16px;font-weight:800;color:#0F172A;margin:0 0 8px;';
-  messageTitle.textContent = 'Fitur belum tersedia';
-  const message = document.createElement('p');
-  message.style.cssText = 'font-size:13px;line-height:1.6;color:#64748B;margin:0;';
-  message.textContent = 'Database belum mencatat perangkat kiosk, heartbeat kamera, atau konfigurasi sistem. Status online/offline dan aksi perangkat tidak dapat ditampilkan.';
-  card.append(messageTitle, message);
-  container.appendChild(card);
-  const modelsCard = document.createElement('section');
-  modelsCard.className = 'adm-card-white';
-  modelsCard.style.cssText = 'padding:24px;margin-top:18px;';
-  const modelsTitle = document.createElement('h2');
-  modelsTitle.style.cssText = 'font-size:16px;font-weight:800;color:#0F172A;margin:0 0 12px;';
-  modelsTitle.textContent = 'Status model AI';
-  const modelsList = document.createElement('div');
-  modelsList.id = 'adminModelStatus';
-  modelsList.style.cssText = 'display:grid;gap:8px;color:#64748B;font-size:13px;';
-  modelsList.textContent = 'Memuat status model...';
-  modelsCard.append(modelsTitle, modelsList);
-  container.appendChild(modelsCard);
-  loadAdminModelStatus();
+    const devices = data.devices || [];
+    tbody.replaceChildren();
+
+    if (!devices.length) {
+      const row = tbody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 7;
+      cell.style.color = '#64748B';
+      cell.style.padding = '18px';
+      cell.textContent = 'Belum ada perangkat kiosk yang terhubung.';
+      return;
+    }
+
+    devices.forEach(d => {
+      const row = tbody.insertRow();
+      const nameCell = row.insertCell();
+      nameCell.style.fontWeight = '700';
+      nameCell.textContent = d.nama;
+
+      const codeCell = row.insertCell();
+      codeCell.style.fontWeight = '700';
+      codeCell.textContent = d.kode;
+
+      const locCell = row.insertCell();
+      locCell.textContent = d.lokasi;
+
+      const statusCell = row.insertCell();
+      const badge = document.createElement('span');
+      badge.className = `adm-badge ${d.online ? 'adm-badge-green' : 'adm-badge-gray'}`;
+      badge.textContent = d.online ? 'Online' : 'Offline';
+      statusCell.appendChild(badge);
+
+      const timeCell = row.insertCell();
+      timeCell.style.color = d.online ? '#64748B' : '#DC2626';
+      timeCell.textContent = d.online ? 'Baru saja' : (d.last_heartbeat ? d.last_heartbeat.replace('T', ' ') : '—');
+
+      const verCell = row.insertCell();
+      verCell.style.color = '#64748B';
+      verCell.textContent = d.versi || '1.0.4';
+
+      const actCell = row.insertCell();
+      const btn = document.createElement('button');
+      btn.className = 'adm-btn-action-edit';
+      btn.textContent = d.online ? 'Pantau Feed' : 'Ping Terminal';
+      btn.onclick = () => {
+        if (d.online) {
+          window.location.href = 'dashboard.html';
+        } else {
+          showToast(`Mencoba ping ke terminal ${d.kode}...`);
+        }
+      };
+      actCell.appendChild(btn);
+    });
+  } catch (err) {
+    console.warn('Gagal memuat perangkat:', err);
+  }
 }
 
 async function loadAdminModelStatus() {
@@ -523,6 +549,41 @@ async function loadAdminDashboard() {
     dashboardText('dashboardStatusPending', result.menunggu_validasi);
     dashboardText('dashboardStatusIncomplete', result.kurang);
     dashboardText('sessionsTodayCount', `${result.sessions_today.length} sesi praktikum`);
+
+    // Update Live Monitoring Kiosk Feed & Status
+    const kioskDevices = result.kiosk_devices || [];
+    const activeKiosk = kioskDevices.find(d => d.online) || kioskDevices[0];
+    const badgeEl = document.getElementById('kioskStatusBadge');
+    const feedImg = document.getElementById('kioskLiveFeedImg');
+    const deviceLabel = document.getElementById('kioskDeviceLabel');
+    const actText = document.getElementById('kioskActivityText');
+
+    if (activeKiosk) {
+      if (deviceLabel) deviceLabel.textContent = `${activeKiosk.kode} · ${activeKiosk.nama} (${activeKiosk.lokasi})`;
+      if (badgeEl) {
+        if (activeKiosk.online) {
+          badgeEl.className = 'adm-badge adm-badge-green';
+          badgeEl.textContent = '● Kiosk Online · Kamera Aktif';
+        } else {
+          badgeEl.className = 'adm-badge adm-badge-gray';
+          badgeEl.textContent = '○ Kiosk Offline';
+        }
+      }
+      if (actText) {
+        actText.textContent = activeKiosk.aktivitas_terakhir || (activeKiosk.online ? 'Siaga mendeteksi' : 'Terminal offline');
+      }
+      if (feedImg && activeKiosk.frame_snapshot) {
+        feedImg.src = activeKiosk.frame_snapshot;
+      }
+    } else {
+      if (badgeEl) {
+        badgeEl.className = 'adm-badge adm-badge-gray';
+        badgeEl.textContent = 'Belum terhubung';
+      }
+      if (actText) {
+        actText.textContent = 'Menunggu koneksi dari terminal PC Kiosk di lab.';
+      }
+    }
     dashboardText('sessionsTodayActive', result.sessions_today.filter(item => item.aktif).length);
     dashboardText('sessionsTodayInactive', result.sessions_today.filter(item => !item.aktif).length);
     dashboardText(
@@ -628,7 +689,13 @@ async function loadAdminDashboard() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', loadAdminDashboard);
+document.addEventListener('DOMContentLoaded', () => {
+  loadAdminDashboard();
+  // Polling otomatis setiap 3 detik untuk memperbarui live feed monitoring kiosk & data absensi
+  if (document.getElementById('kioskMonitoringCard')) {
+    setInterval(loadAdminDashboard, 3000);
+  }
+});
 
 function showToast(message) {
   let toast = document.getElementById('admGlobalToast');
@@ -1293,7 +1360,7 @@ async function initAcademicSessions() {
   try {
     const result = await academicApi('/api/auth/me');
     academicCanEdit = Boolean(
-      result.user && ['dosen', 'plp'].includes(result.user.peran.toLowerCase())
+      result.user && ['operator', 'admin', 'dosen', 'plp'].includes(result.user.peran.toLowerCase())
     );
     document.getElementById('btnActionTop').hidden =
       !academicCanEdit || currentTopAction === 'Kelola aturan';
@@ -1321,6 +1388,17 @@ function openAcademicSessionForm(item) {
   document.getElementById('jadwalDosen').value = item ? item.dosen : '';
   document.getElementById('jadwalRuang').value = item ? item.ruang : '';
   document.getElementById('jadwalAktif').value = item ? String(item.aktif) : '1';
+
+  // Checklist APD Sesi
+  const wHelm = document.getElementById('jadwalWajibHelm');
+  const wBaju = document.getElementById('jadwalWajibBaju');
+  const wJeans = document.getElementById('jadwalWajibJeans');
+  const wSepatu = document.getElementById('jadwalWajibSepatu');
+  if (wHelm) wHelm.checked = item ? (item.wajib_helm !== undefined ? Boolean(item.wajib_helm) : true) : true;
+  if (wBaju) wBaju.checked = item ? (item.wajib_baju !== undefined ? Boolean(item.wajib_baju) : true) : true;
+  if (wJeans) wJeans.checked = item ? (item.wajib_jeans !== undefined ? Boolean(item.wajib_jeans) : true) : true;
+  if (wSepatu) wSepatu.checked = item ? (item.wajib_sepatu !== undefined ? Boolean(item.wajib_sepatu) : true) : true;
+
   document.getElementById('jadwalFormEyebrow').textContent = item ? 'Ubah Data' : 'Tambah Data';
   document.getElementById('jadwalFormTitle').textContent = item ? 'Ubah Jadwal Akademik' : 'Jadwal Akademik Baru';
   document.getElementById('btnSubmitJadwal').textContent = item ? 'Simpan Perubahan' : 'Simpan Jadwal';
@@ -1355,7 +1433,11 @@ async function submitAcademicSession(event) {
     jam_selesai: document.getElementById('jadwalJamSelesai').value,
     dosen: document.getElementById('jadwalDosen').value.trim(),
     ruang: document.getElementById('jadwalRuang').value.trim(),
-    aktif: Number(document.getElementById('jadwalAktif').value)
+    aktif: Number(document.getElementById('jadwalAktif').value),
+    wajib_helm: document.getElementById('jadwalWajibHelm') && document.getElementById('jadwalWajibHelm').checked ? 1 : 0,
+    wajib_baju: document.getElementById('jadwalWajibBaju') && document.getElementById('jadwalWajibBaju').checked ? 1 : 0,
+    wajib_jeans: document.getElementById('jadwalWajibJeans') && document.getElementById('jadwalWajibJeans').checked ? 1 : 0,
+    wajib_sepatu: document.getElementById('jadwalWajibSepatu') && document.getElementById('jadwalWajibSepatu').checked ? 1 : 0
   };
   const isEditing = academicEditingId !== null;
 

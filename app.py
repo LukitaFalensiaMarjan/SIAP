@@ -69,6 +69,58 @@ def apd_rule(conn, lab):
     return result
 
 
+def session_apd_rule(conn, session_row_or_dict):
+    """Mengambil aturan APD yang disesuaikan spesifik per sesi/mata kuliah,
+    fallback ke aturan APD lab jika sesi belum memiliki nilai kustom."""
+    s = dict(session_row_or_dict)
+    lab = s.get("lab", "")
+    lab_rule = apd_rule(conn, lab)
+
+    # Cek apakah sesi memiliki kolom syarat APD kustom
+    w_helm = s.get("wajib_helm")
+    w_baju = s.get("wajib_baju")
+    w_jeans = s.get("wajib_jeans")
+    w_sepatu = s.get("wajib_sepatu")
+
+    if None in (w_helm, w_baju, w_jeans, w_sepatu):
+        if lab_rule:
+            return lab_rule
+        return {
+            "lab": lab,
+            "wajib_helm": 1,
+            "wajib_baju": 1,
+            "wajib_jeans": 1,
+            "wajib_sepatu": 1,
+            "aktif": 1,
+            "wajib": ["helm", "baju", "jeans", "sepatu"],
+        }
+
+    w_helm = int(w_helm)
+    w_baju = int(w_baju)
+    w_jeans = int(w_jeans)
+    w_sepatu = int(w_sepatu)
+
+    wajib = []
+    if w_helm:
+        wajib.append("helm")
+    if w_baju:
+        wajib.append("baju")
+    if w_jeans:
+        wajib.append("jeans")
+    if w_sepatu:
+        wajib.append("sepatu")
+
+    return {
+        "lab": lab,
+        "wajib_helm": w_helm,
+        "wajib_baju": w_baju,
+        "wajib_jeans": w_jeans,
+        "wajib_sepatu": w_sepatu,
+        "aktif": int(s.get("aktif", 1)),
+        "wajib": wajib,
+    }
+
+
 def attendance_status(values, required):
     has_unresolved = False
     for item in required:
@@ -145,11 +197,18 @@ def index():
     return send_from_directory(WEB_DIR, "index.html")
 
 
+@app.route("/kiosk")
+def kiosk_route():
+    return send_from_directory(WEB_DIR / "mahasiswa", "absensi.html")
+
+
 @app.route("/<path:path>")
 def static_files(path):
     file_path = WEB_DIR / path
     if file_path.is_file():
         return send_from_directory(WEB_DIR, path)
+    if (file_path / "index.html").is_file():
+        return send_from_directory(file_path, "index.html")
     return jsonify({"error": "Halaman tidak ditemukan"}), 404
 
 
@@ -177,7 +236,13 @@ def login():
     session.clear()
     session["identifier"] = user["identifier"]
     session["peran"] = user["peran"]
-    destination = "/mahasiswa/dashboard.html" if user["peran"] == "mahasiswa" else "/admin/dashboard.html"
+    
+    if user["peran"] == "mahasiswa":
+        destination = "/mahasiswa/dashboard.html"
+    elif user["peran"] == "kiosk":
+        destination = "/kiosk.html"
+    else:
+        destination = "/admin/dashboard.html"
     return jsonify(
         {
             "user": {
@@ -205,7 +270,7 @@ def me():
 @app.route("/api/sessions", methods=["GET", "POST"])
 def sessions_api():
     if request.method == "POST":
-        user, error = login_required("dosen", "PLP")
+        user, error = login_required("operator", "dosen", "PLP")
         if error:
             return error
         data, error = validate_session_payload(request.get_json(silent=True))
@@ -216,19 +281,21 @@ def sessions_api():
         cursor = conn.execute(
             """
             INSERT INTO sesi
-            (lab, mata_kuliah, kelas, tanggal, jam_mulai, jam_selesai, dosen, ruang, aktif, dibuat_oleh)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (lab, mata_kuliah, kelas, tanggal, jam_mulai, jam_selesai, dosen, ruang, aktif, dibuat_oleh,
+             wajib_helm, wajib_baju, wajib_jeans, wajib_sepatu)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["lab"], data["mata_kuliah"], data["kelas"], data["tanggal"],
                 data["jam_mulai"], data["jam_selesai"], data["dosen"], data["ruang"],
                 data["aktif"], user["id"],
+                data["wajib_helm"], data["wajib_baju"], data["wajib_jeans"], data["wajib_sepatu"],
             ),
         )
         conn.commit()
         session_id = cursor.lastrowid
         row = conn.execute("SELECT * FROM sesi WHERE id = ?", (session_id,)).fetchone()
-        rule = apd_rule(conn, data["lab"])
+        rule = session_apd_rule(conn, row)
         conn.close()
         result = dict(row)
         result["wajib"] = rule["wajib"]
@@ -250,10 +317,7 @@ def sessions_api():
     result = []
     for row in rows:
         item = dict(row)
-        rule = apd_rule(conn, item["lab"])
-        if not rule:
-            conn.close()
-            return jsonify({"error": f"Aturan APD untuk lab {item['lab']} belum tersedia"}), 409
+        rule = session_apd_rule(conn, item)
         item["wajib"] = rule["wajib"]
         item["aturan_aktif"] = rule["aktif"]
         result.append(item)
@@ -301,12 +365,31 @@ def validate_session_payload(data):
         values["aktif"] = active
     else:
         return None, (jsonify({"error": "Status sesi tidak valid"}), 400)
+
+    # Validasi Aturan APD Khusus Sesi / Mata Kuliah (default mengikuti aturan lab jika tidak diberikan)
+    conn = get_db()
+    lab_defaults = apd_rule(conn, values["lab"]) or {
+        "wajib_helm": 1, "wajib_baju": 1, "wajib_jeans": 1, "wajib_sepatu": 1
+    }
+    conn.close()
+
+    for item in ("wajib_helm", "wajib_baju", "wajib_jeans", "wajib_sepatu"):
+        val = data.get(item)
+        if val is None:
+            values[item] = int(lab_defaults.get(item, 1))
+        elif isinstance(val, bool):
+            values[item] = int(val)
+        elif val in (0, 1, "0", "1"):
+            values[item] = int(val)
+        else:
+            values[item] = 1
+
     return values, None
 
 
 @app.route("/api/sessions/<int:sesi_id>", methods=["PUT", "DELETE"])
 def session_detail(sesi_id):
-    _, error = login_required("dosen", "PLP")
+    _, error = login_required("operator", "dosen", "PLP")
     if error:
         return error
 
@@ -327,18 +410,21 @@ def session_detail(sesi_id):
             """
             UPDATE sesi
             SET lab = ?, mata_kuliah = ?, kelas = ?, tanggal = ?, jam_mulai = ?,
-                jam_selesai = ?, dosen = ?, ruang = ?, aktif = ?
+                jam_selesai = ?, dosen = ?, ruang = ?, aktif = ?,
+                wajib_helm = ?, wajib_baju = ?, wajib_jeans = ?, wajib_sepatu = ?
             WHERE id = ?
             """,
             (
                 data["lab"], data["mata_kuliah"], data["kelas"], data["tanggal"],
                 data["jam_mulai"], data["jam_selesai"], data["dosen"], data["ruang"],
-                data["aktif"], sesi_id,
+                data["aktif"],
+                data["wajib_helm"], data["wajib_baju"], data["wajib_jeans"], data["wajib_sepatu"],
+                sesi_id,
             ),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM sesi WHERE id = ?", (sesi_id,)).fetchone()
-        rule = apd_rule(conn, data["lab"])
+        rule = session_apd_rule(conn, row)
         conn.close()
         result = dict(row)
         result["wajib"] = rule["wajib"]
@@ -629,13 +715,30 @@ def kiosk_identity(data):
         return None, (jsonify({"error": "Data identitas mahasiswa tidak valid"}), 400)
 
     nim = str(data.get("nim", "")).strip()
+    kelas = str(data.get("kelas", "")).strip()
     nama = str(data.get("nama", "")).strip()
+
     if not nim and not nama:
-        return None, (jsonify({"error": "NIM atau Nama wajib diisi"}), 400)
+        return None, (jsonify({"error": "NIM wajib diisi"}), 400)
 
     conn = get_db()
     row = None
-    if nim:
+    if nim and kelas:
+        # Verifikasi pencocokan spesifik NIM dan Kelas
+        row = conn.execute(
+            "SELECT nim, nama, kelas FROM mahasiswa WHERE nim = ? AND UPPER(kelas) = UPPER(?)",
+            (nim, kelas),
+        ).fetchone()
+        if not row:
+            # Periksa apakah NIM ada tetapi kelasnya tidak cocok
+            exist_nim = conn.execute(
+                "SELECT kelas FROM mahasiswa WHERE nim = ?", (nim,)
+            ).fetchone()
+            conn.close()
+            if exist_nim:
+                return None, (jsonify({"error": f"NIM terdaftar di kelas {exist_nim['kelas']}, bukan kelas {kelas}"}), 400)
+            return None, (jsonify({"error": "Data mahasiswa dengan NIM tersebut tidak ditemukan"}), 404)
+    elif nim:
         row = conn.execute(
             "SELECT nim, nama, kelas FROM mahasiswa WHERE nim = ?",
             (nim,),
@@ -652,7 +755,7 @@ def kiosk_identity(data):
 
     student = dict(row)
 
-    # 1. Autentikasi dengan kata sandi jika disertakan (opsional untuk kiosk)
+    # Autentikasi dengan kata sandi jika disertakan (opsional)
     password = data.get("password")
     if password is not None and str(password).strip():
         user = conn.execute(
@@ -665,7 +768,6 @@ def kiosk_identity(data):
         return student, None
 
     conn.close()
-    # 2. Mode Kiosk Terminal: identitas valid langsung tanpa mewajibkan kata sandi
     return student, None
 
 
@@ -696,10 +798,10 @@ def kiosk_session(student, session_id):
     if row["kelas"] != student["kelas"]:
         conn.close()
         return None, None, (jsonify({"error": "Sesi ini bukan untuk kelas Anda"}), 403)
-    rule = apd_rule(conn, row["lab"])
+    rule = session_apd_rule(conn, row)
     conn.close()
     if not rule or not rule["aktif"]:
-        return None, None, (jsonify({"error": "Aturan APD lab ini tidak aktif"}), 409)
+        return None, None, (jsonify({"error": "Aturan APD sesi ini tidak aktif"}), 409)
     return dict(row), rule, None
 
 
@@ -740,7 +842,7 @@ def kiosk_context():
 
     sessions = []
     for row in rows:
-        rule = apd_rule(conn, row["lab"])
+        rule = session_apd_rule(conn, row)
         if rule and rule["aktif"]:
             item = dict(row)
             item["wajib"] = rule["wajib"]
@@ -752,6 +854,82 @@ def kiosk_context():
         "students": all_students,
         "sessions": sessions
     })
+
+
+@app.route("/api/kiosk/heartbeat", methods=["POST"])
+def kiosk_heartbeat():
+    data = request.get_json(silent=True) or {}
+    kode = str(data.get("kode", "KSK-AE-01")).strip()
+    nama = str(data.get("nama", "PC Kiosk Jurusan AE")).strip()
+    lokasi = str(data.get("lokasi", "Laboratorium AE")).strip()
+    status_kamera = str(data.get("status_kamera", "aktif")).strip()
+    aktivitas = str(data.get("aktivitas", "Siaga mendeteksi")).strip()
+    frame_snapshot = data.get("frame_snapshot")  # base64 data url image
+
+    now = datetime.now().isoformat(timespec="seconds")
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM perangkat_kiosk WHERE kode = ?", (kode,)
+    ).fetchone()
+
+    if existing:
+        if frame_snapshot:
+            conn.execute(
+                """
+                UPDATE perangkat_kiosk
+                SET status_kamera = ?, aktivitas_terakhir = ?, frame_snapshot = ?, last_heartbeat = ?
+                WHERE kode = ?
+                """,
+                (status_kamera, aktivitas, frame_snapshot, now, kode),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE perangkat_kiosk
+                SET status_kamera = ?, aktivitas_terakhir = ?, last_heartbeat = ?
+                WHERE kode = ?
+                """,
+                (status_kamera, aktivitas, now, kode),
+            )
+    else:
+        conn.execute(
+            """
+            INSERT INTO perangkat_kiosk (kode, nama, lokasi, status_kamera, frame_snapshot, aktivitas_terakhir, last_heartbeat)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (kode, nama, lokasi, status_kamera, frame_snapshot, aktivitas, now),
+        )
+
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "ok", "timestamp": now})
+
+
+@app.route("/api/kiosk/devices", methods=["GET"])
+def get_kiosk_devices():
+    _, error = login_required("operator", "dosen", "PLP")
+    if error:
+        return error
+
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM perangkat_kiosk ORDER BY id ASC"
+    ).fetchall()
+    conn.close()
+
+    now = datetime.now()
+    devices = []
+    for row in rows:
+        item = dict(row)
+        try:
+            hb_time = datetime.fromisoformat(item["last_heartbeat"])
+            diff_seconds = (now - hb_time).total_seconds()
+            item["online"] = diff_seconds <= 30
+        except Exception:
+            item["online"] = False
+        devices.append(item)
+
+    return jsonify({"devices": devices})
 
 
 @app.route("/api/student/overview")
@@ -769,7 +947,7 @@ def student_overview():
     ).fetchall()
     sessions = []
     for row in session_rows:
-        rule = apd_rule(conn, row["lab"])
+        rule = session_apd_rule(conn, row)
         if rule and rule["aktif"]:
             item = dict(row)
             item["wajib"] = rule["wajib"]
@@ -779,7 +957,8 @@ def student_overview():
         """
         SELECT a.id, a.waktu, a.helm, a.baju, a.jeans, a.sepatu, a.status,
                s.id AS sesi_id, s.tanggal, s.jam_mulai, s.jam_selesai,
-               s.mata_kuliah, s.lab, s.ruang
+               s.mata_kuliah, s.lab, s.ruang,
+               s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu
         FROM absensi a
         JOIN sesi s ON s.id = a.sesi_id
         WHERE a.nim = ?
@@ -787,11 +966,65 @@ def student_overview():
         """,
         (student["nim"],),
     ).fetchall()
+    
+    # Ambil data pelunasan kompensasi yang sudah diajukan
+    settlement_rows = conn.execute(
+        """
+        SELECT * FROM kompensasi_pelunasan WHERE nim = ?
+        """,
+        (student["nim"],),
+    ).fetchall()
+    settlements_by_absensi = {}
+    for s_row in settlement_rows:
+        settlements_by_absensi[s_row["absensi_id"]] = dict(s_row)
+
+    # Ambil kasus SP yang diterbitkan / draf untuk mahasiswa ini
+    case_rows = conn.execute(
+        """
+        SELECT k.*, p.nama AS periode_nama, s.mata_kuliah, s.tanggal, a.waktu
+        FROM kasus_tindak_lanjut k
+        JOIN absensi a ON a.id = k.absensi_id
+        JOIN sesi s ON s.id = a.sesi_id
+        LEFT JOIN periode_akademik p ON p.id = k.periode_id
+        WHERE a.nim = ?
+        ORDER BY k.id DESC
+        """,
+        (student["nim"],),
+    ).fetchall()
+    cases = [dict(c) for c in case_rows]
+
     attendance = []
+    total_late_minutes = 0
+    total_compensation_minutes = 0
+    total_resolved_minutes = 0
+
     for row in attendance_rows:
         item = dict(row)
-        rule = apd_rule(conn, item["lab"])
+        rule = session_apd_rule(conn, item)
         item["wajib"] = rule["wajib"] if rule else []
+
+        late_minutes, compensation = attendance_tardiness(
+            item["tanggal"], item["jam_mulai"], item["waktu"]
+        )
+        item["terlambat_menit"] = late_minutes or 0
+        item["kompensasi_menit"] = compensation or 0
+        item["status_kehadiran"] = "terlambat" if (late_minutes and late_minutes > 0) else "tepat_waktu"
+
+        if late_minutes and late_minutes > 0:
+            total_late_minutes += late_minutes
+            total_compensation_minutes += (compensation or 0)
+
+        # Cek pelunasan
+        settlement = settlements_by_absensi.get(item["id"])
+        item["pelunasan"] = settlement
+        if settlement and settlement["status"] == "selesai":
+            item["diselesaikan_menit"] = settlement["menit_selesai"]
+            total_resolved_minutes += settlement["menit_selesai"]
+        elif settlement and settlement["status"] == "menunggu_validasi":
+            item["diselesaikan_menit"] = 0
+        else:
+            item["diselesaikan_menit"] = 0
+
         attendance.append(item)
 
     summary = {
@@ -801,7 +1034,84 @@ def student_overview():
         "menunggu_validasi": sum(
             item["status"] == "menunggu_validasi" for item in attendance
         ),
+        "total_terlambat_menit": total_late_minutes,
+        "total_kompensasi_menit": total_compensation_minutes,
+        "total_diselesaikan_menit": total_resolved_minutes,
+        "sisa_kompensasi_menit": max(0, total_compensation_minutes - total_resolved_minutes),
     }
+
+    # Buat notifikasi terpadu dari aktivitas mahasiswa
+    notifications = []
+    
+    # 1. Notifikasi SP dari kasus_tindak_lanjut
+    for c in cases:
+        if c.get("status") == "diterbitkan":
+            sp_lvl = c.get("sp_level") or 1
+            notifications.append({
+                "id": f"sp-{c['id']}",
+                "title": f"Surat Peringatan SP-{sp_lvl} Diterbitkan",
+                "desc": f"Surat Peringatan SP-{sp_lvl} telah diterbitkan atas ketidaksesuaian/keterlambatan pada mata kuliah {c.get('mata_kuliah', 'Praktikum')}. Silakan ambil fisik SP di Administrasi Jurusan.",
+                "date": c.get("diterbitkan_pada") or c.get("dikonfirmasi_pada") or today,
+                "badge": f"SP-{sp_lvl}",
+                "badge_class": "mhs-badge-red",
+                "is_violation": True,
+                "is_new": True,
+            })
+
+    # 2. Notifikasi absensi baru / menunggu validasi / kurang
+    for att in attendance[:5]:
+        att_time = att.get("waktu", "")
+        time_display = att_time[11:16] if len(att_time) >= 16 else ""
+        date_display = att.get("tanggal", "")
+        mk = att.get("mata_kuliah", "Praktikum")
+
+        if att["status"] == "menunggu_validasi":
+            notifications.append({
+                "id": f"att-val-{att['id']}",
+                "title": "Hasil pemeriksaan menunggu validasi",
+                "desc": f"Parameter APD pada sesi {mk} sedang dalam peninjauan verifikasi admin. Kehadiran Anda tetap tercatat.",
+                "date": f"{date_display} · {time_display} WIB",
+                "badge": "Menunggu Validasi",
+                "badge_class": "mhs-badge-amber",
+                "is_violation": False,
+                "is_new": False,
+            })
+        elif att["status"] == "kurang":
+            notifications.append({
+                "id": f"att-kurang-{att['id']}",
+                "title": "Presensi dengan catatan atribut APD",
+                "desc": f"Presensi sesi {mk} tercatat dengan atribut APD yang tidak lengkap. Pastikan memakai kelengkapan APD wajib pada sesi berikutnya.",
+                "date": f"{date_display} · {time_display} WIB",
+                "badge": "Tidak Lengkap",
+                "badge_class": "mhs-badge-red",
+                "is_violation": False,
+                "is_new": False,
+            })
+        elif att["status"] == "lengkap":
+            notifications.append({
+                "id": f"att-ok-{att['id']}",
+                "title": "Absensi berhasil dicatat",
+                "desc": f"Kehadiran pada sesi {mk} tercatat lengkap dan sesuai aturan APD pukul {time_display} WIB.",
+                "date": f"{date_display} · {time_display} WIB",
+                "badge": "Lengkap",
+                "badge_class": "mhs-badge-green",
+                "is_violation": False,
+                "is_new": False,
+            })
+
+    # 3. Notifikasi pengingat sesi hari ini jika ada
+    for ses in sessions:
+        notifications.append({
+            "id": f"ses-{ses['id']}",
+            "title": "Jadwal praktikum hari ini",
+            "desc": f"Sesi {ses['mata_kuliah']} dimulai pukul {ses['jam_mulai']} - {ses['jam_selesai']} WIB di {ses['ruang'] or ses['lab']}.",
+            "date": f"Hari ini · {ses['jam_mulai']} WIB",
+            "badge": "Jadwal",
+            "badge_class": "mhs-badge-blue",
+            "is_violation": False,
+            "is_new": True,
+        })
+
     conn.close()
     return jsonify(
         {
@@ -809,8 +1119,58 @@ def student_overview():
             "sessions_today": sessions,
             "attendance": attendance,
             "summary": summary,
+            "cases": cases,
+            "notifications": notifications,
         }
     )
+
+
+@app.route("/api/student/compensation/submit", methods=["POST"])
+def student_submit_compensation():
+    _, student, error = kiosk_student()
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    absensi_id = data.get("absensi_id")
+    uraian_tugas = str(data.get("uraian_tugas", "")).strip()
+
+    if not absensi_id or not uraian_tugas:
+        return jsonify({"error": "Sesi absensi dan uraian tugas wajib diisi"}), 400
+
+    conn = get_db()
+    att = conn.execute(
+        """
+        SELECT a.*, s.tanggal, s.jam_mulai
+        FROM absensi a
+        JOIN sesi s ON s.id = a.sesi_id
+        WHERE a.id = ? AND a.nim = ?
+        """,
+        (absensi_id, student["nim"]),
+    ).fetchone()
+
+    if not att:
+        conn.close()
+        return jsonify({"error": "Data absensi tidak ditemukan"}), 404
+
+    late_minutes, comp_minutes = attendance_tardiness(
+        att["tanggal"], att["jam_mulai"], att["waktu"]
+    )
+    menit_kompen = comp_minutes or 0
+
+    now = datetime.now().isoformat(timespec="seconds")
+    conn.execute(
+        """
+        INSERT INTO kompensasi_pelunasan
+        (absensi_id, nim, uraian_tugas, menit_selesai, status, diajukan_pada)
+        VALUES (?, ?, ?, ?, 'menunggu_validasi', ?)
+        """,
+        (absensi_id, student["nim"], uraian_tugas, menit_kompen, now),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"ok": True, "message": "Pengajuan bukti kompensasi berhasil dikirim."})
 
 
 @app.route("/api/kiosk/scan", methods=["POST"])
@@ -872,7 +1232,7 @@ def kiosk_scan():
             ).fetchone()
 
     if session_row:
-        rule = apd_rule(conn, session_row["lab"])
+        rule = session_apd_rule(conn, session_row)
     conn.close()
 
     if not session_row or not rule or not rule["aktif"]:
@@ -1045,7 +1405,8 @@ def kiosk_attendance():
         return jsonify({"error": "Anda sudah absen pada sesi ini"}), 409
     row = conn.execute(
         """
-        SELECT a.*, m.nama, m.kelas, s.lab, s.mata_kuliah
+        SELECT a.*, m.nama, m.kelas, s.lab, s.mata_kuliah, s.jam_mulai, s.jam_selesai, s.ruang, s.dosen,
+               s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu
         FROM absensi a
         JOIN mahasiswa m ON m.nim = a.nim
         JOIN sesi s ON s.id = a.sesi_id
@@ -1054,12 +1415,27 @@ def kiosk_attendance():
         (cursor.lastrowid,),
     ).fetchone()
     conn.close()
+
+    att_dict = dict(row)
+    late_minutes, compensation = attendance_tardiness(
+        session_row["tanggal"], session_row["jam_mulai"], att_dict["waktu"]
+    )
+    att_dict["terlambat_menit"] = late_minutes or 0
+    att_dict["kompensasi_menit"] = compensation or 0
+    att_dict["status_kehadiran"] = "terlambat" if (late_minutes and late_minutes > 0) else "tepat_waktu"
+
     return jsonify(
         {
-            "attendance": dict(row),
+            "attendance": att_dict,
             "face": face,
             "apd": apd,
             "wajib": rule["wajib"],
+            "aturan_sesi": {
+                "helm": bool(rule.get("wajib_helm")),
+                "baju": bool(rule.get("wajib_baju")),
+                "jeans": bool(rule.get("wajib_jeans")),
+                "sepatu": bool(rule.get("wajib_sepatu")),
+            },
         }
     ), 201
 
@@ -1294,7 +1670,7 @@ def followup_api():
 
 @app.route("/api/follow-up/periods", methods=["POST"])
 def create_followup_period():
-    user, error = login_required("dosen", "PLP")
+    user, error = login_required("operator", "dosen", "PLP")
     if error:
         return error
     data = request.get_json(silent=True)
@@ -1352,7 +1728,7 @@ def create_followup_period():
 
 @app.route("/api/follow-up/<int:attendance_id>/confirm", methods=["POST"])
 def confirm_followup_violation(attendance_id):
-    user, error = login_required("dosen", "PLP")
+    user, error = login_required("operator", "dosen", "PLP")
     if error:
         return error
 
@@ -1447,7 +1823,7 @@ def confirm_followup_violation(attendance_id):
 
 @app.route("/api/follow-up/<int:attendance_id>/dismiss", methods=["POST"])
 def dismiss_followup_violation(attendance_id):
-    user, error = login_required("dosen", "PLP")
+    user, error = login_required("operator", "dosen", "PLP")
     if error:
         return error
     data = request.get_json(silent=True)
@@ -1524,7 +1900,7 @@ def dismiss_followup_violation(attendance_id):
 
 @app.route("/api/follow-up/cases/<int:case_id>/issue", methods=["POST"])
 def issue_followup_warning(case_id):
-    user, error = login_required("dosen", "PLP")
+    user, error = login_required("operator", "dosen", "PLP")
     if error:
         return error
     conn = get_db()
@@ -1618,7 +1994,7 @@ def update_jeans(attendance_id):
 
 
 def attendance_report_rows():
-    _, error = login_required("dosen", "PLP")
+    _, error = login_required("operator", "dosen", "PLP")
     if error:
         return None, error
 
@@ -1890,6 +2266,19 @@ def dashboard_summary():
             today.isoformat(),
         ],
     ).fetchall()
+    # Ambil status kiosk monitoring
+    kiosk_rows = conn.execute("SELECT * FROM perangkat_kiosk ORDER BY id ASC").fetchall()
+    now_dt = datetime.now()
+    kiosk_devices = []
+    for k_row in kiosk_rows:
+        kd = dict(k_row)
+        try:
+            diff_s = (now_dt - datetime.fromisoformat(kd["last_heartbeat"])).total_seconds()
+            kd["online"] = diff_s <= 30
+        except Exception:
+            kd["online"] = False
+        kiosk_devices.append(kd)
+
     conn.close()
     return jsonify(
         {
@@ -1905,6 +2294,7 @@ def dashboard_summary():
             "validation_queue": [dict(row) for row in queue_rows],
             "sessions_today": [dict(row) for row in sessions_today],
             "trend": [dict(row) for row in trend_rows],
+            "kiosk_devices": kiosk_devices,
         }
     )
 
@@ -1953,6 +2343,14 @@ def init_db():
         conn.execute("ALTER TABLE sesi ADD COLUMN dosen TEXT NOT NULL DEFAULT ''")
     if "ruang" not in session_columns:
         conn.execute("ALTER TABLE sesi ADD COLUMN ruang TEXT NOT NULL DEFAULT ''")
+    if "wajib_helm" not in session_columns:
+        conn.execute("ALTER TABLE sesi ADD COLUMN wajib_helm INTEGER NOT NULL DEFAULT 1")
+    if "wajib_baju" not in session_columns:
+        conn.execute("ALTER TABLE sesi ADD COLUMN wajib_baju INTEGER NOT NULL DEFAULT 1")
+    if "wajib_jeans" not in session_columns:
+        conn.execute("ALTER TABLE sesi ADD COLUMN wajib_jeans INTEGER NOT NULL DEFAULT 1")
+    if "wajib_sepatu" not in session_columns:
+        conn.execute("ALTER TABLE sesi ADD COLUMN wajib_sepatu INTEGER NOT NULL DEFAULT 1")
     conn.execute(
         """
         UPDATE sesi SET dosen = COALESCE(
@@ -2043,6 +2441,23 @@ def init_db():
         "ON kasus_tindak_lanjut (periode_id, status)"
     )
     conn.execute(
+        "CREATE TABLE IF NOT EXISTS kompensasi_pelunasan "
+        "(id INTEGER PRIMARY KEY AUTOINCREMENT, absensi_id INTEGER NOT NULL, "
+        "nim TEXT NOT NULL, uraian_tugas TEXT NOT NULL, menit_selesai INTEGER NOT NULL, "
+        "bukti_path TEXT, status TEXT NOT NULL DEFAULT 'menunggu_validasi', "
+        "diajukan_pada TEXT NOT NULL, divalidasi_oleh INTEGER, divalidasi_pada TEXT, "
+        "FOREIGN KEY (absensi_id) REFERENCES absensi(id), "
+        "FOREIGN KEY (nim) REFERENCES mahasiswa(nim), "
+        "FOREIGN KEY (divalidasi_oleh) REFERENCES pengguna(id))"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS perangkat_kiosk "
+        "(id INTEGER PRIMARY KEY AUTOINCREMENT, kode TEXT UNIQUE NOT NULL, "
+        "nama TEXT NOT NULL, lokasi TEXT NOT NULL, status_kamera TEXT NOT NULL DEFAULT 'standby', "
+        "frame_snapshot TEXT, aktivitas_terakhir TEXT, last_heartbeat TEXT NOT NULL, "
+        "versi TEXT NOT NULL DEFAULT '1.0.4')"
+    )
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS aturan_apd "
         "(lab TEXT PRIMARY KEY, wajib_helm INTEGER NOT NULL, wajib_baju INTEGER NOT NULL, "
         "wajib_jeans INTEGER NOT NULL, wajib_sepatu INTEGER NOT NULL, "
@@ -2068,8 +2483,10 @@ def init_db():
 
     if conn.execute("SELECT COUNT(*) FROM pengguna").fetchone()[0] == 0:
         users = [
+            ("123456789", "Administrator & Dosen", "operator", "admin123"),
+            ("000000000", "PC Kiosk Jurusan AE", "kiosk", "kiosk123"),
             ("admin", "Administrator SIAP", "operator", "admin123"),
-            ("dosen01", "Dr. Dosen Polman", "dosen", "dosen123"),
+            ("dosen01", "Dr. Dosen Polman", "operator", "dosen123"),
             ("plp01", "Petugas PLP", "PLP", "plp123"),
             ("224443009", "Lukita Falensia Marjan", "mahasiswa", "mahasiswa123"),
             ("224443003", "Bintang Shobri Al Chakim", "mahasiswa", "mahasiswa123"),

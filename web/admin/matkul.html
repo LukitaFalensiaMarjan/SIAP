@@ -242,6 +242,33 @@
               <option value="0">Nonaktif</option>
             </select>
           </div>
+          <!-- Konfigurasi Standar APD Khusus Sesi / Mata Kuliah -->
+          <div style="margin-top: 14px; padding: 12px; background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px;">
+            <div style="font-size: 11px; font-weight: 800; color: #0F172A; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">
+              Kebutuhan Atribut APD Praktikum
+            </div>
+            <div style="font-size: 11px; color: #64748B; margin-bottom: 10px;">
+              Tentukan atribut yang wajib dipakai mahasiswa saat presensi pada mata kuliah ini:
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #334155;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="jadwalWajibHelm" checked style="width: 16px; height: 16px; accent-color: #0284C7;">
+                <span>🪖 Wajib Helm K3</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="jadwalWajibBaju" checked style="width: 16px; height: 16px; accent-color: #0284C7;">
+                <span>👔 Wajib Baju Praktik</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="jadwalWajibJeans" checked style="width: 16px; height: 16px; accent-color: #0284C7;">
+                <span>👖 Wajib Celana Jeans</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="jadwalWajibSepatu" checked style="width: 16px; height: 16px; accent-color: #0284C7;">
+                <span>👞 Wajib Sepatu Safety</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="adm-modal-foot">
           <button type="button" class="adm-btn-foot-cancel" onclick="closeAdmModal('modalEditJadwal')">Batal</button>

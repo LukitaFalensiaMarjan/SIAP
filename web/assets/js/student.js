@@ -334,28 +334,250 @@ function renderStudentProfile(student) {
   setStudentText('studentProfileClass', student.kelas);
 }
 
-function renderUnavailableStudentPage() {
-  const title = document.querySelector('.mhs-page-title');
-  const main = document.querySelector('.mhs-container');
-  if (!title || !main || !title.textContent.includes('Kompensasi')) return;
-  const header = main.querySelector('.mhs-page-header');
-  const card = document.createElement('section');
-  card.className = 'mhs-card-white';
-  card.style.cssText = 'padding:24px;margin-top:18px;';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Fitur belum tersedia';
-  heading.style.cssText = 'font-size:18px;font-weight:800;color:#0F172A;margin:0 0 8px;';
-  const message = document.createElement('p');
-  message.textContent = 'Data evaluasi dan kompensasi belum dapat ditampilkan karena belum ada tabel penyimpanan atau ketentuan perhitungan yang disepakati.';
-  message.style.cssText = 'font-size:13px;line-height:1.6;color:#64748B;margin:0;';
-  card.append(heading, message);
-  main.replaceChildren();
-  if (header) main.appendChild(header);
-  main.appendChild(card);
+// Compensation Calculator Simulator
+function simulateCompensation(minutes) {
+  const totalLate = parseInt(minutes, 10) || 0;
+  const compMinutes = totalLate * 5;
+  const jp = Math.floor(compMinutes / 50);
+  const remainingMins = compMinutes % 50;
+
+  const lateEl = document.getElementById('calcLateMinutes');
+  const compEl = document.getElementById('calcCompMinutes');
+  const jpEl = document.getElementById('calcCompJP');
+
+  if (lateEl) lateEl.innerText = `${totalLate} menit`;
+  if (compEl) compEl.innerText = `${compMinutes} menit`;
+  if (jpEl) jpEl.innerText = `${jp} JP ${remainingMins} menit`;
+}
+
+function renderStudentCompensation(result) {
+  const summary = result.summary || {};
+  const attendance = result.attendance || [];
+
+  const totalLate = summary.total_terlambat_menit || 0;
+  const totalComp = summary.total_kompensasi_menit || 0;
+  const totalResolved = summary.total_diselesaikan_menit || 0;
+  const remainComp = summary.sisa_kompensasi_menit != null ? summary.sisa_kompensasi_menit : Math.max(0, totalComp - totalResolved);
+
+  const lateEl = document.getElementById('calcLateMinutes');
+  const compEl = document.getElementById('calcCompMinutes');
+  const jpEl = document.getElementById('calcCompJP');
+  const remainDebtEl = document.getElementById('calcRemainDebt');
+
+  if (lateEl) lateEl.innerText = `${totalLate} menit`;
+  if (compEl) compEl.innerText = `${totalComp} menit`;
+  if (jpEl) {
+    const jp = Math.floor(totalComp / 50);
+    const rem = totalComp % 50;
+    jpEl.innerText = `${jp} JP ${rem} menit`;
+  }
+  if (remainDebtEl) {
+    remainDebtEl.innerText = `${remainComp} menit`;
+    const remainJpEl = remainDebtEl.nextElementSibling;
+    if (remainJpEl) {
+      const rJp = Math.floor(remainComp / 50);
+      const rRem = remainComp % 50;
+      remainJpEl.innerText = `${rJp} JP ${rRem} menit`;
+    }
+  }
+
+  // Progress Bar
+  const percent = totalComp > 0 ? Math.min(100, Math.round((totalResolved / totalComp) * 100)) : 100;
+  const progFill = document.querySelector('.mhs-progress-fill');
+  if (progFill) progFill.style.width = `${percent}%`;
+  const progHead = document.querySelector('.mhs-progress-head span:last-child');
+  if (progHead) progHead.innerText = `${percent}%`;
+
+  // Render Tabel Rincian Per Sesi Kompensasi
+  const tableBody = document.querySelector('.mhs-table-clean tbody');
+  const selectSesi = document.querySelector('#modalSubmitKompensasi select');
+  if (tableBody) {
+    tableBody.replaceChildren();
+    if (selectSesi) selectSesi.replaceChildren();
+
+    const lateSessions = attendance.filter(a => a.terlambat_menit > 0);
+    if (!lateSessions.length) {
+      const row = tableBody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 6;
+      cell.style.color = '#64748B';
+      cell.style.padding = '18px';
+      cell.innerText = 'Tidak ada catatan keterlambatan atau kewajiban kompensasi.';
+
+      if (selectSesi) {
+        const opt = document.createElement('option');
+        opt.innerText = 'Tidak ada sesi yang memerlukan kompensasi';
+        selectSesi.appendChild(opt);
+      }
+    } else {
+      lateSessions.forEach(item => {
+        const row = tableBody.insertRow();
+        const dateCell = row.insertCell();
+        dateCell.style.color = '#64748B';
+        dateCell.innerText = studentDate(item.tanggal);
+
+        const mkCell = row.insertCell();
+        mkCell.style.fontWeight = '700';
+        mkCell.innerText = item.mata_kuliah;
+
+        const lateCell = row.insertCell();
+        lateCell.style.color = '#D97706';
+        lateCell.style.fontWeight = '600';
+        lateCell.innerText = `${item.terlambat_menit} menit`;
+
+        const compCell = row.insertCell();
+        compCell.innerText = `${item.kompensasi_menit} menit`;
+
+        const resolvedCell = row.insertCell();
+        if (item.diselesaikan_menit > 0) {
+          resolvedCell.style.color = '#059669';
+          resolvedCell.style.fontWeight = '700';
+          resolvedCell.innerText = `${item.diselesaikan_menit} menit`;
+        } else {
+          resolvedCell.style.color = '#94A3B8';
+          resolvedCell.innerText = '—';
+        }
+
+        const statusCell = row.insertCell();
+        const badge = document.createElement('span');
+        if (item.diselesaikan_menit >= item.kompensasi_menit) {
+          badge.className = 'mhs-badge mhs-badge-green';
+          badge.innerText = 'Selesai';
+        } else if (item.pelunasan && item.pelunasan.status === 'menunggu_validasi') {
+          badge.className = 'mhs-badge mhs-badge-amber';
+          badge.innerText = 'Menunggu Validasi';
+        } else {
+          badge.className = 'mhs-badge mhs-badge-amber';
+          badge.innerText = 'Belum diselesaikan';
+        }
+        statusCell.appendChild(badge);
+
+        if (selectSesi && (!item.diselesaikan_menit || item.diselesaikan_menit < item.kompensasi_menit)) {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.innerText = `${item.mata_kuliah} (${studentDate(item.tanggal)} - ${item.kompensasi_menit} menit)`;
+          selectSesi.appendChild(opt);
+        }
+      });
+    }
+  }
+
+  // Handle Form Submit Bukti Pelunasan
+  const formSubmit = document.querySelector('#modalSubmitKompensasi form');
+  if (formSubmit && !formSubmit.dataset.bound) {
+    formSubmit.dataset.bound = 'true';
+    formSubmit.onsubmit = async (e) => {
+      e.preventDefault();
+      const sId = selectSesi ? selectSesi.value : null;
+      const taskInput = formSubmit.querySelector('input[type=\"text\"]');
+      const taskVal = taskInput ? taskInput.value.trim() : '';
+
+      if (!sId || !taskVal) {
+        showToast('Pilih sesi dan isi bentuk tugas pengganti.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/student/compensation/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ absensi_id: sId, uraian_tugas: taskVal })
+        });
+        const resJson = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(resJson.error || 'Gagal mengirim pengajuan.');
+        closeMhsModal('modalSubmitKompensasi');
+        showToast(resJson.message || 'Bukti kompensasi berhasil diajukan untuk diverifikasi!');
+        loadStudentOverview();
+      } catch (err) {
+        showToast(err.message);
+      }
+    };
+  }
+}
+
+function renderStudentNotifications(notifications) {
+  const dropdown = document.getElementById('mhsNotifDropdown');
+  const list = document.getElementById('mhsNotifCardsList');
+  const notifs = notifications || [];
+
+  // Update badge count
+  const bellBtns = document.querySelectorAll('.mhs-bell-btn');
+  bellBtns.forEach(btn => {
+    let badge = btn.querySelector('.mhs-bell-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'mhs-bell-badge';
+      btn.appendChild(badge);
+    }
+    badge.style.display = notifs.length > 0 ? 'inline-block' : 'none';
+  });
+
+  // Render in dropdown
+  if (dropdown) {
+    const listWrap = dropdown.querySelector('div[style*=\"max-height: 280px\"]') || dropdown.children[1];
+    if (listWrap) {
+      listWrap.replaceChildren();
+      if (!notifs.length) {
+        const p = document.createElement('p');
+        p.style.cssText = 'font-size:12px;color:#64748B;margin:0;padding:8px;';
+        p.innerText = 'Belum ada notifikasi baru.';
+        listWrap.appendChild(p);
+      } else {
+        notifs.forEach(n => {
+          const item = document.createElement('div');
+          item.style.cssText = `background:${n.is_violation ? '#FEF2F2' : '#F8FAFC'};padding:10px;border-radius:8px;border:1px solid ${n.is_violation ? '#FCA5A5' : '#E2E8F0'};cursor:pointer;margin-bottom:6px;`;
+          item.onclick = () => { window.location.href = 'notifikasi.html'; };
+          item.innerHTML = `
+            <div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;\">
+              <span style=\"font-size:12px;font-weight:700;color:${n.is_violation ? '#991B1B' : '#0F172A'};\">${n.title}</span>
+              <span class=\"mhs-badge ${n.badge_class || 'mhs-badge-blue'}\" style=\"font-size:9.5px;\">${n.badge || 'Baru'}</span>
+            </div>
+            <p style=\"font-size:11px;color:${n.is_violation ? '#7F1D1D' : '#64748B'};margin:0 0 4px;line-height:1.4;\">${n.desc}</p>
+            <span style=\"font-size:10px;color:#94A3B8;\">${n.date}</span>
+          `;
+          listWrap.appendChild(item);
+        });
+      }
+    }
+  }
+
+  // Render in notifikasi.html
+  if (list) {
+    list.replaceChildren();
+    if (!notifs.length) {
+      const emptyCard = document.createElement('div');
+      emptyCard.className = 'mhs-card-white';
+      emptyCard.style.cssText = 'padding:24px;color:#64748B;font-size:13px;';
+      emptyCard.innerText = 'Belum ada pemberitahuan atau catatan absensi.';
+      list.appendChild(emptyCard);
+    } else {
+      notifs.forEach(n => {
+        const card = document.createElement('div');
+        card.className = 'mhs-notif-card';
+        if (n.is_violation) {
+          card.style.cssText = 'border-left:4px solid #DC2626;background:#FEF2F2;cursor:pointer;';
+          card.onclick = () => showToast('Silakan menuju Administrasi Jurusan untuk pengambilan fisik Surat Peringatan (SP).');
+        } else {
+          card.style.cursor = 'pointer';
+          card.onclick = () => showToast(n.title);
+        }
+        card.innerHTML = `
+          <div class=\"mhs-notif-body\">
+            <div class=\"mhs-notif-title-row\">
+              <span class=\"mhs-notif-title\" style=\"${n.is_violation ? 'color:#991B1B;' : ''}\">${n.title}</span>
+              <span class=\"mhs-badge ${n.badge_class || 'mhs-badge-blue'}\">${n.badge || 'Baru'}</span>
+            </div>
+            <div class=\"mhs-notif-desc\" style=\"${n.is_violation ? 'color:#7F1D1D;font-weight:500;' : ''}\">${n.desc}</div>
+            <div class=\"mhs-notif-date\">${n.date}</div>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+  }
 }
 
 async function loadStudentOverview() {
-  renderUnavailableStudentPage();
   try {
     const response = await fetch('/api/student/overview');
     const result = await response.json().catch(() => ({}));
@@ -363,6 +585,8 @@ async function loadStudentOverview() {
     renderStudentProfile(result.student);
     renderStudentAttendance(result);
     renderStudentSessions(result.sessions_today || []);
+    renderStudentCompensation(result);
+    renderStudentNotifications(result.notifications || []);
     setStudentText('studentTodayDate', new Date().toLocaleDateString('id-ID', {
       weekday: 'long',
       day: '2-digit',
@@ -379,30 +603,9 @@ async function loadStudentOverview() {
 }
 
 function markAllNotificationsRead() {
-  showToast('Fitur notifikasi belum tersedia karena belum ada data notifikasi tersimpan.');
+  const badges = document.querySelectorAll('.mhs-bell-badge');
+  badges.forEach(b => b.style.display = 'none');
+  showToast('Semua notifikasi telah ditandai dibaca.');
 }
 
-function initStudentNotifications() {
-  const unavailableMessage = 'Notifikasi belum tersedia karena data notifikasi belum disimpan di database.';
-  const dropdown = document.getElementById('mhsNotifDropdown');
-  if (dropdown) {
-    dropdown.replaceChildren();
-    const message = document.createElement('p');
-    message.textContent = unavailableMessage;
-    message.style.cssText = 'font-size:12px;line-height:1.5;color:#64748B;margin:0;';
-    dropdown.appendChild(message);
-  }
-  const list = document.getElementById('mhsNotifCardsList');
-  if (list) {
-    list.replaceChildren();
-    const message = document.createElement('div');
-    message.className = 'mhs-card-white';
-    message.style.cssText = 'padding:24px;color:#64748B;font-size:13px;';
-    message.textContent = unavailableMessage;
-    list.appendChild(message);
-  }
-  document.querySelectorAll('.mhs-bell-badge').forEach(badge => badge.remove());
-}
-
-document.addEventListener('DOMContentLoaded', initStudentNotifications);
 document.addEventListener('DOMContentLoaded', loadStudentOverview);

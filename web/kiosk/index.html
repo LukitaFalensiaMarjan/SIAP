@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiosk Terminal Absensi — POLMAN SMART ATTENDANCE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/student.css">
+  <style>
+    .kiosk-camera-viewport {
+      aspect-ratio: 16 / 9;
+      min-height: 400px;
+      isolation: isolate;
+      position: relative;
+      overflow: hidden;
+      background: #071526;
+      border-radius: 12px;
+    }
+
+    .kiosk-camera-hud {
+      position: absolute;
+      top: 14px;
+      left: 18px;
+      right: 18px;
+      z-index: 9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .kiosk-camera-hud-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 7px;
+      background: rgba(15, 23, 42, 0.78);
+      color: #E2E8F0;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      backdrop-filter: blur(8px);
+    }
+
+    .kiosk-camera-hud-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #38BDF8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+    }
+
+    .kiosk-view-status-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      width: min(340px, calc(100% - 28px));
+      box-sizing: border-box;
+      background: rgba(10, 20, 36, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(10px);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    /* Kiosk APD Detection Tag Pills */
+    .kiosk-apd-tag-box {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.90);
+      border: 1px solid #94A3B8;
+      color: #F8FAFC;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      animation: fadeInTag 0.25s ease forwards;
+    }
+
+    @keyframes fadeInTag {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Student Selection Card Styles */
+    .kiosk-student-card-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 10px 12px;
+      background: #FFFFFF;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.18s ease;
+      font: inherit;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .kiosk-student-card-btn:hover {
+      border-color: #38BDF8;
+      background: #F0F9FF;
+      transform: translateY(-1px);
+    }
+
+    .kiosk-student-card-btn.selected {
+      border-color: #0284C7;
+      background: #F0F9FF;
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+    }
+
+    .kiosk-mhs-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .kiosk-mhs-avatar.active {
+      background: #0284C7;
+      color: #FFFFFF;
+    }
+
+    .kiosk-mhs-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 6px;
+      background: #F1F5F9;
+      color: #64748B;
+      transition: all 0.15s ease;
+    }
+
+    .kiosk-mhs-badge.active {
+      background: #0284C7;
+      color: #FFFFFF;
+    }
+
+    /* Success Card Overlay */
+    .kiosk-success-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 20, 38, 0.95);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      text-align: center;
+      z-index: 20;
+      display: none;
+      animation: fadeInOverlay 0.3s ease forwards;
+    }
+
+    .kiosk-camera-video {
+      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+    }
+
+    @media (max-width: 640px) {
+      .kiosk-camera-viewport {
+        aspect-ratio: 4 / 3;
+        min-height: 320px;
+      }
+      .kiosk-view-status-bar {
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        width: auto;
+        padding: 8px 10px;
+      }
+    }
+
+    @keyframes fadeInOverlay {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body class="kiosk-terminal-body">
+
+  <!-- ── 1. KIOSK APPLICATION TOPBAR ── -->
+  <header class="kiosk-header-bar">
+    <!-- Left: Back Button + POLMAN Logo -->
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <button class="kiosk-back-btn" onclick="window.location.href='../index.html'" title="Kembali ke halaman utama">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </button>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="assets/img/logo-polman.png" alt="POLMAN" style="height: 34px; width: auto; object-fit: contain;">
+        <div>
+          <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.8px; color: #64748B; text-transform: uppercase;">POLITEKNIK MANUFAKTUR BANDUNG</div>
+          <div style="font-size: 15px; font-weight: 800; color: #0B1E38; letter-spacing: -0.3px;">LAYAR KIOSK JURUSAN AE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Header Info & Keluar -->
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="text-align: right;">
+        <div style="font-size: 13.5px; font-weight: 800; color: #0F172A;" id="stepMainTitle">Terminal Kiosk Jurusan AE</div>
+        <div style="font-size: 11px; color: #64748B;" id="stepSubTitle">Verifikasi Wajah &amp; Inspeksi APD Real-Time</div>
+      </div>
+      <span class="kiosk-step-pill" id="stepPillBadge" style="background: #E0F2FE; color: #0369A1; font-weight: 800;">PC Kiosk</span>
+      <a href="../login.html" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Keluar dari Kiosk">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Keluar Kiosk</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ── 2. MAIN KIOSK SCANNING STAGE ── -->
+  <main class="kiosk-content-wrap">
+    
+    <!-- Title Row -->
+    <div class="kiosk-page-title-wrap">
+      <div class="kiosk-eyebrow" id="kioskEyebrow">TERMINAL KIOSK ABSENSI JURUSAN AE</div>
+      <h1 class="kiosk-page-title" id="kioskPageTitle">Presensi Mahasiswa &amp; Inspeksi APD K3</h1>
+      <p class="kiosk-page-desc" id="kioskPageDesc">Masukkan <strong>NIM</strong> dan <strong>Kelas</strong> Anda untuk memulai. Berdirilah sekitar 1,5–2 meter dari kamera di dalam koridor siluet manusia untuk verifikasi wajah dan inspeksi APD otomatis.</p>
+    </div>
+
+    <!-- 2-Column Responsive Layout -->
+    <div class="kiosk-grid-2">
+      
+      <!-- ── COLUMN 1: INFORMASI MAHASISWA & SESI ── -->
+      <div class="kiosk-card" id="leftStudentCard">
+        <div>
+          <!-- Card Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;">IDENTITAS MAHASISWA</div>
+              <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;" id="kioskAuthTitle">Input Presensi</h3>
+            </div>
+            <span id="kioskAuthStatusPill" style="font-size: 11px; font-weight: 700; color: #64748B; background: #F1F5F9; padding: 3px 8px; border-radius: 6px;">Siap Input</span>
+          </div>
+
+          <!-- Form Input NIM & Kelas Mahasiswa -->
+          <div id="kioskLoginFormBox" style="background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #475569; margin-bottom: 10px;">
+              MASUKKAN DATA MAHASISWA
+            </div>
+            <form id="kioskStudentLoginForm" onsubmit="handleKioskStudentLogin(event)">
+              <div style="margin-bottom: 10px;">
+                <label for="kioskInputNim" style="display: block; font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 4px;">NIM Mahasiswa</label>
+                <input type="text" id="kioskInputNim" placeholder="Contoh: 224443003" required autofocus style="width: 100%; padding: 9px 12px; border: 1.5px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-family: inherit;">
+              </div>
+              <div style="margin-bottom: 12px;">
+                <label for="kioskInputKelas" style="display: block; font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 4px;">Kelas Praktikum</label>
+                <input type="text" id="kioskInputKelas" placeholder="Contoh: 3AEC1" required style="width: 100%; padding: 9px 12px; border: 1.5px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-family: inherit; text-transform: uppercase;">
+              </div>
+              <div id="kioskLoginError" style="display: none; font-size: 11px; color: #DC2626; margin-bottom: 10px; font-weight: 600;"></div>
+              <button type="submit" id="btnKioskStudentLogin" style="width: 100%; height: 40px; border-radius: 6px; background: #0284C7; color: #FFF; border: none; font-weight: 800; font-size: 12.5px; cursor: pointer; transition: background 0.15s ease;">
+                Cari &amp; Konfirmasi Mahasiswa &rarr;
+              </button>
+            </form>
+          </div>
+
+          <!-- Kartu Profil Mahasiswa Terverifikasi (Tampil setelah NIM & Kelas cocok) -->
+          <div id="kioskStudentProfileCard" style="display: none; background: #F0FDF4; border: 1.5px solid #86EFAC; border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="font-size: 9.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #166534;">MAHASISWA TERKONFIRMASI</div>
+                <div style="font-weight: 800; font-size: 15px; color: #14532D; margin-top: 2px;" id="kioskProfileName">—</div>
+                <div style="font-size: 11.5px; color: #15803D; margin-top: 2px;" id="kioskProfileDetail">NIM: — · Kelas: —</div>
+                <div style="font-size: 10.5px; color: #166534; margin-top: 3px; font-weight: 600;">Jurusan Teknik Otomasi &amp; Mekatronika (AE)</div>
+              </div>
+              <button type="button" onclick="resetKioskSessionForNextQueue()" style="background: #DCFCE7; border: 1px solid #86EFAC; color: #15803D; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;" title="Ganti mahasiswa">
+                Ganti
+              </button>
+            </div>
+          </div>
+
+          <!-- Sesi Praktikum Hari Ini (Otomatis Terpilih Sesuai Kelas Mahasiswa) -->
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B; margin-bottom: 6px;">
+              SESI PRAKTIKUM HARI INI (OTOMATIS)
+            </div>
+            <!-- Select disembunyikan karena otomatis mengikuti kelas mahasiswa -->
+            <select id="kioskSession" style="display: none;">
+              <option value="">Memuat sesi praktikum...</option>
+            </select>
+            
+            <div id="kioskSessionCard" style="background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 10px; padding: 12px 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div>
+                  <div id="kioskSessionTitle" style="font-size: 13.5px; font-weight: 800; color: #0F172A;">Memuat sesi praktikum...</div>
+                  <div id="kioskSessionSubtitle" style="font-size: 11px; color: #64748B; margin-top: 3px;">Mencari jadwal kelas hari ini...</div>
+                </div>
+                <span id="kioskSessionBadge" style="font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: #E2E8F0; color: #475569; white-space: nowrap;">
+                  Cek Jadwal
+                </span>
+              </div>
+            </div>
+            <div id="kioskSessionMessage" role="status" style="font-size: 11px; color: #0284C7; font-weight: 600; margin-top: 6px;">Sesi praktikum otomatis aktif.</div>
+          </div>
+
+          <!-- Ringkasan APD Wajib Praktikum untuk Sesi Ini -->
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #475569;">
+                STANDAR APD SESI INI
+              </div>
+              <span id="apdMatkulNotice" style="font-size: 9.5px; font-weight: 700; color: #0284C7;">Sesuai Mata Kuliah</span>
+            </div>
+            <div id="sessionApdBadges" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; color: #334155;">
+              <div id="badgeHelmReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>🪖</span> <strong>Helm K3</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
+              </div>
+              <div id="badgeBajuReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>👔</span> <strong>Baju Praktik</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
+              </div>
+              <div id="badgeJeansReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>👖</span> <strong>Celana Jeans</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
+              </div>
+              <div id="badgeSepatuReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>👞</span> <strong>Sepatu Safety</strong></span>
+                <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tip Box at Bottom -->
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 11px 13px; font-size: 11px; color: #64748B; line-height: 1.45;">
+          Presensi mandiri tanpa antre sandi. AI memverifikasi kesesuaian wajah dan kepatuhan APD secara instan.
+        </div>
+      </div>
+
+      <!-- ── COLUMN 2: VERIFIKASI WAJAH & APD VIEWPORT ── -->
+      <div class="kiosk-card" style="padding: 24px;">
+        
+        <!-- Viewport Card Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #64748B;" id="viewportEyebrow">AI VISION &amp; BIOMETRIC KIOSK</div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #0F172A; margin: 2px 0 0;" id="viewportTitle">Pemeriksaan Visual Wajah &amp; APD K3</h3>
+          </div>
+          <span class="kiosk-cam-pill" id="camStatusPill">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #94A3B8; display: inline-block;" id="camStatusDot"></span>
+            <span id="camStatusText">CAMERA OFF</span>
+          </span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <label for="kioskCamera" style="display: block; font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 6px;">Pilih kamera</label>
+            <select id="kioskCamera" aria-describedby="kioskCameraMessage" style="width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit; font-size: 12px;">
+              <option value="">Memuat daftar kamera...</option>
+            </select>
+          </div>
+          <div>
+            <label for="kioskFaceCropMode" style="display: block; font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 6px;">Mode deteksi wajah</label>
+            <select id="kioskFaceCropMode" style="width: 100%; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFF; color: #0F172A; font: inherit; font-size: 12px;">
+              <option value="hog">Deteksi otomatis (HOG)</option>
+              <option value="guide">Kotak panduan tengah</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Camera Viewport Box -->
+        <div class="kiosk-camera-viewport" id="camViewport">
+          <video class="kiosk-camera-video" id="kioskVideo" autoplay muted playsinline></video>
+          <canvas id="kioskCanvas" hidden></canvas>
+          <!-- Canvas Overlay untuk Garis Siluet Manusia & Bounding Box Dinamis -->
+          <canvas id="kioskOverlayCanvas" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6;"></canvas>
+
+          <div class="kiosk-camera-hud" aria-hidden="true">
+            <span class="kiosk-camera-hud-chip">
+              <span class="kiosk-camera-hud-dot"></span>
+              FULL BODY SCANNER
+            </span>
+            <span class="kiosk-camera-hud-chip">CNN MULTI-MODEL DETECTION</span>
+          </div>
+          
+          <!-- Scanning Laser Line -->
+          <div class="kiosk-scan-laser" id="scanLaser"></div>
+
+          <!-- APD Summary Pills on the top right -->
+          <div style="position: absolute; top: 52px; right: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 7; pointer-events: none;">
+            <div id="tagHelm" class="kiosk-apd-tag-box" style="display: none; border-color: #F59E0B; color: #FBBF24;"></div>
+            <div id="tagWearpack" class="kiosk-apd-tag-box" style="display: none; border-color: #10B981; color: #34D399;"></div>
+            <div id="tagCelana" class="kiosk-apd-tag-box" style="display: none; border-color: #0284C7; color: #38BDF8;"></div>
+            <div id="tagSepatu" class="kiosk-apd-tag-box" style="display: none; border-color: #EC4899; color: #F472B6;"></div>
+          </div>
+
+          <!-- Floating Status Bar at Bottom of Viewport -->
+          <div class="kiosk-view-status-bar">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: #FFF; font-size: 13px;" id="statusIconBox">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <div>
+              <div style="font-weight: 700; color: #FFFFFF; font-size: 13px;" id="camStatusHeader">Kamera Siap</div>
+              <div style="font-size: 11px; color: #94A3B8;" id="camStatusDetail">Posisikan tubuh di dalam siluet manusia lalu tekan tombol periksa.</div>
+            </div>
+          </div>
+
+          <!-- Success Celebration Overlay / Popup Hasil Absensi Lengkap -->
+          <div class="kiosk-success-overlay" id="successOverlay" style="overflow-y: auto; max-height: 100%;">
+            <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); border: 2px solid #34D399; display: flex; align-items: center; justify-content: center; color: #34D399; font-size: 24px; font-weight: 800; margin-bottom: 10px;">
+              ✓
+            </div>
+            <h2 style="font-size: 20px; font-weight: 800; color: #FFFFFF; margin: 0 0 4px;">Presensi Berhasil Dicatat!</h2>
+            <p style="font-size: 12px; color: #94A3B8; max-width: 440px; margin: 0 0 16px;">
+              Data kehadiran, verifikasi biometrik, dan kelengkapan atribut APD telah tersimpan ke sistem.
+            </p>
+            
+            <!-- Box Rincian Data Mahasiswa & Sesi -->
+            <div style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px 18px; width: 100%; max-width: 440px; margin-bottom: 12px; text-align: left; font-size: 12px; color: #E2E8F0;">
+              
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Nama Mahasiswa:</span>
+                <strong style="color: #38BDF8; font-size: 13px;" id="successStudentName">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">NIM / Kelas:</span>
+                <strong style="color: #FFF;" id="successStudentNimKelas">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Sesi Praktikum:</span>
+                <strong style="color: #FFF; text-align: right;" id="successSession">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Jam Presensi:</span>
+                <strong style="color: #FFF;" id="successTime">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 2px;">
+                <span style="color: #94A3B8;">Status Kedatangan:</span>
+                <span id="successLateBadge" style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #DCFCE7; color: #15803D;">Tepat Waktu</span>
+              </div>
+            </div>
+
+            <!-- Box Rincian Kelengkapan Atribut APD -->
+            <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 16px; width: 100%; max-width: 440px; margin-bottom: 18px; text-align: left; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 800; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Rincian Atribut APD Praktikum</span>
+                <span id="successApdOverallBadge" style="font-weight: 800; font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: #059669; color: #FFF;">LENGKAP</span>
+              </div>
+              <div id="successApdItemsList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <!-- Di-generate dinamis oleh kiosk.js -->
+              </div>
+              <div id="successApdNotes" style="margin-top: 8px; font-size: 10.5px; color: #F87171; display: none;"></div>
+            </div>
+
+            <div style="width: 100%; max-width: 440px;">
+              <button onclick="dismissSuccessPopup()" style="width: 100%; height: 44px; border-radius: 8px; background: #0284C7; color: #FFF; border: none; font-weight: 800; font-size: 13.5px; cursor: pointer; transition: background 0.15s ease;">
+                Selesai — Mahasiswa Berikutnya
+              </button>
+            </div>
+          </div>
+
+          <!-- Popup Pemberitahuan: Tidak Ada Sesi Praktikum Hari Ini -->
+          <div class="kiosk-success-overlay" id="noSessionOverlay">
+            <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(239, 68, 68, 0.18); border: 2px solid #EF4444; display: flex; align-items: center; justify-content: center; color: #EF4444; font-size: 24px; font-weight: 800; margin-bottom: 12px;">
+              !
+            </div>
+            <h2 style="font-size: 19px; font-weight: 800; color: #FFFFFF; margin: 0 0 6px;">Tidak Ada Sesi Praktikum Aktif</h2>
+            <p style="font-size: 12.5px; color: #CBD5E1; max-width: 400px; margin: 0 0 16px;">
+              Sistem tidak menemukan jadwal sesi praktikum yang sedang aktif hari ini untuk kelas mahasiswa ini.
+            </p>
+            
+            <div style="background: rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 18px; width: 100%; max-width: 380px; margin-bottom: 20px; text-align: left; font-size: 12px; color: #E2E8F0;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">Nama:</span>
+                <strong style="color: #38BDF8;" id="noSessionStudentName">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: #94A3B8;">NIM:</span>
+                <strong style="color: #FFF;" id="noSessionStudentNim">—</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: #94A3B8;">Kelas:</span>
+                <strong style="color: #FFF;" id="noSessionStudentKelas">—</strong>
+              </div>
+            </div>
+
+            <div style="width: 100%; max-width: 380px;">
+              <button onclick="dismissNoSessionPopup()" style="width: 100%; height: 42px; border-radius: 8px; background: #334155; color: #FFF; border: 1px solid #475569; font-weight: 700; font-size: 13px; cursor: pointer;">
+                Mengerti — Pilih Mahasiswa Lain
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bottom Action Row -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 16px;">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <button type="button" class="kiosk-btn-primary" id="btnKioskAction" style="padding: 13px 24px; font-size: 13.5px; font-weight: 800;">
+              Mulai Pemeriksaan Wajah &amp; APD
+            </button>
+            <button type="button" id="btnKioskApdRetry" hidden style="padding: 13px 18px; border: 1.5px solid #143E6B; border-radius: 10px; background: #FFF; color: #143E6B; font: inherit; font-weight: 700; cursor: pointer;">
+              Ulangi Pemeriksaan
+            </button>
+          </div>
+
+          <div class="kiosk-security-note">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: #94A3B8;">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Inferensi berjalan secara lokal real-time di perangkat Kiosk POLMAN.</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ── 3. KIOSK APPLICATION FOOTER ── -->
+  <footer class="kiosk-footer-bar">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="width: 7px; height: 7px; border-radius: 50%; background: #0284C7; display: inline-block;"></span>
+      <span>POWERED BY CNN AI &amp; BIOMETRIC KIOSK</span>
+    </div>
+    <div>
+      &copy; 2025 POLMAN SMART ATTENDANCE. Politeknik Manufaktur Bandung.
+    </div>
+  </footer>
+
+  <script src="assets/js/kiosk.js"></script>
+</body>
+</html>
