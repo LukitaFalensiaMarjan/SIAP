@@ -1,24 +1,24 @@
 Area       : sepatu
 Arsitektur : Transfer Learning MobileNetV2 + Custom Head
 Threshold  : 0.5 (dipilih dari data validasi)
-Split      : train=1350, val=289, test=290
+Split      : train=854, val=183, test=184
 
 === MATRIK PENGUJIAN (DATA TEST) ===
               precision    recall  f1-score   support
 
-       tidak     1.0000    0.9821    0.9910       112
-       pakai     0.9889    1.0000    0.9944       178
+       tidak     1.0000    1.0000    1.0000        25
+       pakai     1.0000    1.0000    1.0000       159
 
-    accuracy                         0.9931       290
-   macro avg     0.9944    0.9911    0.9927       290
-weighted avg     0.9932    0.9931    0.9931       290
+    accuracy                         1.0000       184
+   macro avg     1.0000    1.0000    1.0000       184
+weighted avg     1.0000    1.0000    1.0000       184
 
 Confusion Matrix (baris=Asli, kolom=Prediksi) [tidak, pakai]:
-[[110   2]
- [  0 178]]
-  TN (Asli Tidak -> Pred Tidak) : 110
-  FP (Asli Tidak -> Pred Pakai) : 2  [Kebocoran APD: 1.79%]
+[[ 25   0]
+ [  0 159]]
+  TN (Asli Tidak -> Pred Tidak) : 25
+  FP (Asli Tidak -> Pred Pakai) : 0  [Kebocoran APD: 0.00%]
   FN (Asli Pakai -> Pred Tidak) : 0
-  TP (Asli Pakai -> Pred Pakai) : 178
-  Accuracy                      : 0.9931
-  Macro F1-Score                : 0.9927
+  TP (Asli Pakai -> Pred Pakai) : 159
+  Accuracy                      : 1.0000
+  Macro F1-Score                : 1.0000

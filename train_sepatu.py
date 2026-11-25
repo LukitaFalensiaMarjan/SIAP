@@ -29,6 +29,7 @@ CFG = {
     "finetune_lr": 3e-5,
     "label_smoothing": 0.05,
     "min_recall_tidak": 0.95,
+    "oversample_train": True,
     "flip": True,
     "seed": 42,
 }

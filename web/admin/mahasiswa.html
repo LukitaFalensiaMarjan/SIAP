@@ -36,7 +36,7 @@
         <span>Monitoring Absensi</span>
         <span class="adm-nav-counter">8</span>
       </a>
-      <a href="kompensasi.html" class="adm-nav-item ">
+      <a href="tindak-lanjut.html" class="adm-nav-item ">
         <span>Tindak Lanjut</span>
       </a>
       <a href="laporan.html" class="adm-nav-item ">
@@ -138,7 +138,7 @@
           <div class="adm-form-grid-2">
             <div class="adm-form-group">
               <label class="adm-form-label" for="mahasiswaNim">Nomor Induk Mahasiswa (NIM)</label>
-              <input type="text" id="mahasiswaNim" placeholder="Contoh: 224201099" class="adm-form-input" maxlength="32" required>
+              <input type="text" id="mahasiswaNim" placeholder="Masukan NIM" class="adm-form-input" maxlength="32" required inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 13">
             </div>
             <div class="adm-form-group">
               <label class="adm-form-label" for="mahasiswaNama">Nama Lengkap</label>

@@ -407,11 +407,11 @@
         </div>
 
         <form id="unifiedLoginForm" onsubmit="handleUnifiedSubmit(event)">
-          <!-- Identifier: NIM atau NIP -->
+          <!-- Identifier: NIM (Angka Saja) -->
           <div class="pill-input-wrap">
-            <label class="pill-label" for="inputIdentifier">NIM / NIP</label>
-            <input type="text" id="inputIdentifier" class="pill-input-field" placeholder="Masukkan 9 digit NIM atau NIP"
-              required autofocus autocomplete="username">
+            <label class="pill-label" for="inputIdentifier">NIM</label>
+            <input type="text" id="inputIdentifier" class="pill-input-field" placeholder="Masukan NIM"
+              required autofocus autocomplete="username" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 13">
           </div>
 
           <!-- Kata Sandi -->
@@ -510,6 +510,15 @@
         }
       }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const identInput = document.getElementById('inputIdentifier');
+      if (identInput) {
+        identInput.addEventListener('input', function() {
+          this.value = this.value.replace(/[^0-9]/g, '');
+        });
+      }
+    });
 
   </script>
 </body>

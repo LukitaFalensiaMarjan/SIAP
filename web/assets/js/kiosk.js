@@ -50,6 +50,39 @@ document.addEventListener('DOMContentLoaded', initKiosk);
 window.addEventListener('pagehide', stopKioskCamera);
 
 async function initKiosk() {
+  // 0. Proteksi Kiosk: Wajib login akun Kiosk atau Operator/Admin
+  try {
+    const authRes = await fetch('/api/auth/me');
+    if (!authRes.ok) {
+      window.location.href = '/login.html';
+      return;
+    }
+    const authData = await authRes.json();
+    const userRole = String(authData.user?.peran || '').toLowerCase();
+    if (!['kiosk', 'operator', 'admin'].includes(userRole)) {
+      window.location.href = '/login.html';
+      return;
+    }
+  } catch (_) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // Pasang filter anti-huruf pada seluruh input NIM di Kiosk
+  const nimInput = document.getElementById('kioskInputNim');
+  if (nimInput) {
+    nimInput.setAttribute('inputmode', 'numeric');
+    nimInput.setAttribute('pattern', '[0-9]*');
+    nimInput.addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+    nimInput.addEventListener('keypress', function(e) {
+      if (e.charCode < 48 || e.charCode > 57) {
+        if (e.charCode !== 13) e.preventDefault();
+      }
+    });
+  }
+
   if ('speechSynthesis' in window) {
     window.speechSynthesis.onvoiceschanged = () => {
       window.speechSynthesis.getVoices();
@@ -170,8 +203,17 @@ async function handleKioskStudentLogin(event) {
   const errEl = document.getElementById('kioskLoginError');
   const btn = document.getElementById('btnKioskStudentLogin');
 
-  const nim = nimInput ? nimInput.value.trim() : '';
+  const rawNim = nimInput ? nimInput.value.trim() : '';
   const kelas = kelasInput ? kelasInput.value.trim().toUpperCase() : '';
+
+  if (/[a-zA-Z]/.test(rawNim)) {
+    if (errEl) {
+      errEl.textContent = 'NIM hanya boleh berisi angka (tidak boleh huruf).';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+  const nim = rawNim.replace(/[^0-9]/g, '');
 
   if (!nim || !kelas) {
     if (errEl) {
@@ -1505,5 +1547,16 @@ function initKioskHeartbeat() {
   setTimeout(sendHeartbeat, 500);
   setInterval(sendHeartbeat, 3000);
 }
+
+// ── KIOSK DEVICE LOGOUT ──
+async function logoutKioskDevice(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  stopKioskCamera();
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (_) {}
+  window.location.href = '/login.html';
+}
+window.logoutKioskDevice = logoutKioskDevice;
 
 document.addEventListener('DOMContentLoaded', initKioskHeartbeat);

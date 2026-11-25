@@ -2,22 +2,18 @@
 Siapkan dataset RGB untuk 4 model CNN APD (helm, baju, jeans, sepatu)
 dan 1 model CNN Pengenalan Wajah (Basit, Chakim, Luki).
 
-Pemakaian:
-    python siapkan_dataset.py --input data_mentah --output dataset_area --output-wajah dataset_wajah --preview 5 --clean
+Peningkatan Algoritma (Adaptive Face-Anchored Cropping):
+  1. Deteksi posisi kepala/wajah secara dinamis dengan dlib HOG.
+  2. Bounding box helm, baju, jeans, dan sepatu berpatokan langsung pada posisi tubuh mahasiswa,
+     bukan koordinat statis tetap yang memotong tembok/plafon kosong saat posisi duduk/setengah badan.
+  3. Filter kualitas variansi citra (std >= 14) untuk mencegah potongan tembok putih polos masuk
+     ke kelas 'pakai' maupun 'tidak'.
+  4. Pengenalan otomatis pose duduk / setengah badan (half-body) agar jeans & sepatu diabaikan
+     (tidak memotong meja / paha duduk sebagai celana/sepatu).
 
-Struktur hasil:
-    dataset_area/
-        labels.csv
-        helm/{pakai,tidak}/*.jpg      (96x96 RGB)
-        baju/{pakai,tidak}/*.jpg      (128x128 RGB)
-        jeans/{pakai,tidak}/*.jpg     (128x128 RGB)
-        sepatu/{pakai,tidak}/*.jpg    (128x128 RGB)
-        preview/*.jpg                 (verifikasi kotak crop)
-    dataset_wajah/
-        Basit/*.jpg                   (128x128 RGB, crop ketat wajah saja)
-        Chakim/*.jpg                  (128x128 RGB, crop ketat wajah saja)
-        Luki/*.jpg                    (128x128 RGB, crop ketat wajah saja)
-        preview/*.jpg
+Pemakaian:
+    python siapkan_dataset.py --clean
+    python siapkan_dataset.py --skip-wajah
 """
 import argparse
 import csv
@@ -26,6 +22,7 @@ import shutil
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 try:
     import dlib
@@ -35,51 +32,41 @@ except ImportError:
 
 # 1 = pakai APD wajib, 0 = tidak/salah, None = tidak terlihat di frame (jangan dipotong)
 # Urutan: (helm, baju, jeans, sepatu)
-LABEL_FULL_BODY = {
-    "Full seragam":          (1, 1, 1, 1),
-    "Salah Helm":            (0, 1, 1, 1),
-    "Salah Kemeja":          (1, 0, 1, 1),
-    "Salah Helm & kemeja":   (0, 0, 1, 1),
-    "Salah Sepatu":          (1, 1, 1, 0),
-    "Salah Sepatu & Helm":   (0, 1, 1, 0),
-    "Salah Sepatu & Kemeja": (1, 0, 1, 0),
-    "Hanya Jeans":           (0, 0, 1, 0),
-    # Nama lama tetap didukung agar kompatibel:
-    "Tanpa Helm":            (0, 1, 1, 1),
-    "Tanpa Kemeja":          (1, 0, 1, 1),
-    "Tanpa sepatu":          (1, 1, 1, 0),
-    "Tanpa Sepatu & Helm":   (0, 1, 1, 0),
-    "Tanpa Sepatu & Kemeja": (1, 0, 1, 0),
-    "Tanpa Helm & kemeja":   (0, 0, 1, 1),
-}
+LABEL_FOLDER = {
+    # 1. Full Seragam Lengkap (Semua APD Pakai)
+    "Full seragam":            (1, 1, 1, 1),
 
-# Folder close-up pinggang ke bawah (hanya terlihat celana & sepatu)
-LABEL_WAIST_DOWN = {
-    "Salah Celana":          (None, None, 0, 0),
+    # 2. Kombinasi APD Pakai Sebagian
+    # Catatan: Hanya Helm & Hanya Helm dan Kemeja diambil saat duduk / setengah badan
+    "Hanya Helm":              (1, 0, None, None),
+    "Hanya Helm dan Kemeja":   (1, 1, None, None),
+    "Hanya Kemeja dan Jeans":  (0, 1, 1, 0),
+    "Hanya Jeans dan Sepatu":  (0, 0, 1, 1),
+
+    # 3. Kombinasi Pelanggaran / Salah APD
+    "Salah Helm":              (0, 1, 1, 1),
+    "Salah Kemeja":            (1, 0, 1, 1),
+    "Salah Celana dan Sepatu": (None, None, 0, 0),
+    "Salah Celana":            (None, None, 0, 0),
+    "Salah Helm & kemeja":     (0, 0, 1, 1),
+    "Salah Sepatu":            (1, 1, 1, 0),
+    "Salah Sepatu & Helm":     (0, 1, 1, 0),
+    "Salah Sepatu & Kemeja":   (1, 0, 1, 0),
+    "Hanya Jeans":             (0, 0, 1, 0),
+
+    # 4. Folder legacy / nama alternatif:
+    "Tanpa Helm":              (0, 1, 1, 1),
+    "Tanpa Kemeja":            (1, 0, 1, 1),
+    "Tanpa sepatu":            (1, 1, 1, 0),
+    "Tanpa Sepatu & Helm":     (0, 1, 1, 0),
+    "Tanpa Sepatu & Kemeja":   (1, 0, 1, 0),
+    "Tanpa Helm & kemeja":     (0, 0, 1, 1),
 }
 
 ITEM = ["helm", "baju", "jeans", "sepatu"]
 ITEM_DILATIH = ["helm", "baju", "jeans", "sepatu"]
 
-# Potongan horizontal full-body: bagian tengah 30% lebar frame
-LEBAR_TENGAH = 0.30
-
-# Potongan vertikal full-body (proporsi tinggi frame: atas, bawah)
-AREA_FULL_BODY = {
-    "helm":   (0.05, 0.28),
-    "baju":   (0.22, 0.58),
-    "jeans":  (0.48, 0.86),
-    "sepatu": (0.78, 1.00),
-}
-
-# Potongan khusus foto close-up pinggang ke bawah (Salah Celana / sneakers close-up)
-AREA_WAIST_DOWN = {
-    "jeans":  (0.14, 0.80),
-    "sepatu": (0.72, 1.00),
-}
-LEBAR_WAIST_DOWN = 0.34
-
-# Ukuran akhir tiap potongan (lebar, tinggi) untuk input CNN RGB
+# Ukuran input CNN RGB (lebar, tinggi)
 UKURAN = {
     "helm":   (96, 96),
     "baju":   (128, 128),
@@ -88,40 +75,242 @@ UKURAN = {
     "wajah":  (128, 128),
 }
 
+# Standar deviasi minimal piksel grayscale agar tidak menyimpan potongan tembok putih polos / hitam pekat
+STD_MIN_VALID = 14.0
+
 EKSTENSI = {".jpg", ".jpeg", ".png", ".bmp"}
 
 
-def cari_label(nama_folder, kamus):
-    for nama, label in kamus.items():
+def cari_label(nama_folder):
+    for nama, label in LABEL_FOLDER.items():
         if nama.lower() == nama_folder.lower():
             return label
     return None
 
 
-def adalah_closeup_bawah(folder_name, file_path):
-    """
-    Deteksi foto close-up pinggang-ke-bawah yang tercampur di 'Salah Sepatu'
-    (foto tanggal 20261117 merupakan close-up celana cargo + sneakers).
-    """
-    if cari_label(folder_name, LABEL_WAIST_DOWN) is not None:
+def adalah_waist_down(folder_name, file_path):
+    fn = folder_name.lower()
+    if "salah celana" in fn:
         return True
-    if folder_name.lower() == "salah sepatu" and "20261117" in file_path.name:
+    if fn == "salah sepatu" and "20261117" in file_path.name:
         return True
     return False
 
 
-def potong_area(img, area_cfg, lebar_proporsi, item_aktif):
+def deteksi_wajah(img):
+    """Deteksi wajah cepat menggunakan HOG dengan penskalaan adaptif."""
+    if DETEKTOR_WAJAH is None:
+        return None
     h, w = img.shape[:2]
-    lebar = int(w * lebar_proporsi)
-    x0 = (w - lebar) // 2
+    scale = 960.0 / w if w > 960 else 1.0
+    sw, sh = int(w * scale), int(h * scale)
+    small = cv2.resize(img, (sw, sh))
+    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    rects = DETEKTOR_WAJAH(rgb, 0)
+    if not rects:
+        rects = DETEKTOR_WAJAH(rgb, 1)
+    if not rects:
+        return None
+    r = max(rects, key=lambda b: b.width() * b.height())
+    return (
+        int(r.left() / scale),
+        int(r.top() / scale),
+        int(r.right() / scale),
+        int(r.bottom() / scale)
+    )
+
+
+def potong_area_adaptif(img, folder_name, file_path, label):
+    """
+    Pemotongan adaptif berdasarkan deteksi wajah:
+    - Jika wajah ada: helm di atas kepala, baju di dada, jeans & sepatu di bawah (jika berdiri).
+    - Jika pose setengah badan / duduk (wajah di bawah y=0.38h): jeans & sepatu otomatis diabaikan.
+    - Jika wajah tidak ada: fallback ke proporsi tubuh tengah / close-up.
+    - Setiap potongan difilter std >= STD_MIN_VALID agar tidak menghasilkan kotak putih kosong.
+    """
+    h, w = img.shape[:2]
+    face = deteksi_wajah(img)
     hasil = {}
-    for item in item_aktif:
-        if item not in area_cfg:
-            continue
-        a, b = area_cfg[item]
-        y0, y1 = int(h * a), int(h * b)
-        hasil[item] = (img[y0:y1, x0:x0 + lebar], (x0, y0, x0 + lebar, y1))
-    return hasil
+    kotak = {}
+
+    h_lbl, b_lbl, j_lbl, s_lbl = label
+
+    if face is not None:
+        fx0, fy0, fx1, fy1 = face
+        fw, fh = fx1 - fx0, fy1 - fy0
+        cx = (fx0 + fx1) // 2
+        is_half_body = (fy1 > 0.38 * h)
+
+        # 1. HELM
+        if h_lbl is not None:
+            helm_found = False
+            # Jika kelas pakai (h_lbl == 1), prioritaskan deteksi kontur helm oranye di sekitar kepala
+            if h_lbl == 1:
+                hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+                orange_mask = cv2.inRange(hsv, (7, 80, 80), (25, 255, 255))
+                cnts, _ = cv2.findContours(orange_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                head_cnts = []
+                for c in cnts:
+                    if cv2.contourArea(c) < 350:
+                        continue
+                    bx, by, bw, bh = cv2.boundingRect(c)
+                    if abs((bx + bw // 2) - cx) < fw * 0.9 and by < fy1 and (by + bh) > (fy0 - int(fh * 1.1)):
+                        head_cnts.append(c)
+                if head_cnts:
+                    best_c = max(head_cnts, key=cv2.contourArea)
+                    bx, by, bw, bh = cv2.boundingRect(best_c)
+                    pad_w = int(bw * 0.12)
+                    pad_h = int(bh * 0.12)
+                    hx0 = max(0, bx - pad_w)
+                    hy0 = max(0, by - pad_h)
+                    hx1 = min(w, bx + bw + pad_w)
+                    hy1 = min(h, by + bh + pad_h)
+                    crop = img[hy0:hy1, hx0:hx1]
+                    if crop.size > 0 and np.mean(crop) < 195:
+                        hasil["helm"] = crop
+                        kotak["helm"] = (hx0, hy0, hx1, hy1)
+                        helm_found = True
+
+            if not helm_found:
+                hy0 = max(0, fy0 - int(fh * 0.85))
+                hy1 = min(h, fy0 + int(fh * 0.25))
+                hx0 = max(0, cx - int(fw * 0.75))
+                hx1 = min(w, cx + int(fw * 0.75))
+                if hy1 > hy0 + 20 and hx1 > hx0 + 20:
+                    crop = img[hy0:hy1, hx0:hx1]
+                    if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID and np.mean(crop) < 195:
+                        hasil["helm"] = crop
+                        kotak["helm"] = (hx0, hy0, hx1, hy1)
+
+        # 2. BAJU
+        if b_lbl is not None:
+            by0 = max(0, fy1 - int(fh * 0.15))
+            by1 = min(h, fy1 + int(fh * (2.2 if is_half_body else 2.8)))
+            bx0 = max(0, cx - int(fw * 1.5))
+            bx1 = min(w, cx + int(fw * 1.5))
+            if by1 > by0 + 20 and bx1 > bx0 + 20:
+                crop = img[by0:by1, bx0:bx1]
+                if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID:
+                    hasil["baju"] = crop
+                    kotak["baju"] = (bx0, by0, bx1, by1)
+
+        # 3 & 4. JEANS & SEPATU (hanya jika full body berdiri)
+        if not is_half_body:
+            if j_lbl is not None:
+                jy0 = min(h, fy1 + int(fh * 2.8))
+                jy1 = min(h, fy1 + int(fh * 6.2))
+                jx0 = max(0, cx - int(fw * 1.3))
+                jx1 = min(w, cx + int(fw * 1.3))
+                if jy1 > jy0 + 20 and jx1 > jx0 + 20:
+                    crop = img[jy0:jy1, jx0:jx1]
+                    if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID:
+                        hasil["jeans"] = crop
+                        kotak["jeans"] = (jx0, jy0, jx1, jy1)
+
+            if s_lbl is not None:
+                sy0 = min(h, fy1 + int(fh * 5.8))
+                sy1 = h
+                sx0 = max(0, cx - int(fw * 1.3))
+                sx1 = min(w, cx + int(fw * 1.3))
+                if sy1 > sy0 + 20 and sx1 > sx0 + 20:
+                    crop = img[sy0:sy1, sx0:sx1]
+                    if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID:
+                        hasil["sepatu"] = crop
+                        kotak["sepatu"] = (sx0, sy0, sx1, sy1)
+
+    else:
+        # Fallback jika wajah tidak terdeteksi
+        if adalah_waist_down(folder_name, file_path):
+            lebar = int(w * 0.34)
+            x0 = (w - lebar) // 2
+            x1 = x0 + lebar
+            if j_lbl is not None:
+                jy0, jy1 = int(h * 0.10), int(h * 0.70)
+                crop = img[jy0:jy1, x0:x1]
+                if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID:
+                    hasil["jeans"] = crop
+                    kotak["jeans"] = (x0, jy0, x1, jy1)
+            if s_lbl is not None:
+                sy0, sy1 = int(h * 0.68), int(h * 1.00)
+                crop = img[sy0:sy1, x0:x1]
+                if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID:
+                    hasil["sepatu"] = crop
+                    kotak["sepatu"] = (x0, sy0, x1, sy1)
+        else:
+            # Fallback jika wajah tidak terdeteksi:
+            # 1. Khusus helm pakai (h_lbl == 1): Cari kontur oranye di seluruh frame
+            if h_lbl == 1:
+                hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+                orange_mask = cv2.inRange(hsv, (7, 80, 80), (25, 255, 255))
+                cnts, _ = cv2.findContours(orange_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                valid_cnts = [c for c in cnts if cv2.contourArea(c) > 600]
+                if valid_cnts:
+                    best_c = max(valid_cnts, key=cv2.contourArea)
+                    bx, by, bw, bh = cv2.boundingRect(best_c)
+                    pad_w = int(bw * 0.15)
+                    pad_h = int(bh * 0.15)
+                    hx0 = max(0, bx - pad_w)
+                    hy0 = max(0, by - pad_h)
+                    hx1 = min(w, bx + bw + pad_w)
+                    hy1 = min(h, by + bh + pad_h)
+                    crop = img[hy0:hy1, hx0:hx1]
+                    if crop.size > 0 and np.mean(crop) < 195:
+                        hasil["helm"] = crop
+                        kotak["helm"] = (hx0, hy0, hx1, hy1)
+
+            # 2. Full body standing fallback (tengah frame)
+            lebar = int(w * 0.30)
+            x0 = (w - lebar) // 2
+            x1 = x0 + lebar
+            area_cfg = {
+                "helm":   (0.05, 0.28),
+                "baju":   (0.22, 0.58),
+                "jeans":  (0.48, 0.86),
+                "sepatu": (0.78, 1.00),
+            }
+            for it, v in zip(ITEM, label):
+                if v is not None and it in area_cfg and it not in hasil:
+                    a, b = area_cfg[it]
+                    y0, y1 = int(h * a), int(h * b)
+                    crop = img[y0:y1, x0:x1]
+                    # Filter variansi DAN kecerahan agar tidak menyimpan plafon / tembok putih polos
+                    if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) >= STD_MIN_VALID and np.mean(crop) < 195:
+                        hasil[it] = crop
+                        kotak[it] = (x0, y0, x1, y1)
+
+    return hasil, kotak
+
+
+def deteksi_kotak_wajah(img):
+    """Crop ketat area wajah saja untuk model CNN wajah (Basit, Chakim, Luki)."""
+    if DETEKTOR_WAJAH is None:
+        raise SystemExit("dlib tidak terpasang; dibutuhkan untuk detektor HOG crop wajah.")
+    h, w = img.shape[:2]
+    scale = 960.0 / w if w > 960 else 1.0
+    sw, sh = int(w * scale), int(h * scale)
+    small = cv2.resize(img, (sw, sh))
+    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    rects = DETEKTOR_WAJAH(rgb, 0)
+    if not rects:
+        rects = DETEKTOR_WAJAH(rgb, 1)
+    if not rects:
+        return None
+    r = max(rects, key=lambda b: b.width() * b.height())
+    fx0, fy0, fx1, fy1 = (
+        int(r.left() / scale),
+        int(r.top() / scale),
+        int(r.right() / scale),
+        int(r.bottom() / scale)
+    )
+    fw, fh = fx1 - fx0, fy1 - fy0
+    # Margin dahi sedikit, dagu ketat agar kerah baju tidak ikut
+    x0 = max(0, int(fx0 - fw * 0.05))
+    x1 = min(w, int(fx1 + fw * 0.05))
+    y0 = max(0, int(fy0 - fh * 0.12))
+    y1 = min(h, int(fy1 - fh * 0.02))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    return (x0, y0, x1, y1)
 
 
 def gambar_preview(img, kotak, path):
@@ -138,34 +327,6 @@ def gambar_preview(img, kotak, path):
         cv2.putText(prev, item, (x0 + 8, max(y0 + 32, 32)),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, warna.get(item, (255, 255, 255)), 2)
     cv2.imwrite(str(path), prev)
-
-
-def deteksi_kotak_wajah(img):
-    """
-    Crop ketat area wajah saja menggunakan detektor klasik HOG (bukan model DL/AI)
-    supaya warna baju/jaket tidak ikut masuk ke dataset CNN wajah.
-    """
-    if DETEKTOR_WAJAH is None:
-        raise SystemExit("dlib tidak terpasang; dibutuhkan untuk detektor HOG crop wajah.")
-    h, w = img.shape[:2]
-    small = cv2.resize(img, (w // 2, h // 2))
-    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
-    rects = DETEKTOR_WAJAH(rgb, 0)
-    if not rects:
-        rects = DETEKTOR_WAJAH(rgb, 1)
-    if not rects:
-        return None
-    r = max(rects, key=lambda b: b.width() * b.height())
-    x0, y0, x1, y1 = r.left() * 2, r.top() * 2, r.right() * 2, r.bottom() * 2
-    fw, fh = x1 - x0, y1 - y0
-    # Crop ketat wajah: margin atas untuk dahi/rambut, bawah dipotong ketat di dagu agar baju tidak ikut
-    x0 = max(0, int(x0 - fw * 0.05))
-    x1 = min(w, int(x1 + fw * 0.05))
-    y0 = max(0, int(y0 - fh * 0.12))
-    y1 = min(h, int(y1 - fh * 0.02))
-    if x1 <= x0 or y1 <= y0:
-        return None
-    return (x0, y0, x1, y1)
 
 
 def proses_wajah(masuk, keluar_wajah, preview_n):
@@ -205,16 +366,13 @@ def proses_wajah(masuk, keluar_wajah, preview_n):
     print(f"Total wajah bersih: {total_ok} (dilewati: {total_skip})")
 
 
-def tambah_hard_negatives(masuk, keluar, hitung, n_bg=150, n_lintas=120, seed=42):
+def tambah_hard_negatives(masuk, keluar, hitung, n_bg=50, n_lintas=80, seed=42):
     """
-    Tambahkan contoh negatif tambahan ke setiap area (kelas 'tidak') agar model
-    tidak salah menebak kotak kosong, tembok, benda/bezel gelap, atau bagian tubuh lain:
-      1. BG_ : potongan latar kosong, tembok, gorden, lantai, meja gelap dari sisi kiri/kanan data_mentah.
-      2. XA_ : potongan lintas-area (area tubuh lain + close-up wajah/duduk) sebagai negatif keras.
+    Tambahkan contoh negatif keras yang valid dan bertekstur (std >= 18).
+    Tembok putih polos / plafon kosong DILARANG masuk.
     """
     rnd = random.Random(seed)
 
-    # Kumpulkan sampel foto mentah yang beragam (termasuk folder wajah & seluruh ruangan)
     semua_foto = []
     for folder in sorted(p for p in masuk.iterdir() if p.is_dir()):
         fs = sorted(f for f in folder.iterdir() if f.suffix.lower() in EKSTENSI)
@@ -223,52 +381,49 @@ def tambah_hard_negatives(masuk, keluar, hitung, n_bg=150, n_lintas=120, seed=42
             semua_foto.extend(fs[::langkah])
     rnd.shuffle(semua_foto)
 
-    # 1. Potongan background / lantai kosong / sisi kiri-kanan (bebas objek APD)
+    # Potongan background dengan tekstur (lantai, meja, sudut ruangan)
     zona_bg = [
-        (0.00, 0.26, 0.05, 0.45),  # kiri atas (gorden / tembok)
-        (0.00, 0.26, 0.50, 0.95),  # kiri bawah (meja gelap / lantai / tempat sampah)
-        (0.74, 1.00, 0.05, 0.45),  # kanan atas (tembok putih / kalender / papan)
-        (0.74, 1.00, 0.50, 0.98),  # kanan bawah (lantai kosong / bayangan / sudut meja)
-        (0.00, 0.30, 0.72, 1.00),  # pojok kiri bawah (gelap / meja / tepi laptop)
-        (0.70, 1.00, 0.72, 1.00),  # pojok kanan bawah (lantai / keramik)
+        (0.00, 0.28, 0.50, 0.95),  # kiri bawah (meja / lantai)
+        (0.72, 1.00, 0.50, 0.98),  # kanan bawah (lantai / sudut meja)
+        (0.00, 0.30, 0.72, 1.00),  # pojok kiri bawah
+        (0.70, 1.00, 0.72, 1.00),  # pojok kanan bawah
+        (0.35, 0.65, 0.75, 1.00),  # tengah bawah lantai
     ]
 
     for item in ITEM_DILATIH:
         tujuan = keluar / item / "tidak"
         w_out, h_out = UKURAN[item]
         dibuat = 0
-        for idx in range(n_bg):
-            f = semua_foto[idx % len(semua_foto)]
+        attempts = 0
+        while dibuat < n_bg and attempts < len(semua_foto) * len(zona_bg):
+            f = semua_foto[attempts % len(semua_foto)]
+            z = zona_bg[attempts % len(zona_bg)]
+            attempts += 1
             img = cv2.imread(str(f))
             if img is None:
                 continue
             h, w = img.shape[:2]
-            x0p, x1p, y0p, y1p = zona_bg[idx % len(zona_bg)]
+            x0p, x1p, y0p, y1p = z
             x0, x1 = int(w * x0p), int(w * x1p)
             y0, y1 = int(h * y0p), int(h * y1p)
-            crop = cv2.resize(img[y0:y1, x0:x1], (w_out, h_out), interpolation=cv2.INTER_AREA)
-            cv2.imwrite(str(tujuan / f"BG_{item}_{dibuat:03d}.jpg"), crop)
+            crop = img[y0:y1, x0:x1]
+            if crop.size == 0:
+                continue
+            # WAJIB bertekstur, bukan tembok polos!
+            if np.std(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)) < 18.0:
+                continue
+            crop_res = cv2.resize(crop, (w_out, h_out), interpolation=cv2.INTER_AREA)
+            cv2.imwrite(str(tujuan / f"BG_{item}_{dibuat:03d}.jpg"), crop_res)
             dibuat += 1
         hitung[item][1] += dibuat
 
-    # 2. Potongan lintas-area + foto close-up duduk (folder Wajah) agar tidak salah area
-    # Sumber yang aman (tidak mengandung objek target):
+    # Potongan lintas-area (area tubuh lain sebagai negatif keras)
     sumber_lintas = {
-        "helm":   [keluar / "baju" / "pakai", keluar / "baju" / "tidak",
-                   keluar / "jeans" / "pakai", keluar / "sepatu" / "pakai"],
-        "baju":   [keluar / "helm" / "tidak", keluar / "jeans" / "pakai",
-                   keluar / "sepatu" / "pakai", keluar / "sepatu" / "tidak"],
-        "jeans":  [keluar / "helm" / "tidak", keluar / "baju" / "pakai",
-                   keluar / "baju" / "tidak", keluar / "sepatu" / "tidak"],
-        "sepatu": [keluar / "helm" / "tidak", keluar / "baju" / "pakai",
-                   keluar / "baju" / "tidak", keluar / "jeans" / "tidak"],
+        "helm":   [keluar / "baju" / "pakai", keluar / "jeans" / "pakai", keluar / "sepatu" / "pakai"],
+        "baju":   [keluar / "helm" / "tidak", keluar / "jeans" / "pakai", keluar / "sepatu" / "pakai"],
+        "jeans":  [keluar / "helm" / "tidak", keluar / "baju" / "pakai", keluar / "sepatu" / "tidak"],
+        "sepatu": [keluar / "helm" / "tidak", keluar / "baju" / "pakai", keluar / "jeans" / "tidak"],
     }
-
-    # Foto close-up duduk (Wajah Basit/Chakim/Luki) — bagian tengah & bawahnya adalah wajah + kaos/jaket
-    foto_duduk = []
-    for folder in sorted(p for p in masuk.iterdir() if p.is_dir() and p.name.lower().startswith("wajah ")):
-        fs = sorted(f for f in folder.iterdir() if f.suffix.lower() in EKSTENSI)
-        foto_duduk.extend(fs[::max(len(fs) // 15, 1)])
 
     for item in ITEM_DILATIH:
         tujuan = keluar / item / "tidak"
@@ -284,36 +439,22 @@ def tambah_hard_negatives(masuk, keluar, hitung, n_bg=150, n_lintas=120, seed=42
             img = cv2.imread(str(f))
             if img is None:
                 continue
+            if np.std(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)) < STD_MIN_VALID:
+                continue
             crop = cv2.resize(img, (w_out, h_out), interpolation=cv2.INTER_AREA)
             cv2.imwrite(str(tujuan / f"XA_{item}_{dibuat:03d}.jpg"), crop)
-            dibuat += 1
-
-        # Tambahkan juga ~35 crop dari foto duduk (wajah / bahu / kaos) agar posisi duduk selalu 'tidak'
-        rnd.shuffle(foto_duduk)
-        for f in foto_duduk[:35]:
-            img = cv2.imread(str(f))
-            if img is None:
-                continue
-            h, w = img.shape[:2]
-            # Potong area tengah acak (kepala/wajah/dada/kaos)
-            y0 = int(h * rnd.uniform(0.05, 0.55))
-            y1 = min(h, y0 + int(h * rnd.uniform(0.28, 0.42)))
-            x0 = int(w * rnd.uniform(0.25, 0.42))
-            x1 = min(w, x0 + int(w * rnd.uniform(0.25, 0.38)))
-            crop = cv2.resize(img[y0:y1, x0:x1], (w_out, h_out), interpolation=cv2.INTER_AREA)
-            cv2.imwrite(str(tujuan / f"XA_duduk_{item}_{dibuat:03d}.jpg"), crop)
             dibuat += 1
         hitung[item][1] += dibuat
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="data_mentah", help="folder berisi folder-folder kombinasi & wajah")
+    ap.add_argument("--input", default="data_mentah", help="folder berisi data mentah")
     ap.add_argument("--output", default="dataset_area", help="folder output 4 area APD")
     ap.add_argument("--output-wajah", default="dataset_wajah", help="folder output crop wajah")
     ap.add_argument("--preview", type=int, default=5, help="jumlah foto preview per folder")
-    ap.add_argument("--clean", action="store_true", help="hapus output lama sebelum membuat ulang")
-    ap.add_argument("--skip-wajah", action="store_true", help="lewati proses dataset_wajah jika sudah ada")
+    ap.add_argument("--clean", action="store_true", help="bersihkan output sebelum proses")
+    ap.add_argument("--skip-wajah", action="store_true", help="lewati proses dataset_wajah")
     args = ap.parse_args()
 
     masuk = Path(args.input)
@@ -334,49 +475,39 @@ def main():
 
     baris = []
     hitung = {i: [0, 0] for i in ITEM_DILATIH}
-    sudah_ada = {i: set() for i in ITEM_DILATIH}  # deduplikasi foto duplikat antar folder
+    sudah_ada = {i: set() for i in ITEM_DILATIH}
     dilewati = []
     duplikat_skip = 0
+    blank_skip = 0
 
-    print("=== MEMPROSES DATASET 4 AREA APD (RGB) ===")
-    # Urutkan supaya Salah Celana diproses dengan label waist-down yang tepat
+    print("=== MEMPROSES DATASET 4 AREA APD (RGB) DENGAN ADAPTIVE FACE-ANCHORING ===")
     semua_folder = sorted(p for p in masuk.iterdir() if p.is_dir())
     for folder in semua_folder:
         if folder.name.lower().startswith("wajah "):
             continue
-        label_fb = cari_label(folder.name, LABEL_FULL_BODY)
-        label_wd = cari_label(folder.name, LABEL_WAIST_DOWN)
-        if label_fb is None and label_wd is None:
+        label = cari_label(folder.name)
+        if label is None:
             dilewati.append(folder.name)
             continue
 
         file_gambar = sorted(f for f in folder.iterdir() if f.suffix.lower() in EKSTENSI)
         prev_count = 0
+        print(f"Memproses folder: {folder.name} ({len(file_gambar)} foto)...")
         for f in file_gambar:
             img = cv2.imread(str(f))
             if img is None:
-                print(f"  gagal dibaca: {f}")
                 continue
 
-            if adalah_closeup_bawah(folder.name, f):
-                label = (None, None, 0, 0)
-                area_cfg = AREA_WAIST_DOWN
-                lebar_p = LEBAR_WAIST_DOWN
-                mode_tag = "WD"
-            else:
-                label = label_fb
-                area_cfg = AREA_FULL_BODY
-                lebar_p = LEBAR_TENGAH
-                mode_tag = "FB"
+            hasil_potongan, kotak = potong_area_adaptif(img, folder.name, f, label)
+            if not hasil_potongan:
+                continue
 
-            item_aktif = [it for it, v in zip(ITEM, label) if v is not None and it in ITEM_DILATIH]
             kode = "_".join(f"{i[0].upper()}{'-' if v is None else v}" for i, v in zip(ITEM, label))
-            nama = f"{mode_tag}_{kode}__{f.stem}.jpg"
-            potongan = potong_area(img, area_cfg, lebar_p, item_aktif)
+            nama = f"ADP_{kode}__{f.stem}.jpg"
 
             disimpan_ada = False
             for item, v in zip(ITEM, label):
-                if v is None or item not in ITEM_DILATIH:
+                if v is None or item not in hasil_potongan:
                     continue
                 kunci_dup = (f.name.lower(), v)
                 if kunci_dup in sudah_ada[item]:
@@ -384,30 +515,30 @@ def main():
                     continue
                 sudah_ada[item].add(kunci_dup)
 
-                crop, _ = potongan[item]
-                crop = cv2.resize(crop, UKURAN[item], interpolation=cv2.INTER_AREA)
+                crop = hasil_potongan[item]
+                crop_res = cv2.resize(crop, UKURAN[item], interpolation=cv2.INTER_AREA)
                 kelas = "pakai" if v else "tidak"
-                cv2.imwrite(str(keluar / item / kelas / nama), crop)
+                cv2.imwrite(str(keluar / item / kelas / nama), crop_res)
                 hitung[item][0 if v else 1] += 1
                 disimpan_ada = True
 
             if disimpan_ada and prev_count < args.preview:
-                gambar_preview(img, {k: v[1] for k, v in potongan.items()}, keluar / "preview" / nama)
+                gambar_preview(img, kotak, keluar / "preview" / nama)
                 prev_count += 1
             if disimpan_ada:
-                baris.append([str(f.relative_to(masuk)), nama, folder.name, mode_tag,
+                baris.append([str(f.relative_to(masuk)), nama, folder.name,
                               *["" if v is None else v for v in label]])
 
     with open(keluar / "labels.csv", "w", newline="", encoding="utf-8") as fh:
         tulis = csv.writer(fh)
-        tulis.writerow(["file_asli", "file_hasil", "folder", "mode", *ITEM])
+        tulis.writerow(["file_asli", "file_hasil", "folder", *ITEM])
         tulis.writerows(baris)
 
     print(f"\nTotal foto APD diproses: {len(baris)} (duplikat dilewati: {duplikat_skip})")
-    print("Menambahkan contoh negatif tambahan (latar kosong/benda gelap + lintas-area + posisi duduk)...")
+    print("Menambahkan contoh negatif tambahan bertekstur (std >= 18)...")
     tambah_hard_negatives(masuk, keluar, hitung)
 
-    print(f"\n=== RINGKASAN FINAL DATASET AREA (TERMASUK HARD NEGATIVES) ===")
+    print(f"\n=== RINGKASAN FINAL DATASET AREA ===")
     print(f"{'item':<8}{'pakai':>8}{'tidak':>8}")
     for item in ITEM_DILATIH:
         p, t = hitung[item]

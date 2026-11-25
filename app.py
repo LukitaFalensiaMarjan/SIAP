@@ -1,12 +1,14 @@
 import csv
 import io
 import json
+import re
 import sqlite3
 from datetime import date, datetime, timedelta
 from math import ceil
 from pathlib import Path
 
-from flask import Flask, jsonify, make_response, request, send_from_directory, session
+import cv2
+from flask import Flask, jsonify, make_response, redirect, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from kiosk_inference import (
@@ -199,11 +201,26 @@ def index():
 
 @app.route("/kiosk")
 def kiosk_route():
-    return send_from_directory(WEB_DIR / "mahasiswa", "absensi.html")
+    # Akses Kiosk wajib login akun Kiosk atau Admin terlebih dahulu
+    if "identifier" not in session or session.get("peran") not in ("kiosk", "operator"):
+        return redirect("/login.html")
+    return send_from_directory(WEB_DIR, "kiosk.html")
 
 
 @app.route("/<path:path>")
 def static_files(path):
+    clean_path = path.lower().replace("\\", "/")
+
+    # 1. Proteksi Halaman Admin: Wajib login peran operator / dosen / plp
+    if clean_path.startswith("admin/"):
+        if "identifier" not in session or session.get("peran") not in ("operator", "dosen", "plp"):
+            return redirect("/login.html")
+
+    # 2. Proteksi Halaman Kiosk: Wajib login akun kiosk atau admin
+    if clean_path in ("kiosk.html", "kiosk/index.html", "mahasiswa/absensi.html"):
+        if "identifier" not in session or session.get("peran") not in ("kiosk", "operator"):
+            return redirect("/login.html")
+
     file_path = WEB_DIR / path
     if file_path.is_file():
         return send_from_directory(WEB_DIR, path)
@@ -714,12 +731,17 @@ def kiosk_identity(data):
     if not isinstance(data, dict):
         return None, (jsonify({"error": "Data identitas mahasiswa tidak valid"}), 400)
 
-    nim = str(data.get("nim", "")).strip()
+    raw_nim = str(data.get("nim", "")).strip()
     kelas = str(data.get("kelas", "")).strip()
     nama = str(data.get("nama", "")).strip()
 
+    if raw_nim and re.search(r"[a-zA-Z]", raw_nim):
+        return None, (jsonify({"error": "NIM hanya boleh berisi angka (tidak boleh huruf)"}), 400)
+
+    nim = re.sub(r"\D", "", raw_nim)
+
     if not nim and not nama:
-        return None, (jsonify({"error": "NIM wajib diisi"}), 400)
+        return None, (jsonify({"error": "NIM wajib diisi (angka saja)"}), 400)
 
     conn = get_db()
     row = None
@@ -1379,13 +1401,28 @@ def kiosk_attendance():
         item: apd[item]["probability"] for item in ("helm", "baju", "jeans", "sepatu")
     }
 
+    # Simpan tangkapan foto frame deteksi kiosk ke folder uploads
+    foto_rel_path = None
+    if frames:
+        try:
+            uploads_dir = WEB_DIR / "uploads" / "absensi"
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+            snap_frame = frames[len(frames) // 2]
+            time_tag = datetime.now().strftime("%Y%m%d_%H%M%S")
+            fname = f"scan_{student['nim']}_{session_row['id']}_{time_tag}.jpg"
+            fpath = uploads_dir / fname
+            cv2.imwrite(str(fpath), snap_frame)
+            foto_rel_path = f"/uploads/absensi/{fname}"
+        except Exception as exc:
+            print(f"[WARN] Gagal menyimpan snapshot absensi: {exc}")
+
     conn = get_db()
     try:
         cursor = conn.execute(
             """
             INSERT INTO absensi
             (nim, sesi_id, waktu, helm, baju, jeans, sepatu, status, confidence, foto_path, catatan)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
             """,
             (
                 student["nim"],
@@ -1397,6 +1434,7 @@ def kiosk_attendance():
                 values["sepatu"],
                 status,
                 json.dumps(confidence),
+                foto_rel_path,
             ),
         )
         conn.commit()
@@ -1993,6 +2031,313 @@ def update_jeans(attendance_id):
     return jsonify({"attendance": result})
 
 
+@app.route("/api/admin/verifikasi-apd", methods=["GET"])
+def admin_verifikasi_apd_list():
+    user, error = login_required("operator", "dosen", "PLP")
+    if error:
+        return error
+
+    conn = get_db()
+
+    # Dapatkan daftar semua tanggal sesi yang ada di sistem
+    date_rows = conn.execute("SELECT DISTINCT tanggal FROM sesi ORDER BY tanggal DESC").fetchall()
+    dates = [r["tanggal"] for r in date_rows if r["tanggal"]]
+
+    today_str = date.today().isoformat()
+    if today_str not in dates:
+        dates.insert(0, today_str)
+
+    selected_date = request.args.get("tanggal", "").strip()
+    if not selected_date:
+        selected_date = dates[0] if dates else today_str
+
+    status_filter = request.args.get("status", "all").strip()  # 'all', 'perlu_verifikasi', 'selesai'
+    search = request.args.get("q", "").strip().lower()
+
+    query = """
+        SELECT a.*, m.nama, m.kelas, s.lab, s.mata_kuliah, s.jam_mulai, s.jam_selesai, s.ruang, s.tanggal,
+               s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu
+        FROM absensi a
+        JOIN mahasiswa m ON m.nim = a.nim
+        JOIN sesi s ON s.id = a.sesi_id
+    """
+    params = []
+    conditions = []
+
+    if selected_date != "all":
+        conditions.append("s.tanggal = ?")
+        params.append(selected_date)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY a.waktu DESC"
+
+    rows = conn.execute(query, params).fetchall()
+
+    # Ambil data verifikasi yang sudah pernah dilakukan
+    all_att_ids = [r["id"] for r in rows]
+    verification_map = {}
+    if all_att_ids:
+        placeholders = ",".join("?" for _ in all_att_ids)
+        verif_rows = conn.execute(
+            f"""
+            SELECT v.*, p.nama AS verifikator_nama
+            FROM verifikasi_apd v
+            JOIN pengguna p ON p.id = v.diverifikasi_oleh
+            WHERE v.absensi_id IN ({placeholders})
+            ORDER BY v.diverifikasi_pada ASC
+            """,
+            all_att_ids,
+        ).fetchall()
+        for vr in verif_rows:
+            att_id = vr["absensi_id"]
+            if att_id not in verification_map:
+                verification_map[att_id] = []
+            verification_map[att_id].append(dict(vr))
+
+    students = []
+    total_count = len(rows)
+    perlu_count = 0
+    lengkap_count = 0
+    kurang_count = 0
+
+    for r in rows:
+        item = dict(r)
+
+        conf = {}
+        if item.get("confidence"):
+            try:
+                conf = json.loads(item["confidence"])
+            except Exception:
+                conf = {}
+
+        rule = apd_rule(conn, item["lab"])
+        wajib = rule["wajib"] if rule else [
+            k for k in ["helm", "baju", "jeans", "sepatu"] if item.get(f"wajib_{k}") == 1
+        ]
+
+        verif_history = verification_map.get(item["id"], [])
+
+        apd_items = {}
+        masalah_list = []
+        has_problem = False
+
+        for apd_name in ["helm", "baju", "jeans", "sepatu"]:
+            is_wajib = apd_name in wajib
+            st = item.get(apd_name)
+            cf = conf.get(apd_name)
+            if cf is not None:
+                try:
+                    cf = round(float(cf) * 100, 1)
+                except Exception:
+                    cf = None
+
+            latest_verif = None
+            for v in reversed(verif_history):
+                if v["apd_item"] == apd_name:
+                    latest_verif = v
+                    break
+
+            is_verified = latest_verif is not None
+
+            label_status = "Sesuai"
+            if st == 1:
+                label_status = "Sesuai (Diverifikasi)" if is_verified else "Sesuai (Otomatis)"
+            elif st == 0:
+                label_status = "Tidak Sesuai (Diverifikasi)" if is_verified else "Kurang / Tidak Ada"
+                if is_wajib:
+                    masalah_list.append(f"{apd_name.capitalize()}: Kurang")
+                    has_problem = True
+            else:
+                label_status = "Menunggu Verifikasi"
+                if is_wajib:
+                    masalah_list.append(f"{apd_name.capitalize()}: Butuh Verifikasi")
+                    has_problem = True
+
+            apd_items[apd_name] = {
+                "wajib": is_wajib,
+                "status": st,
+                "confidence": cf,
+                "label": label_status,
+                "is_verified": is_verified,
+                "verifikator": latest_verif["verifikator_nama"] if latest_verif else None,
+                "waktu_verifikasi": latest_verif["diverifikasi_pada"] if latest_verif else None,
+                "alasan": latest_verif["alasan"] if latest_verif else None,
+            }
+
+        is_perlu_tindak_lanjut = has_problem or item["status"] != "lengkap"
+
+        if item["status"] == "lengkap" and not has_problem:
+            lengkap_count += 1
+        elif item["status"] == "menunggu_validasi" or has_problem:
+            perlu_count += 1
+        else:
+            kurang_count += 1
+
+        item_res = {
+            "id": item["id"],
+            "nim": item["nim"],
+            "nama": item["nama"],
+            "kelas": item["kelas"],
+            "sesi_id": item["sesi_id"],
+            "mata_kuliah": item["mata_kuliah"],
+            "lab": item["lab"],
+            "ruang": item["ruang"],
+            "tanggal": item["tanggal"],
+            "jam_mulai": item["jam_mulai"],
+            "jam_selesai": item["jam_selesai"],
+            "waktu": item["waktu"],
+            "foto_path": item["foto_path"],
+            "status": item["status"],
+            "wajib": wajib,
+            "apd_items": apd_items,
+            "masalah_list": masalah_list,
+            "perlu_tindak_lanjut": is_perlu_tindak_lanjut,
+            "riwayat_verifikasi": verif_history,
+        }
+
+        if search:
+            nim_match = search in item["nim"].lower()
+            nama_match = search in item["nama"].lower()
+            kelas_match = search in item["kelas"].lower()
+            if not (nim_match or nama_match or kelas_match):
+                continue
+
+        if status_filter == "perlu_verifikasi" and not is_perlu_tindak_lanjut:
+            continue
+        elif status_filter == "selesai" and is_perlu_tindak_lanjut:
+            continue
+
+        students.append(item_res)
+
+    conn.close()
+
+    return jsonify({
+        "dates": dates,
+        "selected_date": selected_date,
+        "summary": {
+            "total": total_count,
+            "perlu_verifikasi": perlu_count,
+            "lengkap": lengkap_count,
+            "kurang": kurang_count,
+        },
+        "students": students,
+    })
+
+
+@app.route("/api/admin/verifikasi-apd/<int:attendance_id>", methods=["POST"])
+def admin_verifikasi_apd_update(attendance_id):
+    user, error = login_required("operator", "dosen", "PLP")
+    if error:
+        return error
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Format data tidak valid"}), 400
+
+    apd_item = str(data.get("apd", "")).strip().lower()
+    if apd_item not in ("helm", "baju", "jeans", "sepatu"):
+        return jsonify({"error": "Jenis APD tidak valid"}), 400
+
+    raw_status = data.get("status")
+    if raw_status in (1, "1", True, "true"):
+        new_status = 1
+    elif raw_status in (0, "0", False, "false"):
+        new_status = 0
+    else:
+        return jsonify({"error": "Status keputusan harus 1 (sesuai) atau 0 (kurang)"}), 400
+
+    catatan = str(data.get("catatan", "")).strip()
+
+    conn = get_db()
+    conn.execute("BEGIN IMMEDIATE")
+
+    row = conn.execute(
+        """
+        SELECT a.*, s.lab, s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu,
+               m.nama AS mahasiswa_nama
+        FROM absensi a
+        JOIN sesi s ON s.id = a.sesi_id
+        JOIN mahasiswa m ON m.nim = a.nim
+        WHERE a.id = ?
+        """,
+        (attendance_id,),
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return jsonify({"error": "Data absensi tidak ditemukan"}), 404
+
+    old_status = row[apd_item]
+
+    # Update status APD
+    conn.execute(
+        f"UPDATE absensi SET {apd_item} = ? WHERE id = ?",
+        (new_status, attendance_id),
+    )
+
+    # Hitung ulang status kehadiran keseluruhan
+    rule = apd_rule(conn, row["lab"])
+    wajib = rule["wajib"] if rule else [
+        k for k in ["helm", "baju", "jeans", "sepatu"] if row.get(f"wajib_{k}") == 1
+    ]
+
+    current_vals = {
+        k: (new_status if k == apd_item else row[k]) for k in ("helm", "baju", "jeans", "sepatu")
+    }
+    new_overall_status = attendance_status(current_vals, wajib)
+
+    conn.execute(
+        "UPDATE absensi SET status = ? WHERE id = ?",
+        (new_overall_status, attendance_id),
+    )
+
+    # Catat riwayat verifikasi
+    now = datetime.now().isoformat(timespec="seconds")
+    conn.execute(
+        """
+        INSERT INTO verifikasi_apd
+        (absensi_id, apd_item, status_sebelumnya, status_baru, alasan, diverifikasi_oleh, diverifikasi_pada)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (attendance_id, apd_item, old_status, new_status, catatan, user["id"], now),
+    )
+
+    # Catat audit log
+    status_label = "Sesuai (Benar)" if new_status == 1 else "Tidak Sesuai (Kurang)"
+    conn.execute(
+        """
+        INSERT INTO audit_log (pengguna_id, aksi, detail, waktu)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            user["id"],
+            "verifikasi_apd_admin",
+            json.dumps({
+                "absensi_id": attendance_id,
+                "mahasiswa": row["mahasiswa_nama"],
+                "apd": apd_item,
+                "status_baru": status_label,
+                "catatan": catatan,
+            }),
+            now,
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": f"Keputusan APD {apd_item.capitalize()} berhasil disimpan menjadi {status_label}",
+        "attendance_id": attendance_id,
+        "apd": apd_item,
+        "status": new_status,
+        "overall_status": new_overall_status,
+    })
+
+
 def attendance_report_rows():
     _, error = login_required("operator", "dosen", "PLP")
     if error:
@@ -2451,6 +2796,15 @@ def init_db():
         "FOREIGN KEY (divalidasi_oleh) REFERENCES pengguna(id))"
     )
     conn.execute(
+        "CREATE TABLE IF NOT EXISTS verifikasi_apd "
+        "(id INTEGER PRIMARY KEY AUTOINCREMENT, absensi_id INTEGER NOT NULL, "
+        "apd_item TEXT NOT NULL, status_sebelumnya INTEGER, "
+        "status_baru INTEGER NOT NULL, alasan TEXT, "
+        "diverifikasi_oleh INTEGER NOT NULL, diverifikasi_pada TEXT NOT NULL, "
+        "FOREIGN KEY (absensi_id) REFERENCES absensi(id), "
+        "FOREIGN KEY (diverifikasi_oleh) REFERENCES pengguna(id))"
+    )
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS perangkat_kiosk "
         "(id INTEGER PRIMARY KEY AUTOINCREMENT, kode TEXT UNIQUE NOT NULL, "
         "nama TEXT NOT NULL, lokasi TEXT NOT NULL, status_kamera TEXT NOT NULL DEFAULT 'standby', "
@@ -2481,20 +2835,30 @@ def init_db():
         ],
     )
 
-    if conn.execute("SELECT COUNT(*) FROM pengguna").fetchone()[0] == 0:
-        users = [
-            ("123456789", "Administrator & Dosen", "operator", "admin123"),
-            ("000000000", "PC Kiosk Jurusan AE", "kiosk", "kiosk123"),
-            ("admin", "Administrator SIAP", "operator", "admin123"),
-            ("dosen01", "Dr. Dosen Polman", "operator", "dosen123"),
-            ("plp01", "Petugas PLP", "PLP", "plp123"),
-            ("224443009", "Lukita Falensia Marjan", "mahasiswa", "mahasiswa123"),
-            ("224443003", "Bintang Shobri Al Chakim", "mahasiswa", "mahasiswa123"),
-            ("224443012", "Muhammad Basit", "mahasiswa", "mahasiswa123"),
-        ]
-        conn.executemany(
-            "INSERT INTO pengguna (identifier, nama, peran, password_hash) VALUES (?, ?, ?, ?)",
-            [(u, n, r, generate_password_hash(p)) for u, n, r, p in users],
+    # Akun Standar Sistem (Admin & Kiosk)
+    standard_users = [
+        ("12345678", "Administrator SIAP", "operator", "admin123"),
+        ("00000000", "PC Terminal Kiosk Absensi", "kiosk", "kiosk123"),
+        ("123456789", "Administrator & Dosen", "operator", "admin123"),
+        ("000000000", "PC Kiosk Jurusan AE", "kiosk", "kiosk123"),
+        ("admin", "Administrator SIAP", "operator", "admin123"),
+        ("dosen01", "Dr. Dosen Polman", "operator", "dosen123"),
+        ("plp01", "Petugas PLP", "PLP", "plp123"),
+        ("224443009", "Lukita Falensia Marjan", "mahasiswa", "mahasiswa123"),
+        ("224443003", "Bintang Shobri Al Chakim", "mahasiswa", "mahasiswa123"),
+        ("224443012", "Muhammad Basit", "mahasiswa", "mahasiswa123"),
+    ]
+    for u, n, r, p in standard_users:
+        conn.execute(
+            """
+            INSERT INTO pengguna (identifier, nama, peran, password_hash)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(identifier) DO UPDATE SET
+                nama = excluded.nama,
+                peran = excluded.peran,
+                password_hash = excluded.password_hash
+            """,
+            (u, n, r, generate_password_hash(p)),
         )
 
     if conn.execute("SELECT COUNT(*) FROM mahasiswa").fetchone()[0] == 0:

@@ -234,7 +234,7 @@
         <div style="font-size: 11px; color: #64748B;" id="stepSubTitle">Verifikasi Wajah &amp; Inspeksi APD Real-Time</div>
       </div>
       <span class="kiosk-step-pill" id="stepPillBadge" style="background: #E0F2FE; color: #0369A1; font-weight: 800;">PC Kiosk</span>
-      <a href="../login.html" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Keluar dari Kiosk">
+      <a href="../login.html" onclick="logoutKioskDevice(event)" class="mhs-sidebar-logout" style="margin: 0; padding: 8px 14px; font-size: 12px; display: inline-flex;" title="Keluar dari Kiosk">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
           <polyline points="16 17 21 12 16 7"></polyline>
@@ -278,7 +278,7 @@
             <form id="kioskStudentLoginForm" onsubmit="handleKioskStudentLogin(event)">
               <div style="margin-bottom: 10px;">
                 <label for="kioskInputNim" style="display: block; font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 4px;">NIM Mahasiswa</label>
-                <input type="text" id="kioskInputNim" placeholder="Contoh: 224443003" required autofocus style="width: 100%; padding: 9px 12px; border: 1.5px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-family: inherit;">
+                <input type="text" id="kioskInputNim" placeholder="Masukan NIM" required autofocus inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 13" style="width: 100%; padding: 9px 12px; border: 1.5px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-family: inherit;">
               </div>
               <div style="margin-bottom: 12px;">
                 <label for="kioskInputKelas" style="display: block; font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 4px;">Kelas Praktikum</label>

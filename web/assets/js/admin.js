@@ -1198,7 +1198,7 @@ async function submitMahasiswaForm(event) {
   };
   const password = document.getElementById('mahasiswaPassword').value;
   if (!isEditing) {
-    payload.nim = document.getElementById('mahasiswaNim').value.trim();
+    payload.nim = document.getElementById('mahasiswaNim').value.replace(/[^0-9]/g, '').trim();
   }
   if (!isEditing || password) payload.password = password;
 
@@ -1755,3 +1755,499 @@ async function initAttendanceReport() {
 }
 
 document.addEventListener('DOMContentLoaded', initAttendanceReport);
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODUL VERIFIKASI APD MAHASISWA & TINDAK LANJUT ADMIN
+   ══════════════════════════════════════════════════════════════════════ */
+
+let verifApdState = {
+  currentDate: '',
+  statusFilter: 'perlu_verifikasi',
+  searchQuery: '',
+  students: [],
+  selectedStudent: null,
+  pendingDecision: null
+};
+
+function formatIndonesianDate(isoDateStr) {
+  if (!isoDateStr) return '-';
+  const parts = String(isoDateStr).split('-');
+  if (parts.length !== 3) return isoDateStr;
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const dayName = days[d.getDay()] || '';
+  const monthName = months[parseInt(parts[1]) - 1] || parts[1];
+  return `${dayName}, ${parseInt(parts[2])} ${monthName} ${parts[0]}`;
+}
+
+async function loadVerifikasiApd() {
+  const container = document.getElementById('containerListVerifikasi');
+  if (!container) return;
+
+  const url = `/api/admin/verifikasi-apd?tanggal=${encodeURIComponent(verifApdState.currentDate || '')}&status=${encodeURIComponent(verifApdState.statusFilter)}&q=${encodeURIComponent(verifApdState.searchQuery)}`;
+  
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Gagal memuat data verifikasi APD.');
+    }
+    const data = await res.json();
+    verifApdState.students = data.students || [];
+
+    // Populate dropdown tanggal jika belum terisi
+    populateDateDropdown(data.dates || [], data.selected_date);
+
+    // Update Quick Stats
+    if (data.summary) {
+      const statTotal = document.getElementById('statVerifTotal');
+      if (statTotal) statTotal.textContent = data.summary.total ?? 0;
+      const statPerlu = document.getElementById('statVerifPerlu');
+      if (statPerlu) statPerlu.textContent = data.summary.perlu_verifikasi ?? 0;
+      const statLengkap = document.getElementById('statVerifLengkap');
+      if (statLengkap) statLengkap.textContent = data.summary.lengkap ?? 0;
+    }
+
+    renderVerifikasiStudentList(verifApdState.students);
+  } catch (err) {
+    console.error(err);
+    if (container) {
+      container.innerHTML = `<div style="text-align: center; padding: 40px; color: #DC2626;">${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function populateDateDropdown(dates, selectedDate) {
+  const select = document.getElementById('filterTanggalVerifikasi');
+  if (!select) return;
+
+  const currentVal = verifApdState.currentDate || selectedDate;
+  
+  if (select.options.length <= 1) {
+    select.innerHTML = '';
+    const optAll = document.createElement('option');
+    optAll.value = 'all';
+    optAll.textContent = 'Semua Tanggal';
+    select.appendChild(optAll);
+
+    dates.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = formatIndonesianDate(d);
+      select.appendChild(opt);
+    });
+  }
+
+  if (currentVal && select.querySelector(`option[value="${currentVal}"]`)) {
+    select.value = currentVal;
+    verifApdState.currentDate = currentVal;
+    const customInput = document.getElementById('inputCustomTanggalVerif');
+    if (customInput && currentVal !== 'all') customInput.value = currentVal;
+  } else if (dates.length > 0 && !verifApdState.currentDate) {
+    select.value = dates[0];
+    verifApdState.currentDate = dates[0];
+    const customInput = document.getElementById('inputCustomTanggalVerif');
+    if (customInput) customInput.value = dates[0];
+  }
+}
+
+function renderVerifikasiStudentList(students) {
+  const container = document.getElementById('containerListVerifikasi');
+  if (!container) return;
+
+  if (!students || students.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 48px 20px; background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 12px; margin-top: 10px;">
+        <div style="font-size: 15px; font-weight: 700; color: #334155; margin-bottom: 4px;">Tidak ada mahasiswa dalam antrean tindak lanjut</div>
+        <div style="font-size: 12.5px; color: #64748B;">Seluruh APD mahasiswa pada tanggal ini telah lengkap atau sesuai kriteria filter.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  students.forEach((item) => {
+    const initials = (item.nama || 'M')
+      .split(' ')
+      .map(w => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+
+    const timeFormatted = item.waktu ? item.waktu.replace('T', ' ').slice(11, 16) : '-';
+
+    // Rangkuman badge APD
+    const apdLabels = { helm: 'Helm', baju: 'Kemeja Lab', jeans: 'Jeans', sepatu: 'Sepatu' };
+    const apdBadgesHtml = Object.entries(item.apd_items || {}).map(([key, info]) => {
+      let pillClass = 'pill-gray';
+      let statusIcon = '⏳';
+      let text = `${apdLabels[key] || key}`;
+
+      if (info.status === 1) {
+        pillClass = 'pill-ok';
+        statusIcon = '✅';
+        text += info.is_verified ? ' (Valid)' : '';
+      } else if (info.status === 0) {
+        pillClass = 'pill-bad';
+        statusIcon = '❌';
+        text += ' Kurang';
+      } else {
+        pillClass = 'pill-warn';
+        statusIcon = '⚠️';
+        text += ' Verifikasi';
+      }
+
+      if (info.confidence !== null && info.confidence !== undefined) {
+        text += ` ${info.confidence}%`;
+      }
+
+      return `<span class="verif-item-pill ${pillClass}">${statusIcon} ${text}</span>`;
+    }).join(' ');
+
+    const snapshotSrc = item.foto_path || '../assets/img/maskot-k3.png';
+
+    // Status Keseluruhan
+    let overallBadge = '<span class="adm-badge adm-badge-amber">Menunggu Verifikasi</span>';
+    if (item.status === 'lengkap') {
+      overallBadge = '<span class="adm-badge adm-badge-green">Lengkap</span>';
+    } else if (item.status === 'kurang') {
+      overallBadge = '<span class="adm-badge adm-badge-red" style="background:#FEF2F2;color:#DC2626;border:1px solid rgba(220,38,38,0.3);">APD Kurang</span>';
+    }
+
+    html += `
+      <div class="verif-card-student">
+        <div class="verif-student-info">
+          <div class="verif-student-avatar">${initials}</div>
+          <div>
+            <div style="font-size: 14px; font-weight: 800; color: #0F172A;">${escapeHtml(item.nama)}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">
+              NIM: <strong style="color: #334155;">${escapeHtml(item.nim)}</strong> · Kelas: ${escapeHtml(item.kelas)}
+            </div>
+            <div style="font-size: 11.5px; color: #94A3B8; margin-top: 2px;">
+              ${escapeHtml(item.mata_kuliah || 'Praktikum')} · Pukul ${timeFormatted}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img class="verif-snapshot-thumb" src="${snapshotSrc}" alt="Snapshot" onclick="openModalVerifikasi(${item.id})" title="Klik untuk periksa">
+          
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div class="verif-apd-badges-group">
+              ${apdBadgesHtml}
+            </div>
+            <div>
+              ${overallBadge}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <button type="button" class="adm-btn-primary" onclick="openModalVerifikasi(${item.id})" style="padding: 9px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
+            Periksa &amp; Tindak Lanjuti
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function openModalVerifikasi(attendanceId) {
+  const item = verifApdState.students.find(s => s.id === attendanceId);
+  if (!item) return;
+
+  verifApdState.selectedStudent = item;
+
+  // Set Metadata
+  const namaEl = document.getElementById('detailModalMhsNama');
+  if (namaEl) namaEl.textContent = item.nama;
+
+  const metaEl = document.getElementById('detailModalMhsMeta');
+  if (metaEl) {
+    metaEl.textContent = `NIM: ${item.nim} · Kelas: ${item.kelas} · ${item.mata_kuliah} (${item.ruang || item.lab}) · Pukul ${item.waktu ? item.waktu.replace('T', ' ').slice(11, 16) : '-'}`;
+  }
+
+  // Set Snapshot Kiosk
+  const fotoEl = document.getElementById('detailFotoKiosk');
+  if (fotoEl) {
+    fotoEl.src = item.foto_path || '../assets/img/maskot-k3.png';
+  }
+
+  const timeEl = document.getElementById('detailFotoTimestamp');
+  if (timeEl) {
+    timeEl.textContent = item.waktu ? item.waktu.replace('T', ' ') : '-';
+  }
+
+  // Render 4 APD Decision Boxes
+  renderApdDecisionBoxes(item);
+
+  // Render Riwayat Verifikasi
+  renderRiwayatVerifikasi(item.riwayat_verifikasi || []);
+
+  const modal = document.getElementById('modalDetailVerifikasi');
+  if (modal) modal.classList.add('show');
+}
+
+function renderApdDecisionBoxes(item) {
+  const container = document.getElementById('containerApdDecisionBoxes');
+  if (!container) return;
+
+  const apdMeta = {
+    helm: { name: 'Helm Keselamatan', icon: '🪖' },
+    baju: { name: 'Baju / Kemeja Praktikum', icon: '🥼' },
+    jeans: { name: 'Celana Jeans', icon: '👖' },
+    sepatu: { name: 'Sepatu Safety', icon: '🥾' }
+  };
+
+  let html = '';
+
+  for (const [key, meta] of Object.entries(apdMeta)) {
+    const apdInfo = (item.apd_items && item.apd_items[key]) || {};
+    const isWajib = item.wajib ? item.wajib.includes(key) : true;
+    const st = apdInfo.status;
+    const isVerified = apdInfo.is_verified;
+
+    let boxClass = 'box-warning';
+    let badgeClass = 'adm-badge-amber';
+    let badgeText = 'Menunggu Verifikasi';
+
+    if (st === 1) {
+      boxClass = 'box-success';
+      badgeClass = 'adm-badge-green';
+      badgeText = isVerified ? 'Sesuai (Diverifikasi)' : 'Sesuai (Otomatis)';
+    } else if (st === 0) {
+      boxClass = 'box-danger';
+      badgeClass = 'adm-badge-red';
+      badgeText = isVerified ? 'Tidak Sesuai (Ditolak)' : 'Tidak Sesuai / Kurang';
+    }
+
+    const confText = apdInfo.confidence !== null && apdInfo.confidence !== undefined
+      ? `Skor Deteksi AI: <strong>${apdInfo.confidence}%</strong>`
+      : 'Deteksi Otomatis';
+
+    const verifiedByText = isVerified
+      ? `<div style="font-size: 11px; color: #0284C7; margin-top: 4px;">Diverifikasi oleh: ${escapeHtml(apdInfo.verifikator || 'Admin')} (${escapeHtml(apdInfo.waktu_verifikasi ? apdInfo.waktu_verifikasi.replace('T', ' ').slice(0, 16) : '')})</div>`
+      : '';
+
+    html += `
+      <div class="apd-decision-box ${boxClass}" id="boxApd_${key}">
+        <div class="apd-decision-header">
+          <div class="apd-decision-title">
+            <span>${meta.icon}</span>
+            <span>${meta.name}</span>
+            ${isWajib ? '<span style="font-size: 10px; background: #E2E8F0; color: #475569; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Wajib</span>' : ''}
+          </div>
+          <span class="adm-badge ${badgeClass}" style="font-size: 11px;">${badgeText}</span>
+        </div>
+
+        <div class="apd-decision-ai-meta">
+          ${confText}
+          ${verifiedByText}
+        </div>
+
+        <div class="apd-decision-actions">
+          <button type="button" class="btn-verif-valid" onclick="promptApdDecision('${key}', 1, '${meta.name}')">
+            Sesuai / Benar
+          </button>
+          <button type="button" class="btn-verif-invalid" onclick="promptApdDecision('${key}', 0, '${meta.name}')">
+            Tidak Sesuai / Kurang
+          </button>
+          ${isVerified ? `
+            <button type="button" class="btn-verif-edit" onclick="promptApdDecision('${key}', ${st === 1 ? 0 : 1}, '${meta.name}')" title="Ubah kembali keputusan ini">
+              Edit Keputusan
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+function renderRiwayatVerifikasi(logs) {
+  const container = document.getElementById('detailRiwayatVerif');
+  if (!container) return;
+
+  if (!logs || logs.length === 0) {
+    container.innerHTML = '<em>Belum ada riwayat keputusan untuk mahasiswa ini.</em>';
+    return;
+  }
+
+  let html = '<ul style="margin: 0; padding-left: 18px; line-height: 1.6;">';
+  logs.forEach(log => {
+    const time = log.diverifikasi_pada ? log.diverifikasi_pada.replace('T', ' ').slice(0, 16) : '-';
+    const statusText = log.status_baru === 1 ? 'Sesuai' : 'Tidak Sesuai';
+    const noteText = log.alasan ? ` (Catatan: "${escapeHtml(log.alasan)}")` : '';
+    html += `<li><strong>${escapeHtml(log.verifikator_nama || 'Admin')}</strong> menetapkan <strong>${escapeHtml(log.apd_item)}</strong> menjadi <strong>${statusText}</strong> pada ${time}${noteText}</li>`;
+  });
+  html += '</ul>';
+  container.innerHTML = html;
+}
+
+function promptApdDecision(apdKey, targetStatus, apdLabel) {
+  const item = verifApdState.selectedStudent;
+  if (!item) return;
+
+  verifApdState.pendingDecision = {
+    attendanceId: item.id,
+    apdKey: apdKey,
+    targetStatus: targetStatus,
+    apdLabel: apdLabel,
+    studentName: item.nama,
+    studentNim: item.nim
+  };
+
+  // Set teks di Pop-up Konfirmasi
+  const nameEl = document.getElementById('confirmMhsNama');
+  if (nameEl) nameEl.textContent = item.nama;
+
+  const nimEl = document.getElementById('confirmMhsNim');
+  if (nimEl) nimEl.textContent = item.nim;
+
+  const apdEl = document.getElementById('confirmApdNama');
+  if (apdEl) apdEl.textContent = apdLabel;
+
+  const badgeEl = document.getElementById('confirmStatusBadge');
+  if (badgeEl) {
+    if (targetStatus === 1) {
+      badgeEl.className = 'adm-badge adm-badge-green';
+      badgeEl.style.background = '#E6F7F0';
+      badgeEl.style.color = '#0E8A57';
+      badgeEl.textContent = 'Sesuai (Benar)';
+    } else {
+      badgeEl.className = 'adm-badge adm-badge-red';
+      badgeEl.style.background = '#FEF2F2';
+      badgeEl.style.color = '#DC2626';
+      badgeEl.textContent = 'Tidak Sesuai (Kurang)';
+    }
+  }
+
+  const noteInput = document.getElementById('confirmCatatanInput');
+  if (noteInput) noteInput.value = '';
+
+  const confirmModal = document.getElementById('modalKonfirmasiApd');
+  if (confirmModal) confirmModal.classList.add('show');
+}
+
+async function executeApdDecision() {
+  const pending = verifApdState.pendingDecision;
+  if (!pending) return;
+
+  const noteInput = document.getElementById('confirmCatatanInput');
+  const note = noteInput ? noteInput.value.trim() : '';
+
+  const submitBtn = document.getElementById('btnSubmitConfirmApd');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Menyimpan...';
+  }
+
+  try {
+    const res = await fetch(`/api/admin/verifikasi-apd/${pending.attendanceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apd: pending.apdKey,
+        status: pending.targetStatus,
+        catatan: note
+      })
+    });
+
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error || 'Gagal menyimpan keputusan verifikasi APD.');
+
+    showToast(result.message || 'Keputusan APD berhasil disimpan.');
+
+    closeConfirmApdModal();
+
+    // Reload list and update current modal
+    await loadVerifikasiApd();
+
+    // Re-fetch or update selected student inside modal
+    const updatedStudent = verifApdState.students.find(s => s.id === pending.attendanceId);
+    if (updatedStudent) {
+      verifApdState.selectedStudent = updatedStudent;
+      renderApdDecisionBoxes(updatedStudent);
+      renderRiwayatVerifikasi(updatedStudent.riwayat_verifikasi || []);
+    }
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Ya, Simpan Keputusan';
+    }
+  }
+}
+
+function closeConfirmApdModal() {
+  verifApdState.pendingDecision = null;
+  const modal = document.getElementById('modalKonfirmasiApd');
+  if (modal) modal.classList.remove('show');
+}
+
+function closeModalVerifikasi() {
+  verifApdState.selectedStudent = null;
+  const modal = document.getElementById('modalDetailVerifikasi');
+  if (modal) modal.classList.remove('show');
+}
+
+function zoomFotoKiosk(src) {
+  const img = document.getElementById('imgZoomFoto');
+  if (img) img.src = src;
+  const modal = document.getElementById('modalZoomFoto');
+  if (modal) modal.classList.add('show');
+}
+
+function closeZoomFoto() {
+  const modal = document.getElementById('modalZoomFoto');
+  if (modal) modal.classList.remove('show');
+}
+
+function handleSelectTanggalVerif(val) {
+  verifApdState.currentDate = val;
+  const customInput = document.getElementById('inputCustomTanggalVerif');
+  if (customInput && val !== 'all') customInput.value = val;
+  loadVerifikasiApd();
+}
+
+function handleCustomTanggalVerif(val) {
+  if (!val) return;
+  verifApdState.currentDate = val;
+  const select = document.getElementById('filterTanggalVerifikasi');
+  if (select) {
+    if (select.querySelector(`option[value="${val}"]`)) {
+      select.value = val;
+    } else {
+      const opt = new Option(formatIndonesianDate(val), val, true, true);
+      select.add(opt, 1);
+      select.value = val;
+    }
+  }
+  loadVerifikasiApd();
+}
+
+function handleFilterStatusVerif(val) {
+  verifApdState.statusFilter = val;
+  loadVerifikasiApd();
+}
+
+let searchVerifTimeout = null;
+function handleSearchVerif(val) {
+  clearTimeout(searchVerifTimeout);
+  searchVerifTimeout = setTimeout(() => {
+    verifApdState.searchQuery = val;
+    loadVerifikasiApd();
+  }, 250);
+}
+
+function initVerifikasiApdPage() {
+  if (!document.getElementById('containerListVerifikasi')) return;
+  loadVerifikasiApd();
+}
+
+document.addEventListener('DOMContentLoaded', initVerifikasiApdPage);

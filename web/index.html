@@ -1473,9 +1473,9 @@
         <li><a href="#tentang" class="nav-link">Tentang</a></li>
       </ul>
 
-      <div>
+      <div style="display: flex; align-items: center; gap: 10px;">
         <button class="btn-nav-login" onclick="openLoginModal()">
-          Masuk &nbsp;
+          Masuk
         </button>
       </div>
     </div>
@@ -1502,20 +1502,18 @@
           POLMAN Smart Attendance mencatat kehadiran, memverifikasi identitas, dan membantu pemeriksaan APD tanpa menggantikan keputusan manusia.
         </p>
 
-        <div class="hero-cta-group">
-          <button class="btn-hero-primary" onclick="openLoginModal()">
-            Masuk ke sistem &nbsp;
+        <div class="hero-cta-group" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px;">
+          <button class="btn-hero-primary" onclick="openLoginModal()" style="cursor: pointer; border: none;">
+            Masuk ke sistem
           </button>
-          <a href="#cara-kerja" class="btn-hero-secondary">
-            Pelajari cara kerja &nbsp;
+          <a href="#cara-kerja" class="btn-hero-secondary" style="text-decoration: none;">
+            Pelajari cara kerja
           </a>
         </div>
 
-        <div class="hero-kiosk-notice">
-          <div>
-            <div class="notice-primary-text">Absensi hanya dilakukan di perangkat kiosk.</div>
-            <div class="notice-sub-text">Portal pribadi digunakan untuk melihat jadwal dan riwayat.</div>
-          </div>
+        <div style="margin-top: 32px; font-size: 13px; line-height: 1.6;">
+          <div style="font-weight: 800; color: #0F172A;">Absensi hanya dilakukan di perangkat kiosk.</div>
+          <div style="color: #64748B;">Portal pribadi digunakan untuk melihat jadwal dan riwayat.</div>
         </div>
       </div>
 
@@ -1917,10 +1915,10 @@
         </div>
 
         <form id="unifiedLoginForm" onsubmit="handleUnifiedSubmit(event)">
-          <!-- Identifier: NIM atau NIP -->
+          <!-- Identifier: NIM (Angka Saja) -->
           <div class="pill-input-wrap">
-            <label class="pill-label" for="inputIdentifier">NIM / NIP</label>
-            <input type="text" id="inputIdentifier" class="pill-input-field" placeholder="Masukkan 9 digit NIM atau NIP" required autofocus autocomplete="username">
+            <label class="pill-label" for="inputIdentifier">NIM</label>
+            <input type="text" id="inputIdentifier" class="pill-input-field" placeholder="Masukan NIM" required autofocus autocomplete="username" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 13">
           </div>
 
           <!-- Kata Sandi -->
@@ -2026,6 +2024,15 @@
         }
       }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const identInput = document.getElementById('inputIdentifier');
+      if (identInput) {
+        identInput.addEventListener('input', function() {
+          this.value = this.value.replace(/[^0-9]/g, '');
+        });
+      }
+    });
 
   </script>
 </body>

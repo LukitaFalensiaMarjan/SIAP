@@ -3,11 +3,197 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tindak Lanjut — POLMAN SMART ATTENDANCE</title>
+  <title>Tindak Lanjut &amp; Verifikasi APD — POLMAN SMART ATTENDANCE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/admin.css">
+  <style>
+    /* Styling khusus Verifikasi APD & Tindak Lanjut */
+    .verif-card-student {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      transition: all 0.15s ease;
+    }
+    .verif-card-student:hover {
+      border-color: #94A3B8;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .verif-student-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 250px;
+    }
+    .verif-student-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #0C213E;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .verif-snapshot-thumb {
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #0B1E38;
+      border: 1px solid #CBD5E1;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .verif-snapshot-thumb:hover {
+      transform: scale(1.05);
+    }
+    .verif-apd-badges-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .verif-item-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .verif-item-pill.pill-ok {
+      background: #E6F7F0;
+      color: #0E8A57;
+      border: 1px solid rgba(14, 138, 87, 0.25);
+    }
+    .verif-item-pill.pill-warn {
+      background: #FEF3C7;
+      color: #D97706;
+      border: 1px solid rgba(217, 119, 6, 0.3);
+    }
+    .verif-item-pill.pill-bad {
+      background: #FEF2F2;
+      color: #DC2626;
+      border: 1px solid rgba(220, 38, 38, 0.25);
+    }
+    .verif-item-pill.pill-gray {
+      background: #F1F5F9;
+      color: #64748B;
+      border: 1px solid #E2E8F0;
+    }
+
+    /* Granular APD Card inside Modal */
+    .apd-decision-box {
+      border: 1.5px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      background: #F8FAFC;
+      transition: border-color 0.15s ease;
+    }
+    .apd-decision-box.box-warning {
+      border-color: #FCD34D;
+      background: #FFFDF5;
+    }
+    .apd-decision-box.box-danger {
+      border-color: #FCA5A5;
+      background: #FEF8F8;
+    }
+    .apd-decision-box.box-success {
+      border-color: #86EFAC;
+      background: #F6FEF9;
+    }
+    .apd-decision-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .apd-decision-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #0F172A;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .apd-decision-ai-meta {
+      font-size: 11.5px;
+      color: #64748B;
+      margin-bottom: 10px;
+    }
+    .apd-decision-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-verif-valid {
+      background: #0E8A57;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.12s ease;
+    }
+    .btn-verif-valid:hover {
+      background: #0B6B44;
+    }
+    .btn-verif-invalid {
+      background: #DC2626;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.12s ease;
+    }
+    .btn-verif-invalid:hover {
+      background: #B91C1C;
+    }
+    .btn-verif-edit {
+      background: #F1F5F9;
+      color: #334155;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.12s ease;
+    }
+    .btn-verif-edit:hover {
+      background: #E2E8F0;
+      color: #0F172A;
+    }
+  </style>
 </head>
 <body class="admin-portal">
 
@@ -34,9 +220,8 @@
       </a>
       <a href="absensi.html" class="adm-nav-item ">
         <span>Monitoring Absensi</span>
-        <span class="adm-nav-counter">8</span>
       </a>
-      <a href="kompensasi.html" class="adm-nav-item active">
+      <a href="tindak-lanjut.html" class="adm-nav-item active">
         <span>Tindak Lanjut</span>
       </a>
       <a href="laporan.html" class="adm-nav-item ">
@@ -77,68 +262,295 @@
     </header>
 
     <main class="adm-container">
+      
+      <!-- Page Header -->
       <div class="adm-page-header">
         <div>
-          <div class="adm-eyebrow">Tindak Lanjut</div>
-          <h1 class="adm-page-title">Kompensasi &amp; Surat Peringatan</h1>
-          <p class="adm-page-desc">Kompensasi dihitung 5 menit untuk setiap menit keterlambatan. Telat lebih dari 2 jam atau APD wajib tidak sesuai dapat memicu SP setelah dikonfirmasi petugas; tingkat SP dihitung per semester.</p>
+          <div class="adm-eyebrow">Tindak Lanjut &amp; K3</div>
+          <h1 class="adm-page-title">Tindak Lanjut &amp; Verifikasi APD</h1>
+          <p class="adm-page-desc">Periksa tangkapan kamera hasil deteksi Kiosk, verifikasi kelengkapan APD per mahasiswa secara granular, dan kelola sanksi pelanggaran K3.</p>
         </div>
       </div>
 
-      <section class="adm-card-white" style="padding: 22px; margin-bottom: 18px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-          <div>
-            <h2 style="margin:0 0 6px;font-size:16px;font-weight:800;">Periode semester</h2>
-            <p id="followupPeriodInfo" style="margin:0;color:#64748B;font-size:13px;">Memuat periode...</p>
+      <!-- Main Container with Tabs -->
+      <div class="adm-card-white" id="containerTindakLanjut">
+        
+        <!-- Tabs Strip -->
+        <div class="adm-tabs-strip">
+          <button class="adm-tab-btn active" id="tabBtnVerifikasi" onclick="switchAdmTab('containerTindakLanjut', 0, this)">
+            Verifikasi APD Mahasiswa
+          </button>
+          <button class="adm-tab-btn" id="tabBtnKompensasi" onclick="switchAdmTab('containerTindakLanjut', 1, this)">
+            Kompensasi &amp; Surat Peringatan (SP)
+          </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             TAB 1: VERIFIKASI APD MAHASISWA (Fitur Utama Request)
+             ══════════════════════════════════════════════════════════════════ -->
+        <div class="adm-tab-content" id="tabContentVerifikasi" style="display: block;">
+          
+          <!-- Filter Bar Interaktif: Pilih Hari & Status -->
+          <div class="adm-filter-bar" style="align-items: center; gap: 12px; flex-wrap: wrap;">
+            
+            <!-- Pilih Hari / Tanggal Sesi -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label for="filterTanggalVerifikasi" style="font-size: 12px; font-weight: 700; color: #475569; white-space: nowrap;">
+                Pilih Tanggal:
+              </label>
+              <select id="filterTanggalVerifikasi" class="adm-select-dropdown" style="font-weight: 700; color: #0F172A; min-width: 200px;" onchange="handleSelectTanggalVerif(this.value)">
+                <option value="">Memuat tanggal...</option>
+              </select>
+            </div>
+
+            <!-- Input Date Picker Tambahan -->
+            <input type="date" id="inputCustomTanggalVerif" class="adm-search-input" style="max-width: 160px; padding: 7px 10px;" title="Pilih tanggal dari kalender" onchange="handleCustomTanggalVerif(this.value)">
+
+            <!-- Filter Status -->
+            <select id="filterStatusVerifikasi" class="adm-select-dropdown" style="min-width: 180px; font-weight: 600;" onchange="handleFilterStatusVerif(this.value)">
+              <option value="perlu_verifikasi" selected>Perlu Tindak Lanjut</option>
+              <option value="all">Semua Mahasiswa</option>
+              <option value="selesai">Sudah Lengkap / Selesai</option>
+            </select>
+
+            <!-- Search box -->
+            <input type="text" id="searchVerifikasiMhs" class="adm-search-input" placeholder="Cari nama atau NIM..." style="flex: 1; min-width: 180px;" oninput="handleSearchVerif(this.value)">
+
+            <button type="button" class="adm-btn-action-edit" onclick="loadVerifikasiApd()" title="Muat Ulang Data">
+              Segarkan
+            </button>
           </div>
-          <button type="button" class="adm-btn-primary" id="followupNewPeriodButton" hidden>Atur semester</button>
+
+          <!-- Quick Stats Pills -->
+          <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 12px; color: #64748B; font-weight: 600;">Total Absen:</span>
+              <span id="statVerifTotal" style="font-size: 15px; font-weight: 800; color: #0F172A;">0</span>
+            </div>
+            <div style="background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 12px; color: #92400E; font-weight: 700;">Perlu Tindak Lanjut / Verifikasi:</span>
+              <span id="statVerifPerlu" style="font-size: 15px; font-weight: 800; color: #B45309;">0</span>
+            </div>
+            <div style="background: #E6F7F0; border: 1px solid #A7F3D0; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 12px; color: #065F46; font-weight: 700;">APD Lengkap:</span>
+              <span id="statVerifLengkap" style="font-size: 15px; font-weight: 800; color: #0E8A57;">0</span>
+            </div>
+          </div>
+
+          <!-- Daftar Mahasiswa Container -->
+          <div id="containerListVerifikasi">
+            <div style="text-align: center; padding: 40px; color: #64748B;">
+              Memuat data presensi dan deteksi APD...
+            </div>
+          </div>
+
         </div>
-        <form id="followupPeriodForm" hidden style="display:none;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));align-items:end;gap:12px;margin-top:18px;">
-          <label style="display:grid;gap:6px;color:#475569;font-size:12px;font-weight:700;">
-            Nama semester
-            <input class="adm-search-input" name="nama" maxlength="100" required placeholder="Contoh: Ganjil 2026/2027">
-          </label>
-          <label style="display:grid;gap:6px;color:#475569;font-size:12px;font-weight:700;">
-            Tanggal mulai
-            <input class="adm-search-input" name="tanggal_mulai" type="date" required>
-          </label>
-          <label style="display:grid;gap:6px;color:#475569;font-size:12px;font-weight:700;">
-            Tanggal selesai
-            <input class="adm-search-input" name="tanggal_selesai" type="date" required>
-          </label>
-          <button type="submit" class="adm-btn-primary">Simpan &amp; aktifkan</button>
-        </form>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             TAB 2: KOMPENSASI & SURAT PERINGATAN (SP)
+             ══════════════════════════════════════════════════════════════════ -->
+        <div class="adm-tab-content" id="tabContentKompensasi" style="display: none;">
+          
+          <div style="padding: 16px 0;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+              <div>
+                <h2 style="margin:0 0 6px;font-size:16px;font-weight:800;">Periode Semester Aktif</h2>
+                <p id="followupPeriodInfo" style="margin:0;color:#64748B;font-size:13px;">Memuat periode...</p>
+              </div>
+              <button type="button" class="adm-btn-primary" id="followupNewPeriodButton" hidden>Atur semester</button>
+            </div>
+
+            <form id="followupPeriodForm" hidden style="display:none;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));align-items:end;gap:12px;margin-bottom:20px;">
+              <label style="display:grid;gap:6px;color:#475569;font-size:12px;font-weight:700;">
+                Nama semester
+                <input class="adm-search-input" name="nama" maxlength="100" required placeholder="Contoh: Ganjil 2026/2027">
+              </label>
+              <label style="display:grid;gap:6px;color:#475569;font-size:12px;font-weight:700;">
+                Tanggal mulai
+                <input class="adm-search-input" name="tanggal_mulai" type="date" required>
+              </label>
+              <label style="display:grid;gap:6px;color:#475569;font-size:12px;font-weight:700;">
+                Tanggal selesai
+                <input class="adm-search-input" name="tanggal_selesai" type="date" required>
+              </label>
+              <button type="submit" class="adm-btn-primary">Simpan &amp; aktifkan</button>
+            </form>
+
+            <div id="followupSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px;"></div>
+
+            <div style="overflow-x:auto;">
+              <table class="adm-table-clean">
+                <thead>
+                  <tr>
+                    <th>Tanggal / Sesi</th>
+                    <th>Mahasiswa</th>
+                    <th>Jadwal / Waktu absen</th>
+                    <th>Terlambat</th>
+                    <th>Kompensasi</th>
+                    <th>APD wajib tidak sesuai</th>
+                    <th>Status surat</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="followupTableBody">
+                  <tr><td colspan="8">Memuat data tindak lanjut kompensasi...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
       </div>
-
-      <div id="followupSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px;"></div>
-
-      <section class="adm-card-white" style="padding: 22px;">
-        <div style="margin-bottom:16px;">
-          <h2 style="margin:0 0 6px;font-size:16px;font-weight:800;">Absensi dan tindak lanjut</h2>
-          <p style="margin:0;color:#64748B;font-size:12px;">Keterlambatan dibulatkan ke atas per menit. Kejadian APD yang belum lengkap menunggu pemeriksaan; level SP ditentukan saat petugas mengonfirmasi kasus.</p>
-        </div>
-        <div style="overflow-x:auto;">
-          <table class="adm-table-clean">
-            <thead>
-              <tr>
-                <th>Tanggal / Sesi</th>
-                <th>Mahasiswa</th>
-                <th>Jadwal / Waktu absen</th>
-                <th>Terlambat</th>
-                <th>Kompensasi</th>
-                <th>APD wajib tidak sesuai</th>
-                <th>Status surat</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="followupTableBody">
-              <tr><td colspan="8">Memuat data tindak lanjut...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
 
     </main>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       MODAL 1: DETAIL INSPEKSI & VERIFIKASI APD MAHASISWA
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="adm-modal-backdrop" id="modalDetailVerifikasi">
+    <div class="adm-modal-content adm-modal-lg">
+      <div class="adm-modal-head">
+        <div>
+          <div class="adm-eyebrow">Pemeriksaan Deteksi Kamera Kiosk</div>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 800; color: #0F172A;" id="detailModalMhsNama">Nama Mahasiswa</h2>
+          <div style="font-size: 13px; color: #64748B; margin-top: 4px;" id="detailModalMhsMeta">NIM: - · Kelas: - · Waktu: -</div>
+        </div>
+        <button type="button" class="adm-modal-close" onclick="closeModalVerifikasi()" title="Tutup">&times;</button>
+      </div>
+
+      <div class="adm-modal-body">
+        
+        <div class="adm-modal-detail-grid">
+          
+          <!-- Sisi Kiri: Tangkapan Kamera Kiosk -->
+          <div>
+            <div class="kiosk-capture-box" style="position: relative;">
+              <div class="kiosk-capture-header">
+                <div style="display: flex; align-items: center; color: #FFFFFF; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">
+                  <span class="kiosk-rec-dot"></span> SNAPSHOT KIOSK
+                </div>
+                <span id="detailBadgeWajah" style="background: rgba(16, 185, 129, 0.25); color: #34D399; padding: 3px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 700;">
+                  Wajah Cocok
+                </span>
+              </div>
+
+              <!-- Foto Snapshot Deteksi Kiosk -->
+              <img id="detailFotoKiosk" class="kiosk-capture-img" src="../assets/img/maskot-k3.png" alt="Tangkapan Kamera Kiosk" onclick="zoomFotoKiosk(this.src)" title="Klik untuk memperbesar foto">
+
+              <div class="kiosk-capture-footer">
+                <span id="detailFotoTimestamp">-</span>
+                <button type="button" onclick="zoomFotoKiosk(document.getElementById('detailFotoKiosk').src)" style="background: none; border: none; color: #38BDF8; font-size: 11px; font-weight: 700; cursor: pointer;">
+                  Perbesar foto
+                </button>
+              </div>
+            </div>
+
+            <!-- Petunjuk Pemeriksaan Admin -->
+            <div style="margin-top: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #64748B; line-height: 1.5;">
+              <strong>Petunjuk PLP / Admin:</strong> Periksa kesesuaian fisik APD pada foto tangkapan kamera di atas. Klik tombol di sebelah kanan untuk menyetujui (sesuai) atau menolak (kurang).
+            </div>
+          </div>
+
+          <!-- Sisi Kanan: Panel Keputusan Per-APD Granular -->
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+              Pemeriksaan &amp; Keputusan APD (Per Item)
+            </div>
+
+            <div id="containerApdDecisionBoxes">
+              <!-- Dynamically populated 4 APD cards (Helm, Baju, Jeans, Sepatu) -->
+            </div>
+
+            <!-- Riwayat Catatan Verifikasi -->
+            <div style="margin-top: 14px; border-top: 1px solid #E2E8F0; padding-top: 12px;">
+              <div style="font-size: 11.5px; font-weight: 700; color: #475569; margin-bottom: 6px;">Riwayat Tindak Lanjut:</div>
+              <div id="detailRiwayatVerif" style="max-height: 120px; overflow-y: auto; font-size: 11.5px; color: #64748B;">
+                <em>Belum ada keputusan manual yang diambil.</em>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="adm-modal-foot">
+        <button type="button" class="adm-btn-primary" onclick="closeModalVerifikasi()">
+          Selesai Memeriksa
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       MODAL 2: POP-UP KONFIRMASI KEPUTUSAN APD (User Requirement)
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="adm-modal-backdrop" id="modalKonfirmasiApd" style="z-index: 1100;">
+    <div class="adm-modal-content" style="max-width: 460px;">
+      <div class="adm-modal-head" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 16px;">
+        <div>
+          <div class="adm-eyebrow" style="color: #0284C7;">Konfirmasi Keputusan</div>
+          <h2 style="margin: 0; font-size: 17px; font-weight: 800; color: #0F172A;">Simpan Keputusan APD?</h2>
+        </div>
+        <button type="button" class="adm-modal-close" onclick="closeConfirmApdModal()">&times;</button>
+      </div>
+
+      <div class="adm-modal-body" style="padding-top: 20px;">
+        <div style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+          Apakah Anda benar-benar ingin mengambil keputusan untuk menetapkan APD:
+        </div>
+
+        <div style="background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; margin: 12px 0;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-size: 12px; color: #64748B;">Mahasiswa:</span>
+            <span id="confirmMhsNama" style="font-size: 12.5px; font-weight: 800; color: #0F172A;">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-size: 12px; color: #64748B;">NIM:</span>
+            <span id="confirmMhsNim" style="font-size: 12.5px; font-weight: 700; color: #0F172A;">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-size: 12px; color: #64748B;">Jenis APD:</span>
+            <span id="confirmApdNama" style="font-size: 12.5px; font-weight: 800; color: #0F172A;">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px dashed #CBD5E1; padding-top: 8px;">
+            <span style="font-size: 12px; color: #64748B;">Status Keputusan:</span>
+            <span id="confirmStatusBadge" class="adm-badge adm-badge-green" style="font-size: 12px; font-weight: 800;">Sesuai (Benar)</span>
+          </div>
+        </div>
+
+        <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px;">
+          Catatan verifikasi (opsional):
+        </label>
+        <input type="text" id="confirmCatatanInput" class="adm-search-input" style="width: 100%;" placeholder="Contoh: Terlihat memakai kemeja lab sesuai aturan">
+      </div>
+
+      <div class="adm-modal-foot" style="background: #F8FAFC; border-top: 1px solid #E2E8F0;">
+        <button type="button" class="adm-btn-action-edit" onclick="closeConfirmApdModal()" style="padding: 8px 16px; font-size: 12.5px;">
+          Batal
+        </button>
+        <button type="button" class="adm-btn-primary" id="btnSubmitConfirmApd" onclick="executeApdDecision()" style="padding: 8px 18px; font-size: 12.5px;">
+          Ya, Simpan Keputusan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       MODAL 3: ZOOM FOTO KIOSK (Ukuran Penuh)
+       ══════════════════════════════════════════════════════════════════════ -->
+  <div class="adm-modal-backdrop" id="modalZoomFoto" style="z-index: 1200;" onclick="closeZoomFoto()">
+    <div style="max-width: 90vw; max-height: 90vh; position: relative;">
+      <img id="imgZoomFoto" src="" alt="Perbesar Foto" style="max-width: 90vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 20px 45px rgba(0,0,0,0.5);">
+      <div style="text-align: center; margin-top: 10px;">
+        <span style="background: rgba(15, 23, 42, 0.75); color: #FFFFFF; padding: 4px 12px; border-radius: 20px; font-size: 12px;">
+          Klik di mana saja untuk menutup
+        </span>
+      </div>
+    </div>
   </div>
 
   <script src="../assets/js/admin.js"></script>

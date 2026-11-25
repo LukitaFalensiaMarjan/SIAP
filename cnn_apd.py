@@ -15,6 +15,7 @@ Label biner: 1 = pakai, 0 = tidak.
 import json
 import random
 import re
+import time
 from pathlib import Path
 
 import matplotlib
@@ -33,6 +34,34 @@ from sklearn.metrics import (
 )
 
 EKSTENSI = {".jpg", ".jpeg", ".png", ".bmp"}
+
+
+class SafeModelCheckpoint(keras.callbacks.ModelCheckpoint):
+    """ModelCheckpoint dengan toleransi retry & anti-crash file lock di Windows."""
+    def _save_model(self, epoch, batch, logs):
+        for attempt in range(5):
+            try:
+                super()._save_model(epoch, batch, logs)
+                return
+            except OSError as exc:
+                if attempt < 4:
+                    time.sleep(0.5)
+                else:
+                    print(f"Peringatan ModelCheckpoint (epoch {epoch}): {exc}")
+
+
+class SafeCSVLogger(keras.callbacks.CSVLogger):
+    """CSVLogger dengan toleransi retry jika file sedang diakses proses lain."""
+    def on_epoch_end(self, epoch, logs=None):
+        for attempt in range(5):
+            try:
+                super().on_epoch_end(epoch, logs)
+                return
+            except OSError as exc:
+                if attempt < 4:
+                    time.sleep(0.5)
+                else:
+                    print(f"Peringatan CSVLogger: {exc}")
 
 
 # ---------------------------------------------------------------- data
@@ -59,7 +88,7 @@ def muat_data(folder_area, porsi=(0.70, 0.15, 0.15), seed=42):
             continue
         for f in sorted(sub.iterdir()):
             if f.suffix.lower() in EKSTENSI:
-                per_kelas[label].append((str(f), label, kunci_kelompok(f.name)))
+                per_kelas[label].append((f.resolve().as_posix(), label, kunci_kelompok(f.name)))
     if not any(per_kelas.values()):
         raise SystemExit(f"Tidak ada gambar di {folder_area}")
 
@@ -211,11 +240,13 @@ def latih(model, bagian, cfg, folder_laporan):
     )
     model.summary()
 
+    path_model_str = str(cfg["path_model"])
+    csv_log_str = str(folder_laporan / "riwayat_training.csv")
     callbacks = [
         keras.callbacks.EarlyStopping(monitor="val_loss", patience=cfg["patience"], restore_best_weights=True),
         keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.5, patience=max(cfg["patience"] // 2, 2)),
-        keras.callbacks.ModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
-        keras.callbacks.CSVLogger(str(folder_laporan / "riwayat_training.csv")),
+        SafeModelCheckpoint(path_model_str, monitor="val_loss", save_best_only=True),
+        SafeCSVLogger(csv_log_str),
     ]
     riwayat = model.fit(ds_train, validation_data=ds_val, epochs=cfg["epochs"],
                         class_weight=bobot, callbacks=callbacks)
@@ -237,7 +268,7 @@ def latih(model, bagian, cfg, folder_laporan):
             epochs=cfg["finetune_epochs"], class_weight=bobot,
             callbacks=[
                 keras.callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True),
-                keras.callbacks.ModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
+                SafeModelCheckpoint(path_model_str, monitor="val_loss", save_best_only=True),
             ],
         )
         for k in riwayat.history:
@@ -467,8 +498,8 @@ def jalankan_multikelas(cfg, build_model):
     callbacks = [
         keras.callbacks.EarlyStopping(monitor="val_loss", patience=cfg["patience"], restore_best_weights=True),
         keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.5, patience=max(cfg["patience"] // 2, 2)),
-        keras.callbacks.ModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
-        keras.callbacks.CSVLogger(str(folder_laporan / "riwayat_training.csv")),
+        SafeModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
+        SafeCSVLogger(str(folder_laporan / "riwayat_training.csv")),
     ]
     riwayat = model.fit(ds_train, validation_data=ds_val, epochs=cfg["epochs"],
                         class_weight=bobot, callbacks=callbacks)
@@ -490,7 +521,7 @@ def jalankan_multikelas(cfg, build_model):
             epochs=cfg["finetune_epochs"], class_weight=bobot,
             callbacks=[
                 keras.callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True),
-                keras.callbacks.ModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
+                SafeModelCheckpoint(cfg["path_model"], monitor="val_loss", save_best_only=True),
             ],
         )
         for k in riwayat.history:
