@@ -350,10 +350,12 @@ def infer_face_sequence(
     last_box = None
     last_dims = [640, 480]
     last_face_count = 0
+    last_reason = "none"
     for frame in frames:
-        probabilities, box, dims, face_count = _face_probabilities_and_box(frame, crop_mode)
+        probabilities, box, dims, face_count, reason = _face_probabilities_and_box(frame, crop_mode)
         last_dims = dims
         last_face_count = face_count
+        last_reason = reason
         if probabilities is None:
             probability_history.clear()
             current_probabilities = None
@@ -365,7 +367,7 @@ def infer_face_sequence(
         probability_history = probability_history[-FACE_SCAN_FRAME_COUNT:]
         current_probabilities = np.mean(probability_history, axis=0)
     return _face_result(
-        current_probabilities, model, student_name, box=last_box, dimensions=last_dims, face_count=last_face_count
+        current_probabilities, model, student_name, box=last_box, dimensions=last_dims, face_count=last_face_count, reason=last_reason
     )
 
 

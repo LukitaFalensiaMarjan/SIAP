@@ -157,21 +157,44 @@
       color: #FFFFFF;
     }
 
-    /* Success Card Overlay */
-    .kiosk-success-overlay {
-      position: absolute;
+    /* Modal Pop-Up Overlay (Tema Terang) */
+    .kiosk-modal-backdrop, .kiosk-success-overlay {
+      position: fixed;
       inset: 0;
-      background: rgba(8, 20, 38, 0.95);
-      backdrop-filter: blur(12px);
-      display: flex;
-      flex-direction: column;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
       align-items: center;
       justify-content: center;
-      padding: 32px;
+      padding: 20px;
+      z-index: 9999;
+      animation: fadeInModal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .kiosk-modal-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 18px;
+      box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28);
+      max-width: 520px;
+      width: 100%;
+      padding: 28px 24px;
       text-align: center;
-      z-index: 20;
-      display: none;
-      animation: fadeInOverlay 0.3s ease forwards;
+      color: #0F172A;
+      animation: zoomInModal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    @keyframes fadeInModal {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes zoomInModal {
+      from { opacity: 0; transform: scale(0.94) translateY(12px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
     }
 
     .kiosk-camera-video {
@@ -340,19 +363,19 @@
             </div>
             <div id="sessionApdBadges" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; color: #334155;">
               <div id="badgeHelmReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                <span style="display: flex; align-items: center; gap: 6px;"><span>🪖</span> <strong>Helm K3</strong></span>
+                <span style="font-weight: 700; color: #1E293B;">Helm K3</span>
                 <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
               <div id="badgeBajuReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                <span style="display: flex; align-items: center; gap: 6px;"><span>👔</span> <strong>Baju Praktik</strong></span>
+                <span style="font-weight: 700; color: #1E293B;">Baju Praktik</span>
                 <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
               <div id="badgeJeansReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                <span style="display: flex; align-items: center; gap: 6px;"><span>👖</span> <strong>Celana Jeans</strong></span>
+                <span style="font-weight: 700; color: #1E293B;">Celana Jeans</span>
                 <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
               <div id="badgeSepatuReq" style="display: flex; align-items: center; justify-content: space-between; background: #FFF; padding: 6px 8px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                <span style="display: flex; align-items: center; gap: 6px;"><span>👞</span> <strong>Sepatu Safety</strong></span>
+                <span style="font-weight: 700; color: #1E293B;">Sepatu Safety</span>
                 <span class="badge-status" style="font-size: 9.5px; font-weight: 800; color: #16A34A;">WAJIB</span>
               </div>
             </div>
@@ -436,90 +459,98 @@
             </div>
           </div>
 
-          <!-- Success Celebration Overlay / Popup Hasil Absensi Lengkap -->
-          <div class="kiosk-success-overlay" id="successOverlay" style="overflow-y: auto; max-height: 100%;">
-            <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(16, 185, 129, 0.2); border: 2px solid #34D399; display: flex; align-items: center; justify-content: center; color: #34D399; font-size: 24px; font-weight: 800; margin-bottom: 10px;">
-              ✓
-            </div>
-            <h2 style="font-size: 20px; font-weight: 800; color: #FFFFFF; margin: 0 0 4px;">Presensi Berhasil Dicatat!</h2>
-            <p style="font-size: 12px; color: #94A3B8; max-width: 440px; margin: 0 0 16px;">
-              Data kehadiran, verifikasi biometrik, dan kelengkapan atribut APD telah tersimpan ke sistem.
-            </p>
-            
-            <!-- Box Rincian Data Mahasiswa & Sesi -->
-            <div style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px 18px; width: 100%; max-width: 440px; margin-bottom: 12px; text-align: left; font-size: 12px; color: #E2E8F0;">
+          <!-- Success Modal Pop-Up (Tema Terang) -->
+          <div class="kiosk-modal-backdrop" id="successOverlay" style="display: none;">
+            <div class="kiosk-modal-card">
+              <!-- Icon Centang Modern Clean -->
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: #DCFCE7; border: 2px solid #86EFAC; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; color: #16A34A;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+
+              <h2 style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 0 0 4px;">Presensi Berhasil Dicatat!</h2>
+              <p style="font-size: 12.5px; color: #64748B; margin: 0 0 16px; line-height: 1.45;">
+                Data kehadiran, verifikasi identitas, dan status atribut APD telah tersimpan ke sistem.
+              </p>
               
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">Nama Mahasiswa:</span>
-                <strong style="color: #38BDF8; font-size: 13px;" id="successStudentName">—</strong>
+              <!-- Box Rincian Data Mahasiswa & Sesi (Tema Terang) -->
+              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 16px; width: 100%; margin-bottom: 14px; text-align: left; font-size: 12px; color: #334155;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 6px;">
+                  <span style="color: #64748B;">Nama Mahasiswa:</span>
+                  <strong style="color: #0284C7; font-size: 13px;" id="successStudentName">—</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 6px;">
+                  <span style="color: #64748B;">NIM / Kelas:</span>
+                  <strong style="color: #0F172A;" id="successStudentNimKelas">—</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 6px;">
+                  <span style="color: #64748B;">Sesi Praktikum:</span>
+                  <strong style="color: #0F172A; text-align: right;" id="successSession">—</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 6px;">
+                  <span style="color: #64748B;">Jam Presensi:</span>
+                  <strong style="color: #0F172A;" id="successTime">—</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 2px;">
+                  <span style="color: #64748B;">Status Kedatangan:</span>
+                  <span id="successLateBadge" style="font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 6px; background: #DCFCE7; color: #15803D;">Tepat Waktu</span>
+                </div>
               </div>
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">NIM / Kelas:</span>
-                <strong style="color: #FFF;" id="successStudentNimKelas">—</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">Sesi Praktikum:</span>
-                <strong style="color: #FFF; text-align: right;" id="successSession">—</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">Jam Presensi:</span>
-                <strong style="color: #FFF;" id="successTime">—</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 2px;">
-                <span style="color: #94A3B8;">Status Kedatangan:</span>
-                <span id="successLateBadge" style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #DCFCE7; color: #15803D;">Tepat Waktu</span>
-              </div>
-            </div>
 
-            <!-- Box Rincian Kelengkapan Atribut APD -->
-            <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 16px; width: 100%; max-width: 440px; margin-bottom: 18px; text-align: left; font-size: 11px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 800; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px;">Rincian Atribut APD Praktikum</span>
-                <span id="successApdOverallBadge" style="font-weight: 800; font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: #059669; color: #FFF;">LENGKAP</span>
+              <!-- Box Rincian Kelengkapan Atribut APD (Tema Terang) -->
+              <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 16px; width: 100%; margin-bottom: 18px; text-align: left; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Rincian Atribut APD Praktikum</span>
+                  <span id="successApdOverallBadge" style="font-weight: 800; font-size: 10.5px; padding: 2px 8px; border-radius: 6px; background: #059669; color: #FFF;">LENGKAP</span>
+                </div>
+                <div id="successApdItemsList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <!-- Di-generate dinamis oleh kiosk.js tanpa emoji, tema terang -->
+                </div>
+                <div id="successApdNotes" style="margin-top: 10px; font-size: 11px; color: #DC2626; background: #FEF2F2; border: 1px solid #FECACA; padding: 8px 10px; border-radius: 6px; font-weight: 600; display: none;"></div>
               </div>
-              <div id="successApdItemsList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                <!-- Di-generate dinamis oleh kiosk.js -->
-              </div>
-              <div id="successApdNotes" style="margin-top: 8px; font-size: 10.5px; color: #F87171; display: none;"></div>
-            </div>
 
-            <div style="width: 100%; max-width: 440px;">
-              <button onclick="dismissSuccessPopup()" style="width: 100%; height: 44px; border-radius: 8px; background: #0284C7; color: #FFF; border: none; font-weight: 800; font-size: 13.5px; cursor: pointer; transition: background 0.15s ease;">
-                Selesai — Mahasiswa Berikutnya
-              </button>
+              <div style="width: 100%;">
+                <button type="button" onclick="dismissSuccessPopup()" style="width: 100%; height: 44px; border-radius: 8px; background: #0284C7; color: #FFF; border: none; font-weight: 800; font-size: 13.5px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+                  Selesai — Mahasiswa Berikutnya &rarr;
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- Popup Pemberitahuan: Tidak Ada Sesi Praktikum Hari Ini -->
-          <div class="kiosk-success-overlay" id="noSessionOverlay">
-            <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(239, 68, 68, 0.18); border: 2px solid #EF4444; display: flex; align-items: center; justify-content: center; color: #EF4444; font-size: 24px; font-weight: 800; margin-bottom: 12px;">
-              !
-            </div>
-            <h2 style="font-size: 19px; font-weight: 800; color: #FFFFFF; margin: 0 0 6px;">Tidak Ada Sesi Praktikum Aktif</h2>
-            <p style="font-size: 12.5px; color: #CBD5E1; max-width: 400px; margin: 0 0 16px;">
-              Sistem tidak menemukan jadwal sesi praktikum yang sedang aktif hari ini untuk kelas mahasiswa ini.
-            </p>
-            
-            <div style="background: rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 18px; width: 100%; max-width: 380px; margin-bottom: 20px; text-align: left; font-size: 12px; color: #E2E8F0;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">Nama:</span>
-                <strong style="color: #38BDF8;" id="noSessionStudentName">—</strong>
+          <!-- Modal Pop-Up: Tidak Ada Sesi Praktikum Hari Ini (Tema Terang) -->
+          <div class="kiosk-modal-backdrop" id="noSessionOverlay" style="display: none;">
+            <div class="kiosk-modal-card" style="max-width: 440px;">
+              <div style="width: 52px; height: 52px; border-radius: 50%; background: #FEF2F2; border: 2px solid #FECACA; display: flex; align-items: center; justify-content: center; color: #DC2626; font-size: 24px; font-weight: 800; margin: 0 auto 12px;">
+                !
               </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="color: #94A3B8;">NIM:</span>
-                <strong style="color: #FFF;" id="noSessionStudentNim">—</strong>
+              <h2 style="font-size: 19px; font-weight: 800; color: #0F172A; margin: 0 0 6px;">Tidak Ada Sesi Praktikum Aktif</h2>
+              <p style="font-size: 12.5px; color: #64748B; margin: 0 0 16px; line-height: 1.45;">
+                Sistem tidak menemukan jadwal sesi praktikum yang sedang aktif hari ini untuk kelas mahasiswa ini.
+              </p>
+              
+              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 16px; width: 100%; margin-bottom: 18px; text-align: left; font-size: 12px; color: #334155;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                  <span style="color: #64748B;">Nama:</span>
+                  <strong style="color: #0284C7;" id="noSessionStudentName">—</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                  <span style="color: #64748B;">NIM:</span>
+                  <strong style="color: #0F172A;" id="noSessionStudentNim">—</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: #64748B;">Kelas:</span>
+                  <strong style="color: #0F172A;" id="noSessionStudentKelas">—</strong>
+                </div>
               </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span style="color: #94A3B8;">Kelas:</span>
-                <strong style="color: #FFF;" id="noSessionStudentKelas">—</strong>
-              </div>
-            </div>
 
-            <div style="width: 100%; max-width: 380px;">
-              <button onclick="dismissNoSessionPopup()" style="width: 100%; height: 42px; border-radius: 8px; background: #334155; color: #FFF; border: 1px solid #475569; font-weight: 700; font-size: 13px; cursor: pointer;">
-                Mengerti — Pilih Mahasiswa Lain
-              </button>
+              <div style="width: 100%;">
+                <button type="button" onclick="dismissNoSessionPopup()" style="width: 100%; height: 42px; border-radius: 8px; background: #0B1E38; color: #FFF; border: none; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease;">
+                  Mengerti — Pilih Mahasiswa Lain
+                </button>
+              </div>
             </div>
+          </div>
           </div>
 
         </div>

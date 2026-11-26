@@ -29,6 +29,20 @@ const kioskApdItems = {
   sepatu: { element: 'tagSepatu', label: 'Sepatu safety' }
 };
 
+function formatMinutesToHours(minutes) {
+  const m = parseInt(minutes, 10) || 0;
+  if (m <= 0) return '0 menit';
+  const hours = Math.floor(m / 60);
+  const remainingMinutes = m % 60;
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours} jam ${remainingMinutes} menit`;
+  } else if (hours > 0) {
+    return `${hours} jam`;
+  } else {
+    return `${remainingMinutes} menit`;
+  }
+}
+
 function speakKioskText(text) {
   try {
     if (!('speechSynthesis' in window)) return;
@@ -909,7 +923,7 @@ async function startUnifiedInspection() {
       if (lastFaceResult?.multi_person) {
         subNotice = `Memeriksa 1 orang di dalam garis panduan (${remainingSec} dtk). Orang lain di luar garis diabaikan.`;
       } else if (isHalfBody) {
-        subNotice = `⚠️ Terdeteksi duduk/setengah badan (${remainingSec} dtk). Mundur & berdirilah agar celana & sepatu masuk garis panduan.`;
+        subNotice = `Terdeteksi posisi duduk atau setengah badan (${remainingSec} dtk). Mundur & berdirilah agar celana & sepatu masuk garis panduan.`;
       }
       setKioskStatus(
         isHalfBody ? 'Posisikan Seluruh Tubuh di Garis Panduan' : 'Memeriksa Wajah & Kelengkapan APD...',
@@ -981,7 +995,7 @@ async function startUnifiedInspection() {
     setKioskStatus(statusHeader, statusDesc, hasMissing);
 
     if (actionBtn) {
-      actionBtn.textContent = 'Simpan Kehadiran';
+      actionBtn.textContent = 'Simpan Absen';
       actionBtn.disabled = false;
     }
     if (retryBtn) retryBtn.hidden = false;
@@ -994,7 +1008,7 @@ async function startUnifiedInspection() {
     return;
   }
 
-  setKioskBusy(false, 'Simpan Kehadiran');
+  setKioskBusy(false, 'Simpan Absen');
 }
 
 async function retryInspection() {
@@ -1033,7 +1047,10 @@ async function finishKioskAttendance() {
         sesi_id: kioskState.sessionId,
         images: kioskState.apdImages,
         face_images: kioskState.faceImages,
-        face_crop_mode: kioskState.faceCropMode
+        face_crop_mode: kioskState.faceCropMode,
+        apd: kioskState.apd,
+        face: kioskState.lastFace,
+        face_verified: kioskState.faceVerified
       })
     });
     const result = await res.json().catch(() => ({}));
@@ -1062,7 +1079,9 @@ async function finishKioskAttendance() {
     const lateBadge = document.getElementById('successLateBadge');
     if (lateBadge) {
       if (attendance.terlambat_menit && attendance.terlambat_menit > 0) {
-        lateBadge.textContent = `Terlambat ${attendance.terlambat_menit} Menit (Denda ${attendance.kompensasi_menit || 0} Menit)`;
+        const lateTxt = formatMinutesToHours(attendance.terlambat_menit);
+        const compTxt = formatMinutesToHours(attendance.kompensasi_menit || (attendance.terlambat_menit * 5));
+        lateBadge.textContent = `Terlambat ${lateTxt} (Denda ${compTxt})`;
         lateBadge.style.background = '#FEE2E2';
         lateBadge.style.color = '#B91C1C';
       } else {
@@ -1094,10 +1113,10 @@ async function finishKioskAttendance() {
     if (itemsContainer) {
       itemsContainer.innerHTML = '';
       const apdConfig = [
-        { key: 'helm', name: 'Helm K3', icon: '🪖' },
-        { key: 'baju', name: 'Baju Praktik', icon: '👔' },
-        { key: 'jeans', name: 'Celana Jeans', icon: '👖' },
-        { key: 'sepatu', name: 'Sepatu Safety', icon: '👞' },
+        { key: 'helm', name: 'Helm K3' },
+        { key: 'baju', name: 'Baju Praktik' },
+        { key: 'jeans', name: 'Celana Jeans' },
+        { key: 'sepatu', name: 'Sepatu Safety' },
       ];
 
       const wajibList = new Set(result.wajib || []);
@@ -1107,32 +1126,42 @@ async function finishKioskAttendance() {
         const val = attendance[item.key];
         
         let statusText = '';
-        let statusColor = '';
-        let bgColor = 'rgba(255,255,255,0.05)';
+        let bgColor = '#F8FAFC';
+        let borderColor = '#E2E8F0';
+        let badgeBg = '#F1F5F9';
+        let badgeColor = '#64748B';
 
         if (!isWajib) {
           statusText = 'Tidak Wajib';
-          statusColor = '#94A3B8';
+          badgeBg = '#F1F5F9';
+          badgeColor = '#64748B';
+          borderColor = '#E2E8F0';
         } else if (val === 1 || val === true) {
           statusText = 'Terpakai';
-          statusColor = '#34D399';
-          bgColor = 'rgba(16, 185, 129, 0.12)';
+          bgColor = '#F0FDF4';
+          borderColor = '#BBF7D0';
+          badgeBg = '#DCFCE7';
+          badgeColor = '#15803D';
         } else if (val === 0 || val === false) {
-          statusText = 'Tidak Terpakai';
-          statusColor = '#F87171';
-          bgColor = 'rgba(239, 68, 68, 0.15)';
+          statusText = 'Kurang / Tidak Terpakai';
+          bgColor = '#FEF2F2';
+          borderColor = '#FECACA';
+          badgeBg = '#FEE2E2';
+          badgeColor = '#B91C1C';
           incompleteList.push(item.name);
         } else {
           statusText = 'Perlu Validasi';
-          statusColor = '#FBBF24';
-          bgColor = 'rgba(245, 158, 11, 0.15)';
+          bgColor = '#FFFBEB';
+          borderColor = '#FDE68A';
+          badgeBg = '#FEF3C7';
+          badgeColor = '#B45309';
         }
 
         const div = document.createElement('div');
-        div.style.cssText = `background: ${bgColor}; padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);`;
+        div.style.cssText = `background: ${bgColor}; border: 1px solid ${borderColor}; padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;`;
         div.innerHTML = `
-          <span>${item.icon} ${item.name}</span>
-          <span style="font-weight: 800; font-size: 10px; color: ${statusColor};">${statusText}</span>
+          <span style="font-weight: 700; color: #1E293B;">${item.name}</span>
+          <span style="font-weight: 800; font-size: 10px; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 7px; border-radius: 4px;">${statusText}</span>
         `;
         itemsContainer.appendChild(div);
       });
@@ -1466,28 +1495,28 @@ function drawStandingHumanSilhouette(ctx, cw, ch, options) {
 
   const apdRes = options.apdResult || {};
   renderHudBadge(
-    options.multiPerson ? 'WAJAH & HELM (ORANG LAIN DIABAIKAN)' : '🪖 HELM & WAJAH',
+    options.multiPerson ? 'WAJAH & HELM (ORANG LAIN DIABAIKAN)' : 'HELM & WAJAH',
     cx,
     topY - 14,
     apdRes.helm?.worn || matchedMode
   );
 
   renderHudBadge(
-    '👔 KEMEJA / BAJU',
+    'KEMEJA / BAJU',
     corridorX + corridorW + 2,
     yChest - 8,
     apdRes.baju?.worn
   );
 
   renderHudBadge(
-    '👖 CELANA JEANS',
+    'CELANA JEANS',
     corridorX - 2,
     yKnee - 8,
     apdRes.jeans?.worn
   );
 
   renderHudBadge(
-    '👞 SEPATU SAFETY',
+    'SEPATU SAFETY',
     cx,
     botY + 3,
     apdRes.sepatu?.worn
@@ -1498,6 +1527,42 @@ function drawStandingHumanSilhouette(ctx, cw, ch, options) {
 
 // ── KIOSK MONITORING HEARTBEAT & LIVE SNAPSHOT STREAM ──
 function initKioskHeartbeat() {
+  const streamCanvas = document.createElement('canvas');
+  streamCanvas.width = 480;
+  streamCanvas.height = 300; // 16:10 rasio frame kamera kiosk
+  const streamCtx = streamCanvas.getContext('2d');
+  let isPushing = false;
+
+  async function pushRealtimeFrame() {
+    const video = document.getElementById('kioskVideo');
+    if (!video || video.videoWidth === 0 || video.paused || video.ended) {
+      return;
+    }
+    if (isPushing) return;
+    isPushing = true;
+
+    try {
+      streamCtx.drawImage(video, 0, 0, streamCanvas.width, streamCanvas.height);
+      streamCanvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            await fetch('/api/kiosk/stream_frame', {
+              method: 'POST',
+              headers: { 'Content-Type': 'image/jpeg' },
+              body: blob
+            });
+          } catch (_) {}
+        }
+        isPushing = false;
+      }, 'image/jpeg', 0.55);
+    } catch (_) {
+      isPushing = false;
+    }
+  }
+
+  // Stream realtime setiap 120 ms (~8-10 FPS smooth video)
+  setInterval(pushRealtimeFrame, 120);
+
   async function sendHeartbeat() {
     const video = document.getElementById('kioskVideo');
     let snapshotBase64 = null;
@@ -1507,8 +1572,8 @@ function initKioskHeartbeat() {
       cameraStatus = 'aktif';
       try {
         const offCanvas = document.createElement('canvas');
-        offCanvas.width = 360;
-        offCanvas.height = 270;
+        offCanvas.width = 480;
+        offCanvas.height = 300;
         const offCtx = offCanvas.getContext('2d');
         offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
         snapshotBase64 = offCanvas.toDataURL('image/jpeg', 0.55);
@@ -1518,8 +1583,8 @@ function initKioskHeartbeat() {
     }
 
     let aktivitas = 'Siaga mendeteksi';
-    if (kioskState.activeStudent) {
-      aktivitas = `Presensi: ${kioskState.activeStudent.nama}`;
+    if (kioskState.student) {
+      aktivitas = `Presensi: ${kioskState.student.nama}`;
     }
 
     try {

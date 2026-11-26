@@ -1540,3 +1540,74 @@ body.student-portal {
 .mhs-nav-item:hover {
   transform: translateX(3px);
 }
+
+/* ── SMOOTH PAGE TRANSITIONS & MOTION (PORTAL MAHASISWA) ── */
+body.student-portal {
+  animation: mhsPageFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mhs-content, .mhs-container {
+  animation: mhsContentFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mhs-card, .mhs-hero-card, .mhs-eval-card {
+  animation: mhsCardFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes mhsPageFade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes mhsContentFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mhsCardFade {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mhs-modal.show .mhs-modal-card {
+  animation: mhsModalPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes mhsModalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+button, .mhs-btn, .mhs-btn-primary, .mhs-btn-secondary {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+button:hover, .mhs-btn-primary:hover {
+  transform: translateY(-1px);
+}
+
+button:active, .mhs-btn-primary:active {
+  transform: translateY(0) scale(0.98);
+}

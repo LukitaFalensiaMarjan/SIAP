@@ -165,6 +165,77 @@ body.admin-portal {
   transform: scale(0.97);
 }
 
+/* ── SMOOTH PAGE TRANSITIONS & MOTION ── */
+body.admin-portal {
+  animation: adminPageFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.adm-content {
+  animation: adminContentFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.adm-card, .adm-table-wrap, .adm-stat-grid {
+  animation: adminCardFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes adminPageFade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes adminContentFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes adminCardFade {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.adm-modal.show .adm-modal-dialog {
+  animation: modalPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+button, .adm-btn-primary, .adm-btn-secondary, .adm-filter-select, .adm-search-input {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.adm-table tbody tr {
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.adm-table tbody tr:hover {
+  background: #F8FAFC;
+}
+
 /* ── MAIN CONTENT WRAPPER ── */
 .adm-main-wrapper {
   flex: 1;
@@ -985,4 +1056,75 @@ input:checked + .adm-slider:before {
 
 .adm-sidebar-logout:active {
   transform: scale(0.97);
+}
+
+/* ── SMOOTH PAGE TRANSITIONS & MOTION ── */
+body.admin-portal {
+  animation: adminPageFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.adm-content {
+  animation: adminContentFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.adm-card, .adm-table-wrap, .adm-stat-grid {
+  animation: adminCardFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes adminPageFade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes adminContentFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes adminCardFade {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.adm-modal.show .adm-modal-dialog {
+  animation: modalPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+button, .adm-btn-primary, .adm-btn-secondary, .adm-filter-select, .adm-search-input {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.adm-table tbody tr {
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.adm-table tbody tr:hover {
+  background: #F8FAFC;
 }

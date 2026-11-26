@@ -668,3 +668,52 @@ button, input, select, textarea {
   .app-sidebar { display: none; }
   .app-content { padding: 20px 16px; }
 }
+
+/* ==========================================================================
+   SMOOTH MOTION & PAGE TRANSITIONS (ANTI-SLOP)
+   ========================================================================== */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  animation: pageFadeSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-section, .features-grid, .about-section, .kiosk-content-wrap, .unified-login-card {
+  animation: componentFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pageFadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes componentFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+button, a.btn-primary, a.btn-secondary, .nav-link, .modal-close-round {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+button:hover, a.btn-primary:hover {
+  transform: translateY(-1px);
+}
+
+button:active, a.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+}

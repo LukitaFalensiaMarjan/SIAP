@@ -160,8 +160,22 @@ function followupTimeText(value) {
   return time.length >= 5 ? time.slice(0, 5) : '—';
 }
 
+function formatMinutesToHours(minutes) {
+  const m = parseInt(minutes, 10) || 0;
+  if (m <= 0) return '0 menit';
+  const hours = Math.floor(m / 60);
+  const remainingMinutes = m % 60;
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours} jam ${remainingMinutes} menit`;
+  } else if (hours > 0) {
+    return `${hours} jam`;
+  } else {
+    return `${remainingMinutes} menit`;
+  }
+}
+
 function followupMinutesText(value) {
-  return value == null ? 'Belum dihitung' : `${Number(value) || 0} menit`;
+  return value == null ? 'Belum dihitung' : formatMinutesToHours(value);
 }
 
 function followupCell(row, value) {
@@ -572,8 +586,22 @@ async function loadAdminDashboard() {
       if (actText) {
         actText.textContent = activeKiosk.aktivitas_terakhir || (activeKiosk.online ? 'Siaga mendeteksi' : 'Terminal offline');
       }
-      if (feedImg && activeKiosk.frame_snapshot) {
-        feedImg.src = activeKiosk.frame_snapshot;
+      if (feedImg) {
+        if (!feedImg.dataset.streamInit) {
+          feedImg.dataset.streamInit = 'true';
+          feedImg.onerror = () => {
+            setTimeout(() => {
+              if (feedImg) feedImg.src = '/api/kiosk/live_stream?retry=' + Date.now();
+            }, 1200);
+          };
+        }
+        if (activeKiosk.online) {
+          if (!feedImg.src.includes('/api/kiosk/live_stream')) {
+            feedImg.src = '/api/kiosk/live_stream?t=' + Date.now();
+          }
+        } else if (activeKiosk.frame_snapshot) {
+          feedImg.src = activeKiosk.frame_snapshot;
+        }
       }
     } else {
       if (badgeEl) {
@@ -913,11 +941,33 @@ function renderAttendanceMonitor(records) {
       ? 'adm-badge-green'
       : item.status === 'menunggu_validasi' ? 'adm-badge-blue' : 'adm-badge-red';
     statusBadge.className = `adm-badge ${badgeClass} status-badge`;
-    statusBadge.textContent = attendanceStatusText(item.status);
+    statusBadge.style.cursor = 'pointer';
+    statusBadge.style.userSelect = 'none';
+    statusBadge.title = 'Klik untuk melihat rincian kelengkapan APD';
+    if (item.status === 'kurang') {
+      statusBadge.innerHTML = `${attendanceStatusText(item.status)} <span style="font-size:10.5px; opacity:0.9;">(Detail &rarr;)</span>`;
+    } else {
+      statusBadge.textContent = attendanceStatusText(item.status);
+    }
+    statusBadge.addEventListener('click', () => openAdminApdDetailModal(item));
     statusCell.appendChild(statusBadge);
     row.appendChild(statusCell);
 
     const actionCell = document.createElement('td');
+    actionCell.style.display = 'flex';
+    actionCell.style.alignItems = 'center';
+    actionCell.style.gap = '6px';
+
+    const detailBtn = document.createElement('button');
+    detailBtn.type = 'button';
+    detailBtn.className = 'adm-btn-action-edit';
+    detailBtn.style.padding = '4px 10px';
+    detailBtn.style.fontSize = '12px';
+    detailBtn.textContent = 'Detail APD';
+    detailBtn.title = 'Lihat rincian hasil deteksi APD kiosk';
+    detailBtn.addEventListener('click', () => openAdminApdDetailModal(item));
+    actionCell.appendChild(detailBtn);
+
     if (canReviewJeans && jeansRequired) {
       const select = document.createElement('select');
       select.className = 'adm-select-dropdown';
@@ -940,13 +990,151 @@ function renderAttendanceMonitor(records) {
         saveManualJeansResult(item.id, select, saveButton);
       });
       actionCell.append(select, saveButton);
-    } else {
-      actionCell.textContent = jeansRequired ? 'Khusus PLP' : '—';
     }
     row.appendChild(actionCell);
     body.appendChild(row);
   });
   applyAbsensiFilters();
+}
+
+function openAdminApdDetailModal(item) {
+  if (!item) return;
+  const modal = document.getElementById('modalDetailApdMonitoring');
+  if (!modal) return;
+
+  const namaEl = document.getElementById('modalApdNama');
+  if (namaEl) namaEl.textContent = item.nama;
+
+  const nimKelasEl = document.getElementById('modalApdNimKelas');
+  if (nimKelasEl) nimKelasEl.textContent = `NIM: ${item.nim} · Kelas: ${item.kelas}`;
+
+  const matkulEl = document.getElementById('modalApdMatkul');
+  if (matkulEl) matkulEl.textContent = item.mata_kuliah || '—';
+
+  const labEl = document.getElementById('modalApdLab');
+  if (labEl) labEl.textContent = `${item.lab || '—'} ${item.ruang ? `(${item.ruang})` : ''}`;
+
+  const waktuEl = document.getElementById('modalApdWaktu');
+  if (waktuEl) waktuEl.textContent = `${attendanceTimeText(item.waktu)} WIB`;
+
+  const kompensasiEl = document.getElementById('modalApdKompensasi');
+  if (kompensasiEl) {
+    if (item.terlambat_menit && item.terlambat_menit > 0) {
+      const compMins = item.kompensasi_menit || (item.terlambat_menit * 5);
+      kompensasiEl.textContent = `${formatMinutesToHours(compMins)} (Telat: ${formatMinutesToHours(item.terlambat_menit)})`;
+      kompensasiEl.style.color = '#DC2626';
+    } else {
+      kompensasiEl.textContent = '0 menit (Tepat waktu)';
+      kompensasiEl.style.color = '#15803D';
+    }
+  }
+
+  const lateBadge = document.getElementById('modalApdLateBadge');
+  if (lateBadge) {
+    if (item.terlambat_menit && item.terlambat_menit > 0) {
+      lateBadge.className = 'adm-badge adm-badge-red';
+      lateBadge.textContent = `Terlambat ${formatMinutesToHours(item.terlambat_menit)}`;
+    } else {
+      lateBadge.className = 'adm-badge adm-badge-green';
+      lateBadge.textContent = 'Tepat Waktu';
+    }
+  }
+
+  // Warning Box jika APD Kurang
+  const warnBox = document.getElementById('modalApdWarningBox');
+  const warnText = document.getElementById('modalApdWarningText');
+  const labelsMap = { helm: 'Helm K3', baju: 'Baju Praktik', jeans: 'Celana Jeans', sepatu: 'Sepatu Safety' };
+  const missingItems = (item.atribut_tidak_sesuai && item.atribut_tidak_sesuai.length > 0)
+    ? item.atribut_tidak_sesuai
+    : ['helm', 'baju', 'jeans', 'sepatu'].filter(k => item[k] === 0 || item[k] === false);
+  
+  if (missingItems.length > 0 || item.status === 'kurang') {
+    if (warnBox) warnBox.style.display = 'block';
+    if (warnText) {
+      const missingLabels = missingItems.map(k => labelsMap[k] || k).join(', ');
+      warnText.textContent = `Atribut tidak lengkap / tidak sesuai: ${missingLabels || 'Ada APD wajib yang kurang'}.`;
+    }
+  } else {
+    if (warnBox) warnBox.style.display = 'none';
+  }
+
+  // Grid 4 Item APD
+  const gridEl = document.getElementById('modalApdGrid');
+  if (gridEl) {
+    gridEl.replaceChildren();
+    const apdConfig = [
+      { key: 'helm', name: 'Helm K3' },
+      { key: 'baju', name: 'Baju Praktik' },
+      { key: 'jeans', name: 'Celana Jeans' },
+      { key: 'sepatu', name: 'Sepatu Safety' }
+    ];
+
+    const wajibSet = new Set(item.wajib || ['helm', 'baju', 'jeans', 'sepatu']);
+    let conf = item.confidence || {};
+    if (typeof conf === 'string') {
+      try { conf = JSON.parse(conf); } catch (e) { conf = {}; }
+    }
+
+    apdConfig.forEach(cfg => {
+      const isWajib = wajibSet.has(cfg.key);
+      const val = item[cfg.key];
+      const probVal = conf[cfg.key];
+      const prob = (probVal !== undefined && probVal !== null && !isNaN(Number(probVal))) ? Number(probVal) : null;
+      const probText = prob !== null ? ` (${Math.round(prob * 100)}%)` : '';
+
+      const card = document.createElement('div');
+      card.style.padding = '12px 14px';
+      card.style.borderRadius = '10px';
+      card.style.display = 'flex';
+      card.style.flexDirection = 'column';
+      card.style.gap = '4px';
+
+      let statusBadgeHtml = '';
+      if (!isWajib) {
+        card.style.background = '#F8FAFC';
+        card.style.border = '1px solid #E2E8F0';
+        statusBadgeHtml = `<span class="adm-badge adm-badge-blue" style="font-size: 11px;">Opsional${probText}</span>`;
+      } else if (val === 1 || val === true) {
+        card.style.background = '#F0FDF4';
+        card.style.border = '1px solid #86EFAC';
+        statusBadgeHtml = `<span class="adm-badge adm-badge-green" style="font-size: 11px;">Lengkap${probText}</span>`;
+      } else if (val === null || val === undefined) {
+        card.style.background = '#FFFBEB';
+        card.style.border = '1px solid #FCD34D';
+        statusBadgeHtml = `<span class="adm-badge adm-badge-blue" style="font-size: 11px;">Menunggu Validasi${probText}</span>`;
+      } else {
+        card.style.background = '#FEF2F2';
+        card.style.border = '1px solid #FCA5A5';
+        statusBadgeHtml = `<span class="adm-badge adm-badge-red" style="font-size: 11px;">Tidak Sesuai / Kurang${probText}</span>`;
+      }
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">${cfg.name}</span>
+          ${statusBadgeHtml}
+        </div>
+        <div style="font-size: 11px; color: #64748B;">
+          ${isWajib ? 'Wajib untuk sesi ini' : 'Tidak diwajibkan'}
+        </div>
+      `;
+      gridEl.appendChild(card);
+    });
+  }
+
+  // Snapshot Kamera Kiosk
+  const snapContainer = document.getElementById('modalApdSnapshotContainer');
+  const snapImg = document.getElementById('modalApdSnapshotImg');
+  if (snapContainer && snapImg) {
+    if (item.foto_path) {
+      snapImg.src = item.foto_path;
+      snapContainer.style.display = 'block';
+    } else {
+      snapContainer.style.display = 'none';
+      snapImg.src = '';
+    }
+  }
+
+  openAdmModal('modalDetailApdMonitoring');
 }
 
 async function loadAttendanceSessions() {
@@ -1881,20 +2069,16 @@ function renderVerifikasiStudentList(students) {
     const apdLabels = { helm: 'Helm', baju: 'Kemeja Lab', jeans: 'Jeans', sepatu: 'Sepatu' };
     const apdBadgesHtml = Object.entries(item.apd_items || {}).map(([key, info]) => {
       let pillClass = 'pill-gray';
-      let statusIcon = '⏳';
       let text = `${apdLabels[key] || key}`;
 
       if (info.status === 1) {
         pillClass = 'pill-ok';
-        statusIcon = '✅';
-        text += info.is_verified ? ' (Valid)' : '';
+        text += info.is_verified ? ' (Valid)' : ' (Sesuai)';
       } else if (info.status === 0) {
         pillClass = 'pill-bad';
-        statusIcon = '❌';
         text += ' Kurang';
       } else {
         pillClass = 'pill-warn';
-        statusIcon = '⚠️';
         text += ' Verifikasi';
       }
 
@@ -1902,7 +2086,7 @@ function renderVerifikasiStudentList(students) {
         text += ` ${info.confidence}%`;
       }
 
-      return `<span class="verif-item-pill ${pillClass}">${statusIcon} ${text}</span>`;
+      return `<span class="verif-item-pill ${pillClass}">${text}</span>`;
     }).join(' ');
 
     const snapshotSrc = item.foto_path || '../assets/img/maskot-k3.png';
@@ -1996,10 +2180,10 @@ function renderApdDecisionBoxes(item) {
   if (!container) return;
 
   const apdMeta = {
-    helm: { name: 'Helm Keselamatan', icon: '🪖' },
-    baju: { name: 'Baju / Kemeja Praktikum', icon: '🥼' },
-    jeans: { name: 'Celana Jeans', icon: '👖' },
-    sepatu: { name: 'Sepatu Safety', icon: '🥾' }
+    helm: { name: 'Helm Keselamatan' },
+    baju: { name: 'Baju / Kemeja Praktikum' },
+    jeans: { name: 'Celana Jeans' },
+    sepatu: { name: 'Sepatu Safety' }
   };
 
   let html = '';
@@ -2036,8 +2220,7 @@ function renderApdDecisionBoxes(item) {
       <div class="apd-decision-box ${boxClass}" id="boxApd_${key}">
         <div class="apd-decision-header">
           <div class="apd-decision-title">
-            <span>${meta.icon}</span>
-            <span>${meta.name}</span>
+            <span style="font-weight: 700;">${meta.name}</span>
             ${isWajib ? '<span style="font-size: 10px; background: #E2E8F0; color: #475569; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Wajib</span>' : ''}
           </div>
           <span class="adm-badge ${badgeClass}" style="font-size: 11px;">${badgeText}</span>

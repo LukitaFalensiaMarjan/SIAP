@@ -156,6 +156,20 @@ function studentInitials(name) {
     .toUpperCase();
 }
 
+function formatMinutesToHours(minutes) {
+  const m = parseInt(minutes, 10) || 0;
+  if (m <= 0) return '0 menit';
+  const hours = Math.floor(m / 60);
+  const remainingMinutes = m % 60;
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours} jam ${remainingMinutes} menit`;
+  } else if (hours > 0) {
+    return `${hours} jam`;
+  } else {
+    return `${remainingMinutes} menit`;
+  }
+}
+
 function studentDate(value) {
   if (!value) return '—';
   return new Date(`${value}T00:00:00`).toLocaleDateString('id-ID', {
@@ -200,9 +214,9 @@ function attendanceBadgeClass(status) {
 function renderStudentAttendanceRow(item) {
   const row = document.createElement('tr');
   row.dataset.status = item.status;
-  if (document.getElementById('modalDetailAbsensi')) {
-    row.addEventListener('click', () => openStudentAttendanceDetail(item));
-  }
+  row.style.cursor = 'pointer';
+  row.addEventListener('click', () => openStudentAttendanceDetail(item));
+
   const values = [studentDate(item.tanggal), item.mata_kuliah, studentTime(item.waktu), item.lab, 'Hadir'];
   values.forEach((value, index) => {
     const cell = row.insertCell();
@@ -213,7 +227,17 @@ function renderStudentAttendanceRow(item) {
   const statusCell = row.insertCell();
   const badge = document.createElement('span');
   badge.className = attendanceBadgeClass(item.status);
-  badge.textContent = attendanceStatusLabel(item.status);
+  badge.style.cursor = 'pointer';
+  badge.title = 'Klik untuk melihat rincian APD';
+  if (item.status === 'kurang') {
+    badge.innerHTML = `${attendanceStatusLabel(item.status)} <span style="font-size:10px; opacity:0.9;">(Detail &rarr;)</span>`;
+  } else {
+    badge.textContent = attendanceStatusLabel(item.status);
+  }
+  badge.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openStudentAttendanceDetail(item);
+  });
   statusCell.appendChild(badge);
   return row;
 }
@@ -221,7 +245,9 @@ function renderStudentAttendanceRow(item) {
 function renderStudentAttendance(data) {
   const historyBody = document.getElementById('studentAttendanceHistory');
   const recentBody = document.getElementById('studentRecentAttendance');
+  const profileRecentBody = document.getElementById('studentProfileRecentAttendance');
   const attendance = data.attendance || [];
+
   if (historyBody) {
     historyBody.replaceChildren();
     attendance.forEach(item => historyBody.appendChild(renderStudentAttendanceRow(item)));
@@ -239,6 +265,62 @@ function renderStudentAttendance(data) {
       recent.forEach(item => recentBody.appendChild(renderStudentAttendanceRow(item)));
     }
   }
+  if (profileRecentBody) {
+    profileRecentBody.replaceChildren();
+    if (!attendance.length) {
+      const row = profileRecentBody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 4;
+      cell.style.textAlign = 'center';
+      cell.style.padding = '14px';
+      cell.style.color = '#64748B';
+      cell.textContent = 'Belum ada catatan absensi tersimpan.';
+    } else {
+      attendance.slice(0, 5).forEach(item => {
+        const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openStudentAttendanceDetail(item));
+
+        const timeCell = row.insertCell();
+        timeCell.innerHTML = `<div style="font-weight:700;color:#0F172A;">${studentDate(item.tanggal)}</div><div style="font-size:11px;color:#64748B;">${studentTime(item.waktu)} WIB</div>`;
+
+        const matkulCell = row.insertCell();
+        matkulCell.innerHTML = `<div style="font-weight:700;color:#0F172A;">${item.mata_kuliah}</div><div style="font-size:11px;color:#64748B;">${item.lab || 'Lab'}</div>`;
+
+        const statusCell = row.insertCell();
+        const badge = document.createElement('span');
+        badge.className = attendanceBadgeClass(item.status);
+        badge.style.cursor = 'pointer';
+        badge.title = 'Klik untuk detail APD';
+        if (item.status === 'kurang') {
+          badge.innerHTML = `${attendanceStatusLabel(item.status)} <span style="font-size:10px;">(Detail &rarr;)</span>`;
+        } else {
+          badge.textContent = attendanceStatusLabel(item.status);
+        }
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openStudentAttendanceDetail(item);
+        });
+        statusCell.appendChild(badge);
+
+        const actionCell = row.insertCell();
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mhs-badge mhs-badge-blue';
+        btn.style.cursor = 'pointer';
+        btn.style.border = 'none';
+        btn.textContent = 'Lihat APD';
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openStudentAttendanceDetail(item);
+        });
+        actionCell.appendChild(btn);
+
+        profileRecentBody.appendChild(row);
+      });
+    }
+  }
+
   setStudentText('studentAttendanceCount', `${attendance.length} catatan tersimpan`);
   setStudentText('studentAttendanceTotal', data.summary.total);
   setStudentText('studentAttendanceComplete', data.summary.lengkap);
@@ -250,14 +332,126 @@ function openStudentAttendanceDetail(item) {
   setStudentText('mdMatkul', item.mata_kuliah);
   setStudentText('mdTanggal', studentDate(item.tanggal));
   setStudentText('mdJam', `${studentTime(item.waktu)} WIB`);
-  setStudentText('mdLab', item.lab);
+  setStudentText('mdLab', `${item.lab || 'Lab'} ${item.ruang ? `(${item.ruang})` : ''}`);
   setStudentText('mdStatus', attendanceStatusLabel(item.status));
-  document.querySelectorAll('[data-attendance-apd]').forEach(element => {
-    const itemName = element.dataset.attendanceApd;
-    const labels = { helm: 'Helm', baju: 'Baju praktik', jeans: 'Jeans', sepatu: 'Sepatu safety' };
-    const required = (item.wajib || []).includes(itemName);
-    element.textContent = `${labels[itemName]}: ${apdStatusLabel(item[itemName], itemName, required)}`;
-  });
+
+  const kompensasiEl = document.getElementById('mdKompensasi');
+  if (kompensasiEl) {
+    if (item.terlambat_menit && item.terlambat_menit > 0) {
+      const compMins = item.kompensasi_menit || (item.terlambat_menit * 5);
+      kompensasiEl.textContent = `${formatMinutesToHours(compMins)} (Telat: ${formatMinutesToHours(item.terlambat_menit)})`;
+      kompensasiEl.style.color = '#DC2626';
+    } else {
+      kompensasiEl.textContent = '0 menit (Tepat waktu)';
+      kompensasiEl.style.color = '#15803D';
+    }
+  }
+
+  const lateBadge = document.getElementById('mdLateBadge');
+  if (lateBadge) {
+    if (item.terlambat_menit && item.terlambat_menit > 0) {
+      lateBadge.className = 'mhs-badge mhs-badge-red';
+      lateBadge.textContent = `Terlambat ${formatMinutesToHours(item.terlambat_menit)}`;
+    } else {
+      lateBadge.className = 'mhs-badge mhs-badge-green';
+      lateBadge.textContent = 'Tepat Waktu';
+    }
+  }
+
+  // Warning Box jika APD Kurang
+  const warnBox = document.getElementById('mdApdWarningBox');
+  const warnText = document.getElementById('mdApdWarningText');
+  const labelsMap = { helm: 'Helm K3', baju: 'Baju Praktik', jeans: 'Celana Jeans', sepatu: 'Sepatu Safety' };
+  const missingItems = (item.atribut_tidak_sesuai && item.atribut_tidak_sesuai.length > 0)
+    ? item.atribut_tidak_sesuai
+    : ['helm', 'baju', 'jeans', 'sepatu'].filter(k => item[k] === 0 || item[k] === false);
+
+  if (missingItems.length > 0 || item.status === 'kurang') {
+    if (warnBox) warnBox.style.display = 'block';
+    if (warnText) {
+      const missingLabels = missingItems.map(k => labelsMap[k] || k).join(', ');
+      warnText.innerHTML = `Atribut APD yang belum sesuai / kurang: <strong>${missingLabels || 'Ada APD wajib yang kurang'}</strong>.<br><span style="display:inline-block; margin-top:4px; font-weight:700; color:#991B1B;">Pelanggaran ini dicatat sebagai SP Lisan 1 dalam evaluasi kedisiplinan semester.</span>`;
+    }
+  } else {
+    if (warnBox) warnBox.style.display = 'none';
+  }
+
+  // Grid Rincian 4 APD
+  const apdContainer = document.getElementById('studentAttendanceApdDetails');
+  if (apdContainer) {
+    apdContainer.replaceChildren();
+    const apdConfig = [
+      { key: 'helm', name: 'Helm K3' },
+      { key: 'baju', name: 'Baju Praktik' },
+      { key: 'jeans', name: 'Celana Jeans' },
+      { key: 'sepatu', name: 'Sepatu Safety' }
+    ];
+
+    const wajibSet = new Set(item.wajib || ['helm', 'baju', 'jeans', 'sepatu']);
+    let conf = item.confidence || {};
+    if (typeof conf === 'string') {
+      try { conf = JSON.parse(conf); } catch (e) { conf = {}; }
+    }
+
+    apdConfig.forEach(cfg => {
+      const isWajib = wajibSet.has(cfg.key);
+      const val = item[cfg.key];
+      const probVal = conf[cfg.key];
+      const prob = (probVal !== undefined && probVal !== null && !isNaN(Number(probVal))) ? Number(probVal) : null;
+      const probText = prob !== null ? ` (${Math.round(prob * 100)}%)` : '';
+
+      const card = document.createElement('div');
+      card.style.padding = '10px 12px';
+      card.style.borderRadius = '8px';
+      card.style.display = 'flex';
+      card.style.flexDirection = 'column';
+      card.style.gap = '3px';
+
+      let statusBadgeHtml = '';
+      if (!isWajib) {
+        card.style.background = '#F8FAFC';
+        card.style.border = '1px solid #E2E8F0';
+        statusBadgeHtml = `<span class="mhs-badge mhs-badge-blue" style="font-size: 10px;">Opsional${probText}</span>`;
+      } else if (val === 1 || val === true) {
+        card.style.background = '#F0FDF4';
+        card.style.border = '1px solid #86EFAC';
+        statusBadgeHtml = `<span class="mhs-badge mhs-badge-green" style="font-size: 10px;">Lengkap${probText}</span>`;
+      } else if (val === null || val === undefined) {
+        card.style.background = '#FFFBEB';
+        card.style.border = '1px solid #FCD34D';
+        statusBadgeHtml = `<span class="mhs-badge mhs-badge-blue" style="font-size: 10px;">Menunggu Validasi${probText}</span>`;
+      } else {
+        card.style.background = '#FEF2F2';
+        card.style.border = '1px solid #FCA5A5';
+        statusBadgeHtml = `<span class="mhs-badge mhs-badge-red" style="font-size: 10px;">Tidak Lengkap${probText}</span>`;
+      }
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; font-weight: 700; color: #0F172A;">${cfg.name}</span>
+          ${statusBadgeHtml}
+        </div>
+        <div style="font-size: 10.5px; color: #64748B;">
+          ${isWajib ? 'Wajib untuk sesi ini' : 'Tidak diwajibkan'}
+        </div>
+      `;
+      apdContainer.appendChild(card);
+    });
+  }
+
+  // Snapshot Kamera Kiosk
+  const snapContainer = document.getElementById('mdSnapshotContainer');
+  const snapImg = document.getElementById('mdSnapshotImg');
+  if (snapContainer && snapImg) {
+    if (item.foto_path) {
+      snapImg.src = item.foto_path;
+      snapContainer.style.display = 'block';
+    } else {
+      snapContainer.style.display = 'none';
+      snapImg.src = '';
+    }
+  }
+
   openMhsModal('modalDetailAbsensi');
 }
 
@@ -345,8 +539,8 @@ function simulateCompensation(minutes) {
   const compEl = document.getElementById('calcCompMinutes');
   const jpEl = document.getElementById('calcCompJP');
 
-  if (lateEl) lateEl.innerText = `${totalLate} menit`;
-  if (compEl) compEl.innerText = `${compMinutes} menit`;
+  if (lateEl) lateEl.innerText = formatMinutesToHours(totalLate);
+  if (compEl) compEl.innerText = formatMinutesToHours(compMinutes);
   if (jpEl) jpEl.innerText = `${jp} JP ${remainingMins} menit`;
 }
 
@@ -364,15 +558,15 @@ function renderStudentCompensation(result) {
   const jpEl = document.getElementById('calcCompJP');
   const remainDebtEl = document.getElementById('calcRemainDebt');
 
-  if (lateEl) lateEl.innerText = `${totalLate} menit`;
-  if (compEl) compEl.innerText = `${totalComp} menit`;
+  if (lateEl) lateEl.innerText = formatMinutesToHours(totalLate);
+  if (compEl) compEl.innerText = formatMinutesToHours(totalComp);
   if (jpEl) {
     const jp = Math.floor(totalComp / 50);
     const rem = totalComp % 50;
     jpEl.innerText = `${jp} JP ${rem} menit`;
   }
   if (remainDebtEl) {
-    remainDebtEl.innerText = `${remainComp} menit`;
+    remainDebtEl.innerText = formatMinutesToHours(remainComp);
     const remainJpEl = remainDebtEl.nextElementSibling;
     if (remainJpEl) {
       const rJp = Math.floor(remainComp / 50);
@@ -387,6 +581,60 @@ function renderStudentCompensation(result) {
   if (progFill) progFill.style.width = `${percent}%`;
   const progHead = document.querySelector('.mhs-progress-head span:last-child');
   if (progHead) progHead.innerText = `${percent}%`;
+
+  // Render Tabel Evaluasi Kedisiplinan & SP (Surat Peringatan)
+  const spTableBody = document.getElementById('studentSpTableBody');
+  const spBadge = document.getElementById('spSummaryBadge');
+  const labelsMap = { helm: 'Helm K3', baju: 'Baju Praktik', jeans: 'Celana Jeans', sepatu: 'Sepatu Safety' };
+
+  // Kumpulkan kasus SP Lisan 1 dari API cases dan absensi APD kurang
+  const cases = result.cases || [];
+  const spLisanList = cases.filter(c => (c.sp_level === 1 || c.sp_label === 'SP Lisan 1') && c.status === 'diterbitkan');
+
+  if (spBadge) {
+    spBadge.textContent = spLisanList.length > 0 ? `${spLisanList.length} Catatan SP Lisan 1` : '0 Catatan SP';
+    spBadge.className = spLisanList.length > 0 ? 'mhs-badge mhs-badge-red' : 'mhs-badge mhs-badge-green';
+  }
+
+  if (spTableBody) {
+    spTableBody.replaceChildren();
+    if (!spLisanList.length) {
+      const row = spTableBody.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.style.color = '#64748B';
+      cell.style.padding = '18px';
+      cell.style.textAlign = 'center';
+      cell.textContent = 'Tidak ada catatan pelanggaran atau SP aktif semester ini. Pertahankan kepatuhan APD!';
+    } else {
+      spLisanList.forEach(c => {
+        const row = spTableBody.insertRow();
+        const dateCell = row.insertCell();
+        dateCell.style.color = '#64748B';
+        dateCell.textContent = studentDate(c.tanggal || c.diterbitkan_pada);
+
+        const mkCell = row.insertCell();
+        mkCell.style.fontWeight = '700';
+        mkCell.textContent = c.mata_kuliah || 'Praktikum';
+
+        const reasonCell = row.insertCell();
+        let missingStr = '';
+        try {
+          const mList = typeof c.atribut_tidak_sesuai === 'string' ? JSON.parse(c.atribut_tidak_sesuai) : c.atribut_tidak_sesuai;
+          if (Array.isArray(mList) && mList.length) {
+            missingStr = mList.map(k => labelsMap[k] || k).join(', ');
+          }
+        } catch (_) {}
+        reasonCell.innerHTML = `<span style="color:#DC2626; font-weight:600;">Atribut Kurang: ${missingStr || 'Atribut APD Wajib'}</span>`;
+
+        const sanksiCell = row.insertCell();
+        sanksiCell.innerHTML = `<span class="mhs-badge mhs-badge-red" style="font-weight:800;">SP Lisan 1</span>`;
+
+        const statusCell = row.insertCell();
+        statusCell.innerHTML = `<span class="mhs-badge mhs-badge-amber">Tercatat di Evaluasi</span>`;
+      });
+    }
+  }
 
   // Render Tabel Rincian Per Sesi Kompensasi
   const tableBody = document.querySelector('.mhs-table-clean tbody');
@@ -423,16 +671,16 @@ function renderStudentCompensation(result) {
         const lateCell = row.insertCell();
         lateCell.style.color = '#D97706';
         lateCell.style.fontWeight = '600';
-        lateCell.innerText = `${item.terlambat_menit} menit`;
+        lateCell.innerText = formatMinutesToHours(item.terlambat_menit);
 
         const compCell = row.insertCell();
-        compCell.innerText = `${item.kompensasi_menit} menit`;
+        compCell.innerText = formatMinutesToHours(item.kompensasi_menit);
 
         const resolvedCell = row.insertCell();
         if (item.diselesaikan_menit > 0) {
           resolvedCell.style.color = '#059669';
           resolvedCell.style.fontWeight = '700';
-          resolvedCell.innerText = `${item.diselesaikan_menit} menit`;
+          resolvedCell.innerText = formatMinutesToHours(item.diselesaikan_menit);
         } else {
           resolvedCell.style.color = '#94A3B8';
           resolvedCell.innerText = '—';
@@ -455,7 +703,7 @@ function renderStudentCompensation(result) {
         if (selectSesi && (!item.diselesaikan_menit || item.diselesaikan_menit < item.kompensasi_menit)) {
           const opt = document.createElement('option');
           opt.value = item.id;
-          opt.innerText = `${item.mata_kuliah} (${studentDate(item.tanggal)} - ${item.kompensasi_menit} menit)`;
+          opt.innerText = `${item.mata_kuliah} (${studentDate(item.tanggal)} - ${formatMinutesToHours(item.kompensasi_menit)})`;
           selectSesi.appendChild(opt);
         }
       });
