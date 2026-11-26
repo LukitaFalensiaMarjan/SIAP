@@ -43,9 +43,11 @@ DEFAULT_APD_RULES = {
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 
@@ -1094,7 +1096,7 @@ def student_overview():
     # Ambil kasus SP yang diterbitkan / draf untuk mahasiswa ini
     case_rows = conn.execute(
         """
-        SELECT k.*, p.nama AS periode_nama, s.mata_kuliah, s.tanggal, a.waktu
+        SELECT k.*, p.nama AS periode_nama, s.mata_kuliah, s.tanggal, a.waktu, a.status AS absensi_status
         FROM kasus_tindak_lanjut k
         JOIN absensi a ON a.id = k.absensi_id
         JOIN sesi s ON s.id = a.sesi_id
@@ -1104,7 +1106,14 @@ def student_overview():
         """,
         (student["nim"],),
     ).fetchall()
-    cases = [dict(c) for c in case_rows]
+    
+    # Hanya sertakan kasus SP yang sah (jika absensi sudah lengkap, SP karena APD gugur)
+    cases = []
+    for c in case_rows:
+        c_dict = dict(c)
+        if c_dict.get("absensi_status") == "lengkap" and "APD" in (c_dict.get("catatan") or ""):
+            continue
+        cases.append(c_dict)
 
     attendance = []
     total_late_minutes = 0
@@ -1613,143 +1622,151 @@ def kiosk_attendance():
             print(f"[WARN] Gagal menyimpan snapshot absensi: {exc}")
 
     conn = get_db()
-    duplicate = conn.execute(
-        "SELECT id, waktu, foto_path FROM absensi WHERE nim = ? AND sesi_id = ?",
-        (student["nim"], session_row["id"]),
-    ).fetchone()
-
-    if duplicate:
-        # Mahasiswa bisa absen ulang selama masa pengujian: perbarui waktu scan, APD, menit telat, & kompensasi
-        new_waktu = datetime.now().isoformat(timespec="seconds")
-        conn.execute(
-            """
-            UPDATE absensi
-            SET waktu = ?, helm = ?, baju = ?, jeans = ?, sepatu = ?, status = ?, confidence = ?,
-                foto_path = COALESCE(?, foto_path)
-            WHERE id = ?
-            """,
-            (
-                new_waktu,
-                values["helm"],
-                values["baju"],
-                values["jeans"],
-                values["sepatu"],
-                status,
-                json.dumps(confidence),
-                foto_rel_path,
-                duplicate["id"],
-            ),
-        )
-        conn.commit()
-        attendance_id = duplicate["id"]
-    else:
-        cursor = conn.execute(
-            """
-            INSERT INTO absensi
-            (nim, sesi_id, waktu, helm, baju, jeans, sepatu, status, confidence, foto_path, catatan)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-            """,
-            (
-                student["nim"],
-                session_row["id"],
-                datetime.now().isoformat(timespec="seconds"),
-                values["helm"],
-                values["baju"],
-                values["jeans"],
-                values["sepatu"],
-                status,
-                json.dumps(confidence),
-                foto_rel_path,
-            ),
-        )
-        conn.commit()
-        attendance_id = cursor.lastrowid
-
-    # Hitung keterlambatan dan kompensasi
-    late_minutes, compensation = attendance_tardiness(
-        session_row["tanggal"], session_row["jam_mulai"], datetime.now().isoformat(timespec="seconds")
-    )
-
-    # Catat otomatis SP Lisan 1 untuk setiap presensi dengan APD tidak lengkap
-    missing_apd = [
-        it for it in rule["wajib"]
-        if values.get(it) is not None and values.get(it) not in (True, 1)
-    ]
-    if status == "kurang" or missing_apd:
-        period = active_academic_period(conn)
-        period_id = period["id"] if period else 1
-        now_iso = datetime.now().isoformat(timespec="seconds")
-        catatan_sp = f"SP Lisan 1: Pelanggaran ketidaklengkapan atribut APD ({', '.join(missing_apd) if missing_apd else 'APD tidak lengkap'})"
-        
-        existing_case = conn.execute(
-            "SELECT id FROM kasus_tindak_lanjut WHERE absensi_id = ?", (attendance_id,)
+    try:
+        duplicate = conn.execute(
+            "SELECT id, waktu, foto_path FROM absensi WHERE nim = ? AND sesi_id = ?",
+            (student["nim"], session_row["id"]),
         ).fetchone()
-        if existing_case:
+
+        if duplicate:
+            # Mahasiswa bisa absen ulang selama masa pengujian: perbarui waktu scan, APD, menit telat, & kompensasi
+            new_waktu = datetime.now().isoformat(timespec="seconds")
             conn.execute(
                 """
-                UPDATE kasus_tindak_lanjut
-                SET status = 'diterbitkan', sp_level = 1, atribut_tidak_sesuai = ?, catatan = ?,
-                    terlambat_menit = ?, kompensasi_menit = ?, diterbitkan_pada = ?
+                UPDATE absensi
+                SET waktu = ?, helm = ?, baju = ?, jeans = ?, sepatu = ?, status = ?, confidence = ?,
+                    foto_path = COALESCE(?, foto_path)
                 WHERE id = ?
                 """,
-                (json.dumps(missing_apd), catatan_sp, late_minutes or 0, compensation or 0, now_iso, existing_case["id"]),
-            )
-        else:
-            conn.execute(
-                """
-                INSERT INTO kasus_tindak_lanjut
-                (absensi_id, periode_id, status, sp_level, urutan_pelanggaran, terlambat_menit,
-                 kompensasi_menit, tanggal_absensi_cocok, atribut_tidak_sesuai, catatan,
-                 diterbitkan_pada)
-                VALUES (?, ?, 'diterbitkan', 1, 1, ?, ?, 1, ?, ?, ?)
-                """,
                 (
-                    attendance_id,
-                    period_id,
-                    late_minutes or 0,
-                    compensation or 0,
-                    json.dumps(missing_apd),
-                    catatan_sp,
-                    now_iso,
+                    new_waktu,
+                    values["helm"],
+                    values["baju"],
+                    values["jeans"],
+                    values["sepatu"],
+                    status,
+                    json.dumps(confidence),
+                    foto_rel_path,
+                    duplicate["id"],
                 ),
             )
-        conn.commit()
+            conn.commit()
+            attendance_id = duplicate["id"]
+        else:
+            cursor = conn.execute(
+                """
+                INSERT INTO absensi
+                (nim, sesi_id, waktu, helm, baju, jeans, sepatu, status, confidence, foto_path, catatan)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """,
+                (
+                    student["nim"],
+                    session_row["id"],
+                    datetime.now().isoformat(timespec="seconds"),
+                    values["helm"],
+                    values["baju"],
+                    values["jeans"],
+                    values["sepatu"],
+                    status,
+                    json.dumps(confidence),
+                    foto_rel_path,
+                ),
+            )
+            conn.commit()
+            attendance_id = cursor.lastrowid
 
-    row = conn.execute(
-        """
-        SELECT a.*, m.nama, m.kelas, s.lab, s.mata_kuliah, s.jam_mulai, s.jam_selesai, s.ruang, s.dosen,
-               s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu
-        FROM absensi a
-        JOIN mahasiswa m ON m.nim = a.nim
-        JOIN sesi s ON s.id = a.sesi_id
-        WHERE a.id = ?
-        """,
-        (attendance_id,),
-    ).fetchone()
-    conn.close()
+        # Hitung keterlambatan dan kompensasi
+        late_minutes, compensation = attendance_tardiness(
+            session_row["tanggal"], session_row["jam_mulai"], datetime.now().isoformat(timespec="seconds")
+        )
 
-    att_dict = dict(row)
-    late_minutes, compensation = attendance_tardiness(
-        session_row["tanggal"], session_row["jam_mulai"], att_dict["waktu"]
-    )
-    att_dict["terlambat_menit"] = late_minutes or 0
-    att_dict["kompensasi_menit"] = compensation or 0
-    att_dict["status_kehadiran"] = "terlambat" if (late_minutes and late_minutes > 0) else "tepat_waktu"
+        # Catat otomatis SP Lisan 1 untuk setiap presensi dengan APD tidak lengkap
+        missing_apd = [
+            it for it in rule["wajib"]
+            if values.get(it) is not None and values.get(it) not in (True, 1)
+        ]
+        if status == "kurang" or missing_apd:
+            period = active_academic_period(conn)
+            period_id = period["id"] if period else 1
+            now_iso = datetime.now().isoformat(timespec="seconds")
+            catatan_sp = f"SP Lisan 1: Pelanggaran ketidaklengkapan atribut APD ({', '.join(missing_apd) if missing_apd else 'APD tidak lengkap'})"
+            
+            existing_case = conn.execute(
+                "SELECT id FROM kasus_tindak_lanjut WHERE absensi_id = ?", (attendance_id,)
+            ).fetchone()
+            if existing_case:
+                conn.execute(
+                    """
+                    UPDATE kasus_tindak_lanjut
+                    SET status = 'diterbitkan', sp_level = 1, atribut_tidak_sesuai = ?, catatan = ?,
+                        terlambat_menit = ?, kompensasi_menit = ?, diterbitkan_pada = ?,
+                        dikonfirmasi_oleh = 1, dikonfirmasi_pada = ?, diterbitkan_oleh = 1
+                    WHERE id = ?
+                    """,
+                    (json.dumps(missing_apd), catatan_sp, late_minutes or 0, compensation or 0, now_iso, now_iso, existing_case["id"]),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO kasus_tindak_lanjut
+                    (absensi_id, periode_id, status, sp_level, urutan_pelanggaran, terlambat_menit,
+                     kompensasi_menit, tanggal_absensi_cocok, atribut_tidak_sesuai, catatan,
+                     dikonfirmasi_oleh, dikonfirmasi_pada, diterbitkan_oleh, diterbitkan_pada)
+                    VALUES (?, ?, 'diterbitkan', 1, 1, ?, ?, 1, ?, ?, 1, ?, 1, ?)
+                    """,
+                    (
+                        attendance_id,
+                        period_id,
+                        late_minutes or 0,
+                        compensation or 0,
+                        json.dumps(missing_apd),
+                        catatan_sp,
+                        now_iso,
+                        now_iso,
+                    ),
+                )
+            conn.commit()
 
-    return jsonify(
-        {
-            "attendance": att_dict,
-            "face": face,
-            "apd": apd,
-            "wajib": rule["wajib"],
-            "aturan_sesi": {
-                "helm": bool(rule.get("wajib_helm")),
-                "baju": bool(rule.get("wajib_baju")),
-                "jeans": bool(rule.get("wajib_jeans")),
-                "sepatu": bool(rule.get("wajib_sepatu")),
-            },
-        }
-    ), 201
+        row = conn.execute(
+            """
+            SELECT a.*, m.nama, m.kelas, s.lab, s.mata_kuliah, s.jam_mulai, s.jam_selesai, s.ruang, s.dosen,
+                   s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu
+            FROM absensi a
+            JOIN mahasiswa m ON m.nim = a.nim
+            JOIN sesi s ON s.id = a.sesi_id
+            WHERE a.id = ?
+            """,
+            (attendance_id,),
+        ).fetchone()
+
+        att_dict = dict(row)
+        late_minutes, compensation = attendance_tardiness(
+            session_row["tanggal"], session_row["jam_mulai"], att_dict["waktu"]
+        )
+        att_dict["terlambat_menit"] = late_minutes or 0
+        att_dict["kompensasi_menit"] = compensation or 0
+        att_dict["status_kehadiran"] = "terlambat" if (late_minutes and late_minutes > 0) else "tepat_waktu"
+
+        return jsonify(
+            {
+                "attendance": att_dict,
+                "face": face,
+                "apd": apd,
+                "wajib": rule["wajib"],
+                "aturan_sesi": {
+                    "helm": bool(rule.get("wajib_helm")),
+                    "baju": bool(rule.get("wajib_baju")),
+                    "jeans": bool(rule.get("wajib_jeans")),
+                    "sepatu": bool(rule.get("wajib_sepatu")),
+                },
+            }
+        ), 201
+    except Exception as exc:
+        conn.rollback()
+        print(f"[ERROR] Gagal menyimpan presensi kiosk: {exc}")
+        return jsonify({"error": f"Gagal menyimpan presensi: {exc}"}), 500
+    finally:
+        conn.close()
 
 
 @app.route("/api/absensi", methods=["GET", "POST"])
@@ -2566,7 +2583,7 @@ def admin_verifikasi_apd_update(attendance_id):
 
     row = conn.execute(
         """
-        SELECT a.*, s.lab, s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu,
+        SELECT a.*, s.lab, s.tanggal, s.jam_mulai, s.wajib_helm, s.wajib_baju, s.wajib_jeans, s.wajib_sepatu,
                m.nama AS mahasiswa_nama
         FROM absensi a
         JOIN sesi s ON s.id = a.sesi_id
@@ -2589,7 +2606,7 @@ def admin_verifikasi_apd_update(attendance_id):
     )
 
     # Hitung ulang status kehadiran keseluruhan
-    rule = apd_rule(conn, row["lab"])
+    rule = session_apd_rule(conn, row) if row else apd_rule(conn, row["lab"])
     wajib = rule["wajib"] if rule else [
         k for k in ["helm", "baju", "jeans", "sepatu"] if row.get(f"wajib_{k}") == 1
     ]
@@ -2603,6 +2620,78 @@ def admin_verifikasi_apd_update(attendance_id):
         "UPDATE absensi SET status = ? WHERE id = ?",
         (new_overall_status, attendance_id),
     )
+
+    # Sinkronisasi Kasus Tindak Lanjut & SP Mahasiswa
+    now = datetime.now().isoformat(timespec="seconds")
+    missing_apd = [k for k in wajib if current_vals.get(k) in (0, False)]
+    existing_case = conn.execute(
+        "SELECT id, status, catatan FROM kasus_tindak_lanjut WHERE absensi_id = ?",
+        (attendance_id,),
+    ).fetchone()
+    period = active_academic_period(conn)
+    period_id = period["id"] if period else 1
+
+    if new_overall_status == "lengkap":
+        # Jika seluruh APD wajib telah terverifikasi sesuai (lengkap),
+        # hapus sanksi SP pelanggaran APD untuk absensi ini agar peran mahasiswa bersih dari SP
+        if existing_case:
+            conn.execute(
+                "DELETE FROM kasus_tindak_lanjut WHERE id = ?",
+                (existing_case["id"],),
+            )
+    elif new_overall_status == "kurang":
+        # Jika masih ada APD yang kurang, perbarui rincian atribut dan catatan SP Lisan 1
+        catatan_sp = f"SP Lisan 1: Pelanggaran ketidaklengkapan atribut APD ({', '.join(missing_apd) if missing_apd else 'APD tidak lengkap'})"
+        if existing_case:
+            conn.execute(
+                """
+                UPDATE kasus_tindak_lanjut
+                SET status = 'diterbitkan', sp_level = 1, atribut_tidak_sesuai = ?, catatan = ?,
+                    dikonfirmasi_oleh = ?, dikonfirmasi_pada = ?, diterbitkan_oleh = ?, diterbitkan_pada = ?
+                WHERE id = ?
+                """,
+                (
+                    json.dumps(missing_apd),
+                    catatan_sp,
+                    user["id"],
+                    now,
+                    user["id"],
+                    now,
+                    existing_case["id"],
+                ),
+            )
+        else:
+            late_minutes, compensation = attendance_tardiness(
+                row["tanggal"], row["jam_mulai"], row["waktu"]
+            )
+            conn.execute(
+                """
+                INSERT INTO kasus_tindak_lanjut
+                (absensi_id, periode_id, status, sp_level, urutan_pelanggaran, terlambat_menit,
+                 kompensasi_menit, tanggal_absensi_cocok, atribut_tidak_sesuai, catatan,
+                 dikonfirmasi_oleh, dikonfirmasi_pada, diterbitkan_oleh, diterbitkan_pada)
+                VALUES (?, ?, 'diterbitkan', 1, 1, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    attendance_id,
+                    period_id,
+                    late_minutes or 0,
+                    compensation or 0,
+                    json.dumps(missing_apd),
+                    catatan_sp,
+                    user["id"],
+                    now,
+                    user["id"],
+                    now,
+                ),
+            )
+    else:  # 'menunggu_validasi'
+        # Jika menunggu validasi, jangan terbitkan sanksi SP aktif
+        if existing_case:
+            conn.execute(
+                "DELETE FROM kasus_tindak_lanjut WHERE id = ?",
+                (existing_case["id"],),
+            )
 
     # Catat riwayat verifikasi
     now = datetime.now().isoformat(timespec="seconds")

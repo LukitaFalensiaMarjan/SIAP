@@ -185,7 +185,7 @@ function showStudentLoginSection() {
   if (authTitle) authTitle.textContent = 'Input Presensi';
   if (actionBtn) {
     actionBtn.disabled = true;
-    actionBtn.textContent = 'Masukkan NIM & Kelas Terlebih Dahulu';
+    actionBtn.textContent = 'Masukan NIM & Kelas Terlebih Dahulu';
   }
 }
 
@@ -282,7 +282,7 @@ function resetKioskSessionForNextQueue() {
   showStudentLoginSection();
   populateKioskSessions([]);
   drawDetectionBoxes([]);
-  setKioskStatus('Kamera Siap', 'Silakan mahasiswa berikutnya memasukkan NIM dan Kelas.', false);
+  setKioskStatus('Kamera Siap', 'Silakan mahasiswa berikutnya masukan NIM dan Kelas.', false);
 }
 window.resetKioskSessionForNextQueue = resetKioskSessionForNextQueue;
 
@@ -1045,15 +1045,21 @@ async function finishKioskAttendance() {
       body: JSON.stringify({
         ...kioskState.student,
         sesi_id: kioskState.sessionId,
-        images: kioskState.apdImages,
-        face_images: kioskState.faceImages,
+        images: (kioskState.apdImages || []).slice(-4),
+        face_images: (kioskState.faceImages || []).slice(-4),
         face_crop_mode: kioskState.faceCropMode,
         apd: kioskState.apd,
         face: kioskState.lastFace,
         face_verified: kioskState.faceVerified
       })
     });
-    const result = await res.json().catch(() => ({}));
+    let result = {};
+    try {
+      result = await res.json();
+    } catch (_) {
+      const text = await res.text().catch(() => '');
+      result = { error: text || `Server error (${res.status})` };
+    }
     if (!res.ok) throw new Error(result.error || 'Kehadiran gagal disimpan.');
 
     const attendance = result.attendance;
@@ -1158,7 +1164,7 @@ async function finishKioskAttendance() {
         }
 
         const div = document.createElement('div');
-        div.style.cssText = `background: ${bgColor}; border: 1px solid ${borderColor}; padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;`;
+        div.style.cssText = `box-sizing: border-box; background: ${bgColor}; border: 1px solid ${borderColor}; padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;`;
         div.innerHTML = `
           <span style="font-weight: 700; color: #1E293B;">${item.name}</span>
           <span style="font-weight: 800; font-size: 10px; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 7px; border-radius: 4px;">${statusText}</span>

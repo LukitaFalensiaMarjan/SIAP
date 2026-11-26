@@ -3,6 +3,16 @@
  * Handles tab switching, search filtering, modals, and actions with zero icons
  */
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 async function initSiapAdminSession() {
   renderUnavailableAdminPage();
   try {
@@ -2093,10 +2103,13 @@ function renderVerifikasiStudentList(students) {
 
     // Status Keseluruhan
     let overallBadge = '<span class="adm-badge adm-badge-amber">Menunggu Verifikasi</span>';
+    const hasUnverified = Object.values(item.apd_items || {}).some(v => v.status === null || v.status === undefined);
     if (item.status === 'lengkap') {
       overallBadge = '<span class="adm-badge adm-badge-green">Lengkap</span>';
+    } else if (hasUnverified) {
+      overallBadge = '<span class="adm-badge adm-badge-amber" style="background:#FEF3C7;color:#B45309;border:1px solid rgba(217,119,6,0.3);">Perlu Verifikasi APD</span>';
     } else if (item.status === 'kurang') {
-      overallBadge = '<span class="adm-badge adm-badge-red" style="background:#FEF2F2;color:#DC2626;border:1px solid rgba(220,38,38,0.3);">APD Kurang</span>';
+      overallBadge = '<span class="adm-badge adm-badge-red" style="background:#FEF2F2;color:#DC2626;border:1px solid rgba(220,38,38,0.3);">APD Tidak Lengkap</span>';
     }
 
     html += `
@@ -2232,15 +2245,15 @@ function renderApdDecisionBoxes(item) {
         </div>
 
         <div class="apd-decision-actions">
-          <button type="button" class="btn-verif-valid" onclick="promptApdDecision('${key}', 1, '${meta.name}')">
-            Sesuai / Benar
+          <button type="button" class="btn-verif-valid" onclick="promptApdDecision('${key}', 1, '${meta.name}')" style="${isVerified && st === 1 ? 'outline: 2px solid #065F46; font-weight: 800;' : ''}">
+            ${isVerified && st === 1 ? '✓ Sesuai (Aktif)' : 'Sesuai / Benar'}
           </button>
-          <button type="button" class="btn-verif-invalid" onclick="promptApdDecision('${key}', 0, '${meta.name}')">
-            Tidak Sesuai / Kurang
+          <button type="button" class="btn-verif-invalid" onclick="promptApdDecision('${key}', 0, '${meta.name}')" style="${isVerified && st === 0 ? 'outline: 2px solid #991B1B; font-weight: 800;' : ''}">
+            ${isVerified && st === 0 ? '✗ Kurang (Aktif)' : 'Tidak Sesuai / Kurang'}
           </button>
           ${isVerified ? `
             <button type="button" class="btn-verif-edit" onclick="promptApdDecision('${key}', ${st === 1 ? 0 : 1}, '${meta.name}')" title="Ubah kembali keputusan ini">
-              Edit Keputusan
+              Edit Keputusan &rarr; ${st === 1 ? 'Ubah ke Kurang' : 'Ubah ke Sesuai'}
             </button>
           ` : ''}
         </div>
@@ -2346,6 +2359,37 @@ async function executeApdDecision() {
     showToast(result.message || 'Keputusan APD berhasil disimpan.');
 
     closeConfirmApdModal();
+
+    // Update data lokal selectedStudent secara instan
+    if (verifApdState.selectedStudent && verifApdState.selectedStudent.id === pending.attendanceId) {
+      if (!verifApdState.selectedStudent.apd_items) verifApdState.selectedStudent.apd_items = {};
+      if (!verifApdState.selectedStudent.apd_items[pending.apdKey]) {
+        verifApdState.selectedStudent.apd_items[pending.apdKey] = {};
+      }
+      const itemInfo = verifApdState.selectedStudent.apd_items[pending.apdKey];
+      itemInfo.status = pending.targetStatus;
+      itemInfo.is_verified = true;
+      itemInfo.verifikator = 'Admin';
+      itemInfo.waktu_verifikasi = new Date().toISOString();
+      itemInfo.alasan = note;
+
+      if (!verifApdState.selectedStudent.riwayat_verifikasi) {
+        verifApdState.selectedStudent.riwayat_verifikasi = [];
+      }
+      verifApdState.selectedStudent.riwayat_verifikasi.push({
+        apd_item: pending.apdKey,
+        diverifikasi_oleh: 1,
+        diverifikasi_pada: new Date().toISOString(),
+        verifikator_nama: 'Admin',
+        status_baru: pending.targetStatus,
+        alasan: note
+      });
+      if (result.overall_status) {
+        verifApdState.selectedStudent.status = result.overall_status;
+      }
+      renderApdDecisionBoxes(verifApdState.selectedStudent);
+      renderRiwayatVerifikasi(verifApdState.selectedStudent.riwayat_verifikasi);
+    }
 
     // Reload list and update current modal
     await loadVerifikasiApd();
