@@ -1,3 +1,48 @@
+"""
+========================================================================================
+SIMANDIRI CNN - POLMAN SMART ATTENDANCE & APD INSPECTION
+TAHAP 5: INFERENSI REAL-TIME DI TERMINAL KIOSK (REAL-TIME VISION & BIOMETRIC INFERENCE)
+========================================================================================
+
+Modul ini adalah mesin inferensi utama yang berjalan di sisi Kiosk Presensi POLMAN:
+- Menerima tangkapan webcam dari browser secara live dalam format base64 JPEG/PNG.
+- Memproses inferensi simultan 5 model TensorFlow Lite (.tflite):
+    1. model_wajah  (Biometrik: Basit, Chakim, Luki)
+    2. model_helm   (Kepatuhan Helm K3)
+    3. model_kemeja (Kepatuhan Baju Praktik)
+    4. model_jeans  (Kepatuhan Celana Jeans)
+    5. model_sepatu (Kepatuhan Sepatu Safety)
+
+Fitur & Logika Utama Tahap 5:
+----------------------------------------------------------------------------------------
+1. KORIDOR SILUET KETAT (Strict Guide Zone):
+   - Wajah mahasiswa WAJIB berada di dalam koridor siluet tengah:
+     * Sumbu X: 30% s.d. 70% frame (tengah layar).
+     * Sumbu Y: 4% s.d. 42% frame (posisi kepala saat berdiri).
+   - Anti-Distraksi Multi-Person: Jika ada orang lewat di samping atau belakang, sistem
+     menghitung jarak ke sumbu tengah dan hanya mengunci 1 mahasiswa yang paling sentral.
+   - Deteksi Jarak Berdiri: Jika rasio tinggi wajah > 30% frame (duduk terlalu dekat kamera),
+     sistem menolak scanning dan memberi status 'too_close' ("Mundur 1.5 - 2 meter").
+
+2. VERIFIKASI BIOMETRIK WAJAH MULTI-FRAME (infer_face_sequence):
+   - Menganalisis sekuens 4–5 frame berturut-turut untuk merata-ratakan probabilitas (Moving Average),
+     mencegah kegagalan pengenalan akibat mahasiswa sedang berkedip (anti-blink) atau bergerak sesaat.
+   - Mencocokkan nama mahasiswa dengan NIM yang sedang login di Kiosk.
+
+3. PEMINDAIAN APD DINAMIS (Dynamic Adaptive ROI & EMA Stabilization):
+   - Kotak bounding box 4 APD bergerak dinamis mengikuti posisi tubuh fisik mahasiswa (fcx, fw, fh).
+   - Pengenalan Pose Duduk (is_half_body): Jeans dan sepatu di bawah meja otomatis diabaikan.
+   - Peningkatan Deteksi Helm Oranye: Filter saturasi warna oranye HSV untuk helm K3 POLMAN.
+   - Stabilisasi EMA: Exponential Moving Average (0.40 * P_baru + 0.60 * P_lama) untuk
+     menghasilkan persentase probabilitas yang mulus tanpa kedip (anti-flicker).
+
+4. KERANGKA KEPUTUSAN TIGA TINGKAT (Three-Tier Decision Framework):
+   - Tingkat 1 (>= 85%): Status "OK / Lengkap" (Hijau) -> Presensi langsung disetujui.
+   - Tingkat 2 (75% - 84%): Status "Verifikasi Admin" (Kuning/Oranye) -> Masuk ke menu
+     Tindak Lanjut Admin untuk dikonfirmasi manual oleh dosen/petugas pos.
+   - Tingkat 3 (< 75%): Status "Kurang / Tidak Terpakai" (Merah) -> Dikenakan sanksi K3 (SP Lisan).
+========================================================================================
+"""
 import base64
 import binascii
 import json
@@ -22,10 +67,13 @@ MODEL_STEMS = {
 }
 APD_ITEMS = ("helm", "baju", "jeans", "sepatu")
 APD_SCAN_FRAME_COUNT = 8
-# Tiga Tingkat Ambang Batas APD:
-# >= 0.85 (85% ke atas): Otomatis Sesuai / OK
-# 0.75 s.d. 0.84 (75% - 84%): Verifikasi Admin / PLP
-# < 0.75 (di bawah 75%): Kurang / Tidak Terpakai
+
+# ======================================================================================
+# TIGA TINGKAT AMBANG BATAS APD (THREE-TIER APD THRESHOLDS):
+# >= 0.85 (85% ke atas): Otomatis Sesuai / OK (Hijau)
+# 0.75 s.d. 0.84 (75% - 84%): Verifikasi Admin / Butuh Tindak Lanjut Dosen (Kuning)
+# < 0.75 (di bawah 75%): Kurang / Tidak Terpakai (Merah)
+# ======================================================================================
 APD_THRESHOLD_VALID = 0.85
 APD_THRESHOLD_VERIFY = 0.75
 APD_THRESHOLD_ON = 0.85
@@ -34,7 +82,7 @@ APD_SCAN_CENTERS = (0.47, 0.50, 0.53)
 FACE_SCAN_FRAME_COUNT = 4
 FACE_CROP_MODES = ("hog", "guide")
 
-# Grid Scanning APD yang terkunci ketat di dalam Siluet Manusia Berdiri (Koridor Tengah)
+# Grid Scanning APD proporsional di dalam siluet manusia berdiri
 APD_SCAN_GRID = {
     "helm": (0.24, ((0.03, 0.22), (0.06, 0.25))),
     "baju": (0.32, ((0.22, 0.50), (0.26, 0.54))),
@@ -121,9 +169,12 @@ def _load_model(item: str) -> LoadedModel:
         if not isinstance(size, list) or len(size) != 2:
             raise ValueError(f"Metadata ukuran input model {item} tidak valid")
 
-        import tensorflow as tf
-
-        interpreter = tf.lite.Interpreter(model_path=str(model_path))
+        try:
+            import tflite_runtime.interpreter as tflite
+            interpreter = tflite.Interpreter(model_path=str(model_path))
+        except ImportError:
+            import tensorflow as tf
+            interpreter = tf.lite.Interpreter(model_path=str(model_path))
         interpreter.allocate_tensors()
         input_detail = interpreter.get_input_details()[0]
         output_detail = interpreter.get_output_details()[0]
@@ -149,6 +200,14 @@ def _load_model(item: str) -> LoadedModel:
 
 
 def _predict(item: str, crop_bgr: np.ndarray) -> np.ndarray:
+    """
+    Eksekusi Inferensi Model TensorFlow Lite Ringan:
+    1. Membaca model TFLite dari in-memory cache.
+    2. Konversi citra BGR (OpenCV) -> RGB.
+    3. Resize ke dimensi target model (96x96 atau 128x128).
+    4. Set input tensor float32 dan jalankan interpreter.invoke().
+    5. Kembalikan array probabilitas output.
+    """
     model = _load_model(item)
     if crop_bgr.size == 0:
         raise ValueError(f"Area gambar untuk {item} kosong")
@@ -167,12 +226,30 @@ def _predict(item: str, crop_bgr: np.ndarray) -> np.ndarray:
 
 @lru_cache(maxsize=1)
 def _face_detector() -> Any:
-    import dlib
-
-    return dlib.get_frontal_face_detector()
+    """Singleton cache detektor wajah dlib HOG frontal (dengan safe fallback jika dlib belum terpasang)."""
+    try:
+        import dlib
+        return dlib.get_frontal_face_detector()
+    except (ImportError, Exception):
+        return None
 
 
 def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | None, list[int] | None, int, str]:
+    """
+    Deteksi Wajah & Validasi Ketat Koridor Siluet Berdiri (Strict Guide Zone):
+    
+    Aturan Validasi:
+    1. Mahasiswa WAJIB berdiri di dalam koridor siluet tengah:
+       - Sumbu X: GUIDE_FACE_MIN_X (0.30) s.d. GUIDE_FACE_MAX_X (0.70)
+       - Sumbu Y: GUIDE_FACE_MIN_Y (0.04) s.d. GUIDE_FACE_MAX_Y (0.42)
+    2. Anti-Distraksi Multi-Person:
+       - Siapapun di luar siluet panduan (orang lewat di samping/belakang) OTOMATIS DIABAIKAN.
+       - Sistem menghitung kedekatan terhadap sumbu tengah (fcx = 0.50) dan hanya memilih
+         1 orang paling utama yang presisi di dalam siluet overlay Kiosk.
+    3. Anti-Duduk / Validasi Jarak Berdiri:
+       - Jika mahasiswa duduk terlalu dekat dengan webcam, rasio tinggi wajah > 30% frame.
+       - Sistem menolak scanning dan mengembalikan reason='too_close'.
+    """
     height, width = frame.shape[:2]
     if crop_mode == "guide":
         side = int(min(height, width) * 0.35)
@@ -186,6 +263,11 @@ def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | 
     if crop_mode != "hog":
         raise ValueError(f"Mode crop wajah tidak dikenal: {crop_mode}")
 
+    detector = _face_detector()
+    if detector is None:
+        # Fallback aman ke mode guide siluet jika dlib belum terpasang di host cloud
+        return _face_crop_and_box(frame, "guide")
+
     scale = 0.5 if width > 640 else 1.0
     detection_frame = (
         cv2.resize(frame, (int(width * scale), int(height * scale)))
@@ -193,29 +275,25 @@ def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | 
         else frame
     )
     rgb = cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB)
-    faces = _face_detector()(rgb, 0)
+    faces = detector(rgb, 0)
     if not faces and scale < 1.0:
         detection_frame = frame
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        faces = _face_detector()(rgb, 0)
+        faces = detector(rgb, 0)
         scale = 1.0
     if not faces:
-        faces = _face_detector()(rgb, 1)
+        faces = detector(rgb, 1)
     if not faces:
         return None, None, 0, "none"
 
     face_count = len(faces)
 
-    # VALIDASI KETAT SILUET MANUSIA BERDIRI:
-    # 1. Wajah di luar garis siluet kepala TIDAK BOLEH dideteksi sama sekali
-    # 2. Pengguna yang terlalu dekat (duduk dekat webcam) tidak boleh dideteksi
-    # 3. Pembatasan multi-person: tidak boleh lebih dari 1 orang di area presensi
     valid_candidates = []
     too_close_count = 0
     outside_count = 0
 
     for rect in faces:
-        # Konversi langsung koordinat bounding box ke resolusi asli frame penuh
+        # Konversi koordinat bounding box ke resolusi asli frame penuh
         x0 = int(rect.left() / scale)
         y0 = int(rect.top() / scale)
         x1 = int(rect.right() / scale)
@@ -230,6 +308,7 @@ def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | 
         in_y = (GUIDE_FACE_MIN_Y <= fcy <= GUIDE_FACE_MAX_Y)
         not_too_huge = (fnh <= GUIDE_FACE_MAX_HEIGHT_RATIO)
 
+        # Hanya wajah yang masuk koridor tengah dan tidak terlalu dekat yang dianggap valid
         if in_x and in_y and not_too_huge:
             center_dist = abs(fcx - 0.50)
             score = area / (1.0 + 4.0 * (center_dist ** 1.3))
@@ -246,8 +325,7 @@ def _face_crop_and_box(frame: np.ndarray, crop_mode: str) -> tuple[np.ndarray | 
             return None, None, face_count, "too_close"
         return None, None, face_count, "outside"
 
-    # PILIH HANYA 1 ORANG YANG PALING UTAMA DI DALAM GARIS SILUET!
-    # Siapapun di luar garis siluet (misal orang di samping/belakang) OTOMATIS DIABAIKAN.
+    # Pilih hanya 1 orang yang paling sentral di dalam garis siluet!
     x0, y0, x1, y1 = max(valid_candidates, key=lambda item: item[1])[0]
 
     face_width = x1 - x0
@@ -456,6 +534,25 @@ def infer_single_frame_apd(
     face_box: list[int] | None = None,
     face_detected_inside: bool = False,
 ) -> dict[str, dict[str, Any]]:
+    """
+    Pemindaian APD Real-Time Per Frame (Single-Frame Live Stream Inference):
+    
+    Fitur Utama:
+    1. Penguncian Siluet: Jika tidak ada wajah valid di dalam koridor siluet,
+       seluruh deteksi APD dinonaktifkan (probabilitas 0.0) agar tidak mendeteksi benda sekitar.
+    2. Dynamic Body-Tracking ROI: Kotak crop helm, kemeja, jeans, dan sepatu bergerak adaptif
+       mengikuti pergeseran titik pusat wajah (fcx) dan ukuran tubuh (fw, fh).
+    3. Pengenalan Pose Duduk (is_half_body):
+       - Jika mahasiswa duduk di depan webcam, jeans dan sepatu di bawah meja otomatis diabaikan.
+    4. Peningkatan Deteksi Helm Oranye: Filter HSV rentang warna oranye keselamatan K3.
+    5. Stabilisasi Probabilitas EMA:
+       new_ema = 0.40 * best_p + 0.60 * old_ema
+       Menghilangkan efek kedipan angka (anti-flicker) pada layar Kiosk.
+    6. Evaluasi Tiga Tingkat Keputusan:
+       - new_ema >= 0.85 -> OK (Hijau)
+       - 0.75 <= new_ema < 0.85 -> Verifikasi Admin (Kuning / Tindak Lanjut Dosen)
+       - new_ema < 0.75 -> Kurang (Merah / Pelanggaran K3)
+    """
     if required_items is None:
         required_items = set(APD_ITEMS)
 

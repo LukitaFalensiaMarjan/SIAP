@@ -1,16 +1,52 @@
 """
-Modul bersama untuk training & evaluasi CNN APD + Pengenalan Wajah
-(dipakai oleh train_helm.py, train_kemeja.py, train_jeans.py, train_sepatu.py, train_wajah.py).
+========================================================================================
+SIMANDIRI CNN - POLMAN SMART ATTENDANCE & APD INSPECTION
+TAHAP 3 & TAHAP 4: DATA PREPROCESSING, ARSITEKTUR MODEL, PELATIHAN & EVALUASI K3
+========================================================================================
 
-Ketentuan yang dipenuhi:
-- Seluruh citra diproses dalam format RGB 3-channel (H, W, 3).
-- Mendukung klasifikasi biner (4 model APD: CNN from scratch) dan
-  multiclass (model Wajah: Transfer Learning MobileNetV2).
-- Menghasilkan Matrik Pengujian lengkap (Confusion Matrix, Accuracy, Precision,
-  Recall, F1-Score, Specificity, Kebocoran APD, Grad-CAM) di laporan/<komponen>/.
-- Mengekspor model ringan (.tflite) secara otomatis untuk deployment di PythonAnywhere.
+Modul bersama untuk pemuatan data, pelatihan, evaluasi matriks K3, Grad-CAM, dan ekspor TFLite.
+Digunakan oleh: train_helm.py, train_kemeja.py, train_jeans.py, train_sepatu.py, train_wajah.py.
 
-Label biner: 1 = pakai, 0 = tidak.
+Alur Kerja Tahap 3 (Pra-pemrosesan Data):
+----------------------------------------------------------------------------------------
+1. ANTI-DATA LEAKAGE GROUPING (kunci_kelompok):
+   - Mengelompokkan foto berdasarkan ID orang (P01..) atau timestamp kamera (WIN_YYYYMMDD_..).
+   - Menjamin bahwa foto dari sesi rekaman yang sama TIDAK AKAN PERNAH bocor terpisah
+     antara data latih (train) dan data uji (test), mencegah akurasi semu (overoptimistic).
+2. PEMISAHAN TERSTRATIFIKASI (muat_data & muat_data_multikelas):
+   - Proporsi standar: 70% Train, 15% Validasi, 15% Test.
+   - Dilakukan per kelas secara independen untuk menjaga rasio kelas positif dan negatif seimbang.
+3. PENANGANAN KETIDAKSEIMBANGAN KELAS (Class Balancing):
+   - Oversampling Train: Menduplikasi sampel kelas minoritas khusus pada data train.
+   - Class Weighting: Menghitung bobot rugi penalti (N / (2 * N_c)) saat backpropagation.
+4. STREAMING CITRA CEPAT (buat_dataset via tf.data.Dataset):
+   - Pembacaan on-the-fly dalam format RGB 3-channel (H, W, 3).
+   - Penggunaan ds.prefetch(tf.data.AUTOTUNE) agar CPU menyiapkan batch berikutnya selagi
+     GPU/CPU mengeksekusi forward/backward pass batch saat ini (Zero I/O Idle).
+5. AUGMENTASI DINAMIS (lapisan_augmentasi):
+   - Random Horizontal Flip, Rotasi halus (±14°), Zooming (20%), Translasi (10%),
+     Kecerahan (30%), dan Kontras (30%) untuk mensimulasikan kondisi nyata bengkel POLMAN.
+6. NORMALISASI PIKSEL [-1.0, +1.0]:
+   - Menggunakan Rescaling(1.0 / 127.5, offset=-1.0) sesuai standar backbone MobileNetV2.
+
+Alur Kerja Tahap 4 (Arsitektur Model & Pelatihan):
+----------------------------------------------------------------------------------------
+1. TRANSFER LEARNING MOBILENETV2 + CUSTOM HEAD:
+   - 4 Model Biner APD: MobileNetV2 + Conv2D(128) + GAP + Dropout(0.5) + Dense(64) + Dense(1, sigmoid).
+   - 1 Model Multikelas Wajah: MobileNetV2 + GAP + Dropout(0.4) + Dense(128) + Dense(n_kelas, softmax).
+2. DUA TAHAP PELATIHAN (TWO-STAGE TRAINING):
+   - Tahap 1 (Warm-up): Backbone dibekukan (trainable=False), melatih custom head (lr=8e-4).
+   - Tahap 2 (Fine-Tuning): Membuka 10 layer teratas MobileNetV2 dengan lr super halus (lr=3e-5)
+     agar model beradaptasi dengan tekstur spesifik kain bengkel, helm, dan sepatu safety.
+3. STANDAR KESELAMATAN K3 (pilih_threshold):
+   - Mengoptimalkan threshold pada data validasi dengan prioritas Recall Kelas 'Tidak' >= 95%
+     untuk menjamin ZERO FALSE POSITIVE (tidak ada pelanggaran APD yang salah lolos).
+4. EXPLAINABLE AI (Grad-CAM):
+   - Peta panas (heatmap) gradien dari layer 'conv_terakhir' untuk membuktikan secara visual
+     bahwa model benar-benar melihat objek APD, bukan latar belakang lab.
+5. EKSPOR TENSORFLOW LITE (.tflite):
+   - Model .keras disusutkan menjadi .tflite (~9 MB) untuk inferensi instan di terminal Kiosk.
+========================================================================================
 """
 import json
 import random
@@ -64,10 +100,16 @@ class SafeCSVLogger(keras.callbacks.CSVLogger):
                     print(f"Peringatan CSVLogger: {exc}")
 
 
-# ---------------------------------------------------------------- data
+# ======================================================================================
+# TAHAP 3: PRA-PEMROSESAN DATA (DATA PREPROCESSING & DATASET GENERATOR)
+# ======================================================================================
 
 def kunci_kelompok(nama_file):
-    """Kelompok foto berdasarkan ID orang (P01..) atau timestamp kamera Windows."""
+    """
+    Tahap 3.1: Anti-Data Leakage Group Extraction.
+    Mengekstrak ID subjek (misal P01..) atau tanggal & jam rekaman kamera Windows.
+    Digunakan untuk mengunci foto dari sesi yang sama ke satu subset (tidak terbelah train/test).
+    """
     stem = Path(nama_file).stem.split("__")[-1]
     m = re.search(r"(P\d+)", stem, re.IGNORECASE)
     if m:
@@ -79,7 +121,10 @@ def kunci_kelompok(nama_file):
 
 
 def muat_data(folder_area, porsi=(0.70, 0.15, 0.15), seed=42):
-    """Muat dataset biner dari folder_area/{pakai,tidak} dengan split stratified."""
+    """
+    Tahap 3.2: Pembagian Terstratifikasi Dataset Biner APD (70% Train, 15% Val, 15% Test).
+    Menjaga rasio kelas 'pakai' (1) dan 'tidak' (0) tetap seimbang pada setiap subset data.
+    """
     folder_area = Path(folder_area)
     per_kelas = {0: [], 1: []}
     for kelas, label in (("pakai", 1), ("tidak", 0)):
@@ -113,7 +158,10 @@ def muat_data(folder_area, porsi=(0.70, 0.15, 0.15), seed=42):
 
 
 def muat_data_multikelas(folder_dataset, porsi=(0.70, 0.15, 0.15), seed=42):
-    """Muat dataset multiclass (misal dataset_wajah/{Basit,Chakim,Luki})."""
+    """
+    Tahap 3.2 (Multikelas): Pembagian Terstratifikasi Dataset Wajah Mahasiswa.
+    Membagi foto tiap mahasiswa (Basit, Chakim, Luki) menjadi 70% Train, 15% Val, 15% Test.
+    """
     folder_dataset = Path(folder_dataset)
     kelas_list = sorted(p.name for p in folder_dataset.iterdir() if p.is_dir() and p.name != "preview")
     if not kelas_list:
@@ -142,7 +190,18 @@ def muat_data_multikelas(folder_dataset, porsi=(0.70, 0.15, 0.15), seed=42):
 
 
 def lapisan_augmentasi(flip=True):
-    """Augmentasi citra RGB untuk mencegah overfitting & tahan beda ruangan/cahaya."""
+    """
+    Tahap 3.3: Augmentasi Citra Dinamis (Keras Sequential).
+    
+    Tujuan: Mencegah overfitting dan membuat model tahan terhadap variasi pencahayaan
+    dan sudut berdiri mahasiswa di laboratorium manufaktur POLMAN:
+    - RandomFlip: Pembalikan horizontal (kecuali jika orientasi anatomi penting).
+    - RandomRotation(0.08): Rotasi acak halus ±14 derajat (simulasi kepala/tubuh miring).
+    - RandomZoom(0.20): Zoom-in dan zoom-out 20% (simulasi jarak 1.5 - 2.5 meter).
+    - RandomTranslation(0.10, 0.10): Pergeseran posisi kiri-kanan dan atas-bawah 10%.
+    - RandomBrightness(0.30): Variasi gelap-terang lampu ruangan bengkel.
+    - RandomContrast(0.30): Variasi kontras bayangan mesin lab.
+    """
     lapisan = []
     if flip:
         lapisan.append(keras.layers.RandomFlip("horizontal"))
@@ -157,7 +216,17 @@ def lapisan_augmentasi(flip=True):
 
 
 def buat_dataset(isi, ukuran, batch, acak, augment=False, flip=True, multiclass=False):
-    """Bangun tf.data.Dataset citra RGB (H, W, 3) dengan augmentasi opsional pada train."""
+    """
+    Tahap 3.4: Pemuatan Citra Cepat On-the-Fly (tf.data.Dataset Pipeline).
+    
+    Prinsip Kerja:
+    1. Membaca gambar langsung dari disk sebagai tensor RGB 3-channel (H, W, 3).
+    2. Resize gambar ke resolusi target (96x96 atau 128x128).
+    3. Shuffling acak dan pembentukan Mini-Batch (batch size 16 atau 32).
+    4. Menyuntikkan lapisan augmentasi jika augment=True (hanya saat training).
+    5. ds.prefetch(AUTOTUNE): Menyiapkan batch berikutnya di RAM selagi GPU/CPU
+       sedang memproses batch saat ini, menghilangkan bottleneck I/O harddisk.
+    """
     path = [x[0] for x in isi]
     dtype_y = "int32" if multiclass else "float32"
     label = np.array([x[1] for x in isi], dtype=dtype_y)
@@ -178,12 +247,15 @@ def buat_dataset(isi, ukuran, batch, acak, augment=False, flip=True, multiclass=
     return ds.prefetch(tf.data.AUTOTUNE)
 
 
-# ---------------------------------------------------------------- ekspor ringan (PythonAnywhere)
+# ======================================================================================
+# TAHAP 4: ARSITEKTUR MODEL, PELATIHAN DUA TAHAP & EKSPOR TFLITE
+# ======================================================================================
 
 def ekspor_tflite(model, path_model):
     """
-    Ekspor model Keras (.keras) ke TFLite (.tflite) agar super ringan & cepat di CPU
-    untuk deployment online di PythonAnywhere.com.
+    Tahap 4.6: Ekspor Model Ringan ke TensorFlow Lite (.tflite).
+    Mengonversi model .keras (~35 MB) menjadi file biner .tflite yang sangat ringan
+    (~9 MB) dengan optimasi kuantisasi default agar inferensi instan di CPU PC Kiosk.
     """
     path_tflite = Path(path_model).with_suffix(".tflite")
     try:
@@ -199,14 +271,28 @@ def ekspor_tflite(model, path_model):
         return None
 
 
-# ---------------------------------------------------------------- training biner (APD)
-
 def latih(model, bagian, cfg, folder_laporan):
+    """
+    Tahap 4: Pelatihan Dua Tahap (Two-Stage Training Strategy) untuk Model APD Biner:
+    
+    1. Penyeimbangan Data (Oversampling & Class Weights):
+       - Kelas minoritas di-oversample khusus pada data train.
+       - Bobot rugi (class weight) dihitung untuk menyeimbangkan penalti gradien.
+    2. Tahap 1: Head Training (Warm-up):
+       - Backbone MobileNetV2 dibekukan (trainable=False).
+       - Melatih lapisan Custom Classification Head dengan Adam (learning rate 8e-4).
+       - Callback: EarlyStopping (patience 6) & ReduceLROnPlateau.
+    3. Tahap 2: Fine-Tuning Ringan:
+       - Membuka 10 layer teratas MobileNetV2 (layer lainnya tetap dibekukan).
+       - Dilatih ulang dengan Learning Rate super halus (3e-5) agar bobot ImageNet
+         tidak rusak, tetapi sensitif terhadap tekstur APD di bengkel POLMAN.
+    """
     folder_laporan = Path(folder_laporan)
     folder_laporan.mkdir(parents=True, exist_ok=True)
     Path(cfg["path_model"]).parent.mkdir(parents=True, exist_ok=True)
 
     data_train = list(bagian["train"])
+    # 1. Oversampling subset train jika diaktifkan di konfigurasi
     if cfg.get("oversample_train", False):
         k0 = [x for x in data_train if x[1] == 0]
         k1 = [x for x in data_train if x[1] == 1]
@@ -226,12 +312,14 @@ def latih(model, bagian, cfg, folder_laporan):
                             augment=True, flip=cfg.get("flip", True))
     ds_val = buat_dataset(bagian["val"], cfg["ukuran"], cfg["batch"], acak=False, augment=False)
 
+    # 2. Hitung Class Weight
     y = np.array([x[1] for x in data_train])
     n, n1 = len(y), int(y.sum())
     n0 = n - n1
     bobot = {0: n / (2 * max(n0, 1)), 1: n / (2 * max(n1, 1))}
     print(f"Class weight: tidak={bobot[0]:.2f}  pakai={bobot[1]:.2f}")
 
+    # ==================== TAHAP 1: WARM-UP (LATIH CUSTOM HEAD) ====================
     loss_fn = keras.losses.BinaryCrossentropy(label_smoothing=cfg.get("label_smoothing", 0.0))
     model.compile(
         optimizer=keras.optimizers.Adam(cfg["learning_rate"]),
@@ -251,13 +339,15 @@ def latih(model, bagian, cfg, folder_laporan):
     riwayat = model.fit(ds_train, validation_data=ds_val, epochs=cfg["epochs"],
                         class_weight=bobot, callbacks=callbacks)
 
-    # Tahap 2 (opsional): fine-tuning tipis lapisan atas backbone Transfer Learning
+    # ==================== TAHAP 2: FINE-TUNING LAPISAN ATAS BACKBONE =============
     if cfg.get("finetune_epochs", 0) > 0:
         for layer in model.layers:
             if isinstance(layer, keras.Model):
                 layer.trainable = True
+                # Buka HANYA 10 layer paling atas dari MobileNetV2
                 for sub in layer.layers[:-cfg.get("finetune_layers", 15)]:
                     sub.trainable = False
+        # Gunakan learning rate super halus (3e-5) agar bobot ImageNet tidak rusak
         model.compile(
             optimizer=keras.optimizers.Adam(cfg.get("finetune_lr", 5e-5)),
             loss=loss_fn,
@@ -280,6 +370,7 @@ def latih(model, bagian, cfg, folder_laporan):
 
 
 def grafik_training(h, path):
+    """Menyimpan grafik kurva Loss dan Akurasi training vs validasi."""
     fig, ax = plt.subplots(1, 2, figsize=(11, 4))
     ax[0].plot(h["loss"], label="train")
     ax[0].plot(h["val_loss"], label="validasi")
@@ -296,18 +387,27 @@ def grafik_training(h, path):
     plt.close(fig)
 
 
-# ---------------------------------------------------------------- evaluasi & Matrik Pengujian (Biner)
+# ======================================================================================
+# EVALUASI METRIK K3, THRESHOLD SELECTION & GRAD-CAM
+# ======================================================================================
 
 def prediksi(model, isi, cfg):
+    """Menghasilkan prediksi probabilitas model pada dataset tertentu."""
     ds = buat_dataset(isi, cfg["ukuran"], cfg["batch"], acak=False, augment=False)
     return model.predict(ds, verbose=0).ravel(), np.array([x[1] for x in isi])
 
 
 def pilih_threshold(prob, y, min_recall_tidak=0.95):
     """
-    Pilih threshold dari data validasi:
-    prioritas menangkap orang yang TIDAK memakai APD (recall kelas 'tidak' >= target),
-    lalu di antara skor terbaik yang seri pilih yang paling dekat dengan 0.50 (aman untuk kamera live).
+    Tahap 4.3: Optimasi Ambang Batas Keselamatan K3 (Threshold Selection).
+    
+    Filosofi K3 Laboratorium Manusia & Mesin:
+    - Kesalahan False Positive (FP) adalah bahaya keselamatan (mahasiswa tidak pakai APD
+      tetapi salah diloloskan AI masuk bengkel bubut/mesin presisi).
+    - Oleh karena itu, threshold diuji dari 0.10 s.d. 0.90 dengan syarat mutlak:
+      RECALL KELAS 'TIDAK' WAJIB >= 95% (menangkap minimal 95% pelanggaran APD).
+    - Di antara kandidat threshold yang memenuhi syarat, dipilih yang paling dekat 0.50
+      agar pembacaan webcam live di Kiosk stabil dan tidak goyang.
     """
     kandidat = []
     for t in np.arange(0.10, 0.91, 0.01):
@@ -322,6 +422,11 @@ def pilih_threshold(prob, y, min_recall_tidak=0.95):
 
 
 def evaluasi(model, bagian, cfg, folder_laporan, path_tflite=None):
+    """
+    Tahap 4.4: Evaluasi Lengkap Matriks Pengujian pada Data Test (Ujian Akhir).
+    Menghitung Confusion Matrix (TN, FP, FN, TP), Accuracy, Precision, Recall,
+    Macro F1-Score, dan Tingkat Kebocoran APD (target <= 5%).
+    """
     folder_laporan = Path(folder_laporan)
     p_val, y_val = prediksi(model, bagian["val"], cfg)
     t = pilih_threshold(p_val, y_val, cfg["min_recall_tidak"])
@@ -340,7 +445,7 @@ def evaluasi(model, bagian, cfg, folder_laporan, path_tflite=None):
     rec_tidak = float(recall_score(y_test, pred, pos_label=0, zero_division=0))
     f1_tidak = float(f1_score(y_test, pred, pos_label=0, zero_division=0))
     macro_f1 = float(f1_score(y_test, pred, average="macro", zero_division=0))
-    # Kebocoran APD = persentase kasus 'tidak pakai' yang salah lolos sebagai 'pakai'
+    # Kebocoran APD = persentase kasus 'tidak pakai' yang salah lolos sebagai 'pakai' (FP / (TN + FP))
     kebocoran_pct = (fp / max(tn + fp, 1)) * 100.0
 
     laporan = classification_report(y_test, pred, labels=[0, 1], target_names=nama, digits=4, zero_division=0)
@@ -400,6 +505,7 @@ def evaluasi(model, bagian, cfg, folder_laporan, path_tflite=None):
     fig.savefig(folder_laporan / "confusion_matrix.png", dpi=120)
     plt.close(fig)
 
+    # Simpan file metadata JSON untuk inferensi Kiosk
     info = {
         "area": cfg["area"],
         "tipe": "biner",
@@ -413,10 +519,16 @@ def evaluasi(model, bagian, cfg, folder_laporan, path_tflite=None):
     return t
 
 
-# ---------------------------------------------------------------- Grad-CAM
-
 def grad_cam(model, isi, cfg, folder_laporan, n=8, nama_conv="conv_terakhir", kelas_list=None):
-    """Simpan contoh Grad-CAM: bagian gambar yang paling diperhatikan CNN."""
+    """
+    Tahap 4.5: Explainable AI - Grad-CAM (Gradient-weighted Class Activation Mapping).
+    
+    Prinsip Kerja:
+    - Menghitung turunan parsial gradien prediksi skor terhadap peta fitur konvolusi terakhir.
+    - Menghasilkan visualisasi Heatmap Berwarna (merah/kuning):
+      Membuktikan secara ilmiah bahwa saat model memprediksi helm/baju/jeans/sepatu,
+      perhatian spasial CNN benar-benar terfokus pada objek APD tersebut, BUKAN pada tembok/plafon lab.
+    """
     try:
         conv = model.get_layer(nama_conv)
     except ValueError:

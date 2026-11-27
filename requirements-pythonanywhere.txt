@@ -1,0 +1,10 @@
+# Requirements ringan khusus deployment di PythonAnywhere
+# (Bebas error libGL dan hemat kuota disk < 100 MB)
+Flask
+Werkzeug
+numpy
+Pillow
+pandas
+openpyxl
+opencv-python-headless
+tflite-runtime
